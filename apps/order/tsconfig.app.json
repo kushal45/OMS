@@ -1,9 +1,10 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "declaration": false,
-    "outDir": "../../dist/apps/order"
+    "outDir": "../../dist/apps/order",
+    "module": "commonjs",
+    "types": ["node"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
+  "exclude": ["test", "**/*.spec.ts"],
+  "include": ["**/*.ts"]
 }
