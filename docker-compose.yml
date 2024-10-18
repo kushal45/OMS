@@ -16,6 +16,8 @@ services:
     command: npm run  start:debug  --project auth
     networks:
       - oms
+    volumes:
+      - ./:/app
 
   order:
     build:
@@ -34,6 +36,8 @@ services:
     command: npm run  start:debug  --project order
     networks:
       - oms
+    volumes:
+      - ./:/app
 
   postgres:
     image: postgres:14-alpine

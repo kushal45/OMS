@@ -1,22 +1,27 @@
+import { Customer } from '@app/auth/src/entity/customer.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import {
   TypeOrmModuleAsyncOptions,
   TypeOrmModuleOptions,
 } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+
 
 export const typeOrmAsyncConfig: TypeOrmModuleAsyncOptions = {
   imports: [ConfigModule],
   inject: [ConfigService],
-  useFactory: async (): Promise<TypeOrmModuleOptions> => {
+  useFactory: async (configService: ConfigService): Promise<TypeOrmModuleOptions> => {
+    console.log("DB_USERNAME",configService.get<string>('DB_USERNAME'));
+    console.log("DB_HOST",configService.get<string>('DB_HOST'));
+    console.log("DB_PORT",configService.get<string>('DB_PORT'));
+    console.log("DB_USERNAME",configService.get<string>('DB_USERNAME'));
     return {
       type: 'postgres',
-      host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT, 10),
-      username: process.env.DB_USERNAME,
-      database: process.env.DB_NAME,
-      password: process.env.DB_PASSWORD,
-      entities: [__dirname + '/../**/*.entity.{js,ts}'],
+      host: configService.get<string>('DB_HOST'),
+      port: configService.get<number>('DB_PORT'),
+      username: configService.get<string>('DB_USERNAME'),
+      password: configService.get<string>('DB_PASSWORD'),
+      database: configService.get<string>('DB_NAME'),
+      entities: [Customer],
       migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
       extra: {
         charset: 'utf8mb4_unicode_ci',
