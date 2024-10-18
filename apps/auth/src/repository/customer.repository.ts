@@ -15,10 +15,6 @@ export class CustomerRepository {
     return await this.custRepo.save(user);
   }
 
-  async findById(id: number): Promise<Customer | null> {
-    return await this.custRepo.findOne({ where: { id } });
-  }
-
   async findByEmail(email: string): Promise<Customer | null> {
     return await this.custRepo.findOne({ where: { email } });
   }
