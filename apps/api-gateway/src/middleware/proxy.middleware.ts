@@ -1,11 +1,21 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import { JwtAuthGuard } from '../guard/jwt.auth.guard';
+import { Reflector } from '@nestjs/core';
+import { HttpService } from '@nestjs/axios';
 
 @Injectable()
 export class ProxyMiddleware implements NestMiddleware {
+
+  constructor(
+    private readonly jwtAuthGuard: JwtAuthGuard,
+    private reflector: Reflector,
+    private httpService: HttpService,
+  ) {}
   private AUTH_SERVICE_URL = 'http://auth:3001';
   private ORDER_SERVICE_URL = 'http://order:3002';
-  use(req: any, res: any, next: () => void) {
+  async use(req: any, res: any, next: () => void) {
+    
     console.log("Initial request fetched in proxy middleware  baseUrl-->", req.baseUrl, "path-->", req.url);
     const target = this.determineTarget(req);
     console.log('[ProxyMiddleware] Proxying request to:', target ? 'Auth Service' : 'Order Service');
@@ -21,7 +31,18 @@ export class ProxyMiddleware implements NestMiddleware {
       changeOrigin: true,
       pathRewrite: (path, req) => path.replace(req.url, pathReq), // Remove baseUrl from path
       on: {
-        proxyReq: (proxyReq, req, res) => {
+        proxyReq: async (proxyReq, req, res) => {
+          const canActivate = await this.jwtAuthGuard.canActivate({
+            switchToHttp: () => ({
+              getRequest: () => req,
+            }),
+          } as any);
+      
+          if (!canActivate) {
+            console.error('[ProxyMiddleware] Unauthorized request:', req.url);
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Unauthorized Token' }));
+          }
           console.log('[ProxyMiddleware] Proxy request headers:', proxyReq.getHeaders());
           console.log('[ProxyMiddleware] Proxy request path:', req.url);
           console.log('[ProxyMiddleware] Proxy request method:', req.method);
@@ -35,8 +56,8 @@ export class ProxyMiddleware implements NestMiddleware {
         },
       },
     });
-
     proxy(req, res, next);
+    
   }
 
   private determineTarget(req: any): string {

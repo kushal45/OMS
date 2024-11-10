@@ -3,10 +3,10 @@ import { ApiGatewayService } from './api-gateway.service';
 
 @Controller()
 export class ApiGatewayController {
-  constructor(private readonly apiGatewayService: ApiGatewayService) {}
+  constructor() {}
 
   @Get()
-  getHello(): string {
-    return this.apiGatewayService.getHello();
+  getHello(): void {
+   // return this.apiGatewayService.getHello();
   }
 }
