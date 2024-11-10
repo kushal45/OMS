@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Put, UseGuards, Request,Req, Res, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Put, UseGuards, Request,Req, Res, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { LoginCustomerDto } from './dto/login-customer.dto';
@@ -81,6 +81,16 @@ export class AuthController {
       statusCode:HttpStatus.OK
     })
   }
+
+  @Post('validate-token')
+  async validateToken(@Body('token') token: string) {
+    const payload = await this.authService.validateToken(token);
+    if (!payload) {
+      throw new UnauthorizedException('Invalid token');
+    }
+    return payload; // Return payload data if token is valid
+  }
+
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)

@@ -37,7 +37,7 @@ export class AuthService {
 
     const payload = { email: customer.email, sub: customer.id };
     return {
-      access_token: this.jwtService.sign(payload),
+      accessToken: this.jwtService.sign(payload),
     };
   }
 
@@ -53,5 +53,9 @@ export class AuthService {
 
   isTokenBlacklisted(token: string): boolean {
     return this.tokenBlacklist.has(token);
+  }
+
+  validateToken(token: string): boolean {
+    return this.jwtService.verify(token).sub;
   }
 }

@@ -1,9 +1,21 @@
 services:
-  auth:
+  gateway:
     build:
       context: .
     ports:
       - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    command: npm run  start:debug  --project api-gateway
+    networks:
+      - oms
+    volumes:
+      - ./:/app
+  auth:
+    build:
+      context: .
+    ports:
+      - "3001:3001"
     environment:
       - NODE_ENV=development
       - DATABASE_HOST=postgres
@@ -23,7 +35,7 @@ services:
     build:
       context: .
     ports:
-      - "3001:3001"
+      - "3002:3002"
     environment:
       - NODE_ENV=development
       - DATABASE_HOST=postgres
