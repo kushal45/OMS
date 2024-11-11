@@ -20,6 +20,7 @@ export class CustomerRepository {
   }
 
   update(id: number, updateData: Partial<Customer>) {
+    console.log('updateData', updateData,"id",id);
     return this.custRepo.update(id, updateData);
   }
 

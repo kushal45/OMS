@@ -5,13 +5,17 @@ import { Reflector } from '@nestjs/core';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+  private VALIDATE_SERVICE_URL = 'http://auth:3001/auth/validate-token';
   constructor(
     private httpService: HttpService,
-  ) {}
+  ) {
+    
+  }
    // Define a list of public (blacklisted) routes
    private readonly publicRoutes: Array<{ method: string; path: string }> = [
     { method: 'POST', path: '/auth/login' },
     { method: 'POST', path: '/auth/register' },
+    { method: 'POST', path: '/auth/validate-token' },
   ];
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -32,17 +36,25 @@ export class JwtAuthGuard implements CanActivate {
     
 
     try {
-
+      console.log("Token is:: ->",token);
       if (!token) {
         throw new UnauthorizedException('Token not found');
       }
-      // Send token to Auth Service for validation
+
+      try {
+          // Send token to Auth Service for validation
       const response = await firstValueFrom(
-        this.httpService.post('http://auth/auth/validate-token', { token })
+        this.httpService.post(this.VALIDATE_SERVICE_URL, { token })
       );
 
-      // Attach user data to the request object if the token is valid
+      console.log("Response from validate service is:: ->",response.data);
       request.user = response.data;
+      console.log("request user is:: ->",request.user);
+      } catch (error) {
+        console.log("Error is:: ->",error);
+        return false;
+      }
+    
       return true;
     } catch (error) {
       //throw new UnauthorizedException('Invalid token');

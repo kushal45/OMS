@@ -3,6 +3,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import { JwtAuthGuard } from '../guard/jwt.auth.guard';
 import { Reflector } from '@nestjs/core';
 import { HttpService } from '@nestjs/axios';
+import { console } from 'inspector';
 
 @Injectable()
 export class ProxyMiddleware implements NestMiddleware {
@@ -40,12 +41,13 @@ export class ProxyMiddleware implements NestMiddleware {
       
           if (!canActivate) {
             console.error('[ProxyMiddleware] Unauthorized request:', req.url);
-            res.writeHead(401, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ message: 'Unauthorized Token' }));
+            //res.writeHead(401, { 'Content-Type': 'application/json' });
+            //res.end(JSON.stringify({ message: 'Unauthorized Token' }));
           }
           console.log('[ProxyMiddleware] Proxy request headers:', proxyReq.getHeaders());
           console.log('[ProxyMiddleware] Proxy request path:', req.url);
           console.log('[ProxyMiddleware] Proxy request method:', req.method);
+          console.log("request body",req);
         },
         proxyRes: (proxyRes, req, res) => {
           console.log('[ProxyMiddleware] Proxy response status:', proxyRes.statusCode);

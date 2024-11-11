@@ -5,6 +5,7 @@ import { Customer } from './entity/customer.entity';
 import { JwtService } from '@nestjs/jwt';
 import { LoginCustomerDto } from './dto/login-customer.dto';
 import * as bcrypt from 'bcryptjs';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 @Injectable()
 export class AuthService {
@@ -35,14 +36,14 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const payload = { email: customer.email, sub: customer.id };
+    const payload = { email: customer.email, sub: customer.id ,name:customer.name};
     return {
       accessToken: this.jwtService.sign(payload),
     };
   }
 
   // Update customer info
-  async update(id: number, updateData: Partial<RegisterCustomerDto>) {
+  async update(id: number, updateData: Partial<UpdateCustomerDto>) {
     return this.custRepository.update(id, updateData);
   }
 
@@ -55,7 +56,11 @@ export class AuthService {
     return this.tokenBlacklist.has(token);
   }
 
-  validateToken(token: string): boolean {
-    return this.jwtService.verify(token).sub;
+  validateToken(token: string): unknown  {
+    const payload= this.jwtService.verify(token,{
+      secret:process.env.JWT_SECRET
+    });
+    //console.log("Payload is:: ->",payload);
+    return payload;
   }
 }

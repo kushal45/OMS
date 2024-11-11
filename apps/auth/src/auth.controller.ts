@@ -5,6 +5,7 @@ import { LoginCustomerDto } from './dto/login-customer.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { ResponseUtil } from "../../utils/response.util"
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 
 @ApiTags('auth')
@@ -71,22 +72,36 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Customer details updated successfully.' })
   @ApiResponse({ status: 401, description: 'Unauthorized - Invalid token or no token.' })
   @ApiResponse({ status: 400, description: 'Bad request or validation error.' })
-  async update(@Request() req, @Body() updateData: Partial<RegisterCustomerDto>,@Res() response) {
-    console.log("request",req.user);
-    const updatedCust= this.authService.update(req.user.id, updateData);
-    return ResponseUtil.success({
-      response,
-      message: 'Customer details updated successfully.',
-      data: updatedCust,
-      statusCode:HttpStatus.OK
-    })
+  async update(@Request() req, @Body() updateData: Partial<UpdateCustomerDto>,@Res() response) {
+    try {
+      console.log("request",req.user,"request body -->",req.body);
+      const updatedCust= await this.authService.update(req.user.userId, updateData);
+      return ResponseUtil.success({
+        response,
+        message: 'Customer details updated successfully.',
+        data: updatedCust,
+        statusCode:HttpStatus.OK
+      });
+    } catch (error) {
+      console.log("Error is:: ->",error);
+      ResponseUtil.error({
+        response,
+        message: 'Internal Server Error',
+        error: error.message,
+        statusCode:HttpStatus.INTERNAL_SERVER_ERROR
+      })
+    }
+   
   }
 
   @Post('validate-token')
+  @ApiOperation({ summary: 'Validate token' })
+  @ApiResponse({ status: 200, description: 'Token is valid.' })
+  @ApiResponse({ status: 401, description: 'Invalid token.' })
   async validateToken(@Body('token') token: string) {
     const payload = await this.authService.validateToken(token);
     if (!payload) {
-      throw new UnauthorizedException('Invalid token');
+      throw new UnauthorizedException('Invalid token from validation');
     }
     return payload; // Return payload data if token is valid
   }
