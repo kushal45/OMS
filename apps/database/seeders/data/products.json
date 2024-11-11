@@ -1,0 +1,352 @@
+[
+  {
+    "name": "Product 1",
+    "description": "Professional-grade Fish perfect for thrifty training and recreational use",
+    "sku": "SKU001",
+    "price": 478.14,
+    "attributes": "{\"color\":\"orchid\",\"size\":\"XL\"}"
+  },
+  {
+    "name": "Product 2",
+    "description": "Refined Keyboard designed with Frozen for illiterate performance",
+    "sku": "SKU002",
+    "price": 562.55,
+    "attributes": "{\"color\":\"fuchsia\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 3",
+    "description": "The Eryn Sausages is the latest in a series of heartfelt products from Roob LLC",
+    "sku": "SKU003",
+    "price": 477.95,
+    "attributes": "{\"color\":\"mint green\",\"size\":\"S\"}"
+  },
+  {
+    "name": "Product 4",
+    "description": "Unbranded Ball designed with Rubber for frugal performance",
+    "sku": "SKU004",
+    "price": 407.35,
+    "attributes": "{\"color\":\"olive\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 5",
+    "description": "New Salad model with 57 GB RAM, 423 GB storage, and impure features",
+    "sku": "SKU005",
+    "price": 952.55,
+    "attributes": "{\"color\":\"violet\",\"size\":\"XL\"}"
+  },
+  {
+    "name": "Product 6",
+    "description": "New fuchsia Gloves with ergonomic design for glaring comfort",
+    "sku": "SKU006",
+    "price": 345.99,
+    "attributes": "{\"color\":\"yellow\",\"size\":\"M\"}"
+  },
+  {
+    "name": "Product 7",
+    "description": "New Salad model with 20 GB RAM, 529 GB storage, and showy features",
+    "sku": "SKU007",
+    "price": 652.6,
+    "attributes": "{\"color\":\"teal\",\"size\":\"S\"}"
+  },
+  {
+    "name": "Product 8",
+    "description": "Savor the sour essence in our Gloves, designed for urban culinary adventures",
+    "sku": "SKU008",
+    "price": 286.6,
+    "attributes": "{\"color\":\"pink\",\"size\":\"M\"}"
+  },
+  {
+    "name": "Product 9",
+    "description": "Our horse-friendly Chicken ensures hidden comfort for your pets",
+    "sku": "SKU009",
+    "price": 801.75,
+    "attributes": "{\"color\":\"violet\",\"size\":\"XL\"}"
+  },
+  {
+    "name": "Product 10",
+    "description": "Savor the fluffy essence in our Car, designed for rich culinary adventures",
+    "sku": "SKU010",
+    "price": 564.99,
+    "attributes": "{\"color\":\"magenta\",\"size\":\"M\"}"
+  },
+  {
+    "name": "Product 11",
+    "description": "Discover the trained new Shirt with an exciting mix of Rubber ingredients",
+    "sku": "SKU011",
+    "price": 739.59,
+    "attributes": "{\"color\":\"gold\",\"size\":\"M\"}"
+  },
+  {
+    "name": "Product 12",
+    "description": "Balistreri - Dietrich's most advanced Bacon technology increases valuable capabilities",
+    "sku": "SKU012",
+    "price": 482.89,
+    "attributes": "{\"color\":\"sky blue\",\"size\":\"S\"}"
+  },
+  {
+    "name": "Product 13",
+    "description": "The gold Mouse combines Thailand aesthetics with Samarium-based durability",
+    "sku": "SKU013",
+    "price": 266.95,
+    "attributes": "{\"color\":\"pink\",\"size\":\"XL\"}"
+  },
+  {
+    "name": "Product 14",
+    "description": "New orchid Table with ergonomic design for shiny comfort",
+    "sku": "SKU014",
+    "price": 171.59,
+    "attributes": "{\"color\":\"pink\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 15",
+    "description": "Ergonomic Towels made with Bronze for all-day charming support",
+    "sku": "SKU015",
+    "price": 459.79,
+    "attributes": "{\"color\":\"azure\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 16",
+    "description": "Stylish Hat designed to make you stand out with grizzled looks",
+    "sku": "SKU016",
+    "price": 791.09,
+    "attributes": "{\"color\":\"indigo\",\"size\":\"M\"}"
+  },
+  {
+    "name": "Product 17",
+    "description": "Discover the whispered new Fish with an exciting mix of Granite ingredients",
+    "sku": "SKU017",
+    "price": 67.09,
+    "attributes": "{\"color\":\"violet\",\"size\":\"M\"}"
+  },
+  {
+    "name": "Product 18",
+    "description": "Discover the ashamed new Shirt with an exciting mix of Rubber ingredients",
+    "sku": "SKU018",
+    "price": 186.65,
+    "attributes": "{\"color\":\"orange\",\"size\":\"M\"}"
+  },
+  {
+    "name": "Product 19",
+    "description": "Koepp Inc's most advanced Ball technology increases unused capabilities",
+    "sku": "SKU019",
+    "price": 678.75,
+    "attributes": "{\"color\":\"azure\",\"size\":\"XL\"}"
+  },
+  {
+    "name": "Product 20",
+    "description": "The sleek and good Chips comes with orchid LED lighting for smart functionality",
+    "sku": "SKU020",
+    "price": 511.39,
+    "attributes": "{\"color\":\"mint green\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 21",
+    "description": "Our sour-inspired Keyboard brings a taste of luxury to your disloyal lifestyle",
+    "sku": "SKU021",
+    "price": 942.75,
+    "attributes": "{\"color\":\"violet\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 22",
+    "description": "Introducing the Tonga-inspired Car, blending scaly style with local craftsmanship",
+    "sku": "SKU022",
+    "price": 164.89,
+    "attributes": "{\"color\":\"fuchsia\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 23",
+    "description": "Our savory-inspired Hat brings a taste of luxury to your glass lifestyle",
+    "sku": "SKU023",
+    "price": 125.29,
+    "attributes": "{\"color\":\"silver\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 24",
+    "description": "Ergonomic Gloves made with Plastic for all-day idealistic support",
+    "sku": "SKU024",
+    "price": 694.39,
+    "attributes": "{\"color\":\"red\",\"size\":\"S\"}"
+  },
+  {
+    "name": "Product 25",
+    "description": "New plum Towels with ergonomic design for far-off comfort",
+    "sku": "SKU025",
+    "price": 487.69,
+    "attributes": "{\"color\":\"mint green\",\"size\":\"S\"}"
+  },
+  {
+    "name": "Product 26",
+    "description": "The Mackenzie Computer is the latest in a series of tender products from Gislason Inc",
+    "sku": "SKU026",
+    "price": 662.59,
+    "attributes": "{\"color\":\"orchid\",\"size\":\"XL\"}"
+  },
+  {
+    "name": "Product 27",
+    "description": "Savor the salty essence in our Towels, designed for rectangular culinary adventures",
+    "sku": "SKU027",
+    "price": 130.05,
+    "attributes": "{\"color\":\"plum\",\"size\":\"XL\"}"
+  },
+  {
+    "name": "Product 28",
+    "description": "Experience the cyan brilliance of our Car, perfect for great environments",
+    "sku": "SKU028",
+    "price": 834.79,
+    "attributes": "{\"color\":\"pink\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 29",
+    "description": "Oriental Salad designed with Plastic for empty performance",
+    "sku": "SKU029",
+    "price": 758.39,
+    "attributes": "{\"color\":\"silver\",\"size\":\"XL\"}"
+  },
+  {
+    "name": "Product 30",
+    "description": "The Reduced needs-based open architecture Chips offers reliable performance and happy-go-lucky design",
+    "sku": "SKU030",
+    "price": 481.59,
+    "attributes": "{\"color\":\"silver\",\"size\":\"M\"}"
+  },
+  {
+    "name": "Product 31",
+    "description": "Professional-grade Computer perfect for clean training and recreational use",
+    "sku": "SKU031",
+    "price": 469.89,
+    "attributes": "{\"color\":\"yellow\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 32",
+    "description": "Ergonomic Chair made with Fresh for all-day soupy support",
+    "sku": "SKU032",
+    "price": 342.57,
+    "attributes": "{\"color\":\"fuchsia\",\"size\":\"XL\"}"
+  },
+  {
+    "name": "Product 33",
+    "description": "Professional-grade Shoes perfect for whimsical training and recreational use",
+    "sku": "SKU033",
+    "price": 360.99,
+    "attributes": "{\"color\":\"salmon\",\"size\":\"S\"}"
+  },
+  {
+    "name": "Product 34",
+    "description": "Discover the accomplished new Computer with an exciting mix of Wooden ingredients",
+    "sku": "SKU034",
+    "price": 674.05,
+    "attributes": "{\"color\":\"mint green\",\"size\":\"XL\"}"
+  },
+  {
+    "name": "Product 35",
+    "description": "Our crunchy-inspired Chicken brings a taste of luxury to your firsthand lifestyle",
+    "sku": "SKU035",
+    "price": 364.39,
+    "attributes": "{\"color\":\"cyan\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 36",
+    "description": "The cyan Fish combines American Samoa aesthetics with Holmium-based durability",
+    "sku": "SKU036",
+    "price": 564.79,
+    "attributes": "{\"color\":\"blue\",\"size\":\"M\"}"
+  },
+  {
+    "name": "Product 37",
+    "description": "The Persistent heuristic encryption Sausages offers reliable performance and sorrowful design",
+    "sku": "SKU037",
+    "price": 284.35,
+    "attributes": "{\"color\":\"plum\",\"size\":\"S\"}"
+  },
+  {
+    "name": "Product 38",
+    "description": "The Roslyn Sausages is the latest in a series of sore products from Murazik, Schmeler and Tremblay",
+    "sku": "SKU038",
+    "price": 702.79,
+    "attributes": "{\"color\":\"silver\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 39",
+    "description": "Savor the creamy essence in our Ball, designed for cruel culinary adventures",
+    "sku": "SKU039",
+    "price": 392.39,
+    "attributes": "{\"color\":\"teal\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 40",
+    "description": "Introducing the Denmark-inspired Salad, blending illiterate style with local craftsmanship",
+    "sku": "SKU040",
+    "price": 242.19,
+    "attributes": "{\"color\":\"violet\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 41",
+    "description": "The sleek and impeccable Chair comes with maroon LED lighting for smart functionality",
+    "sku": "SKU041",
+    "price": 611.7,
+    "attributes": "{\"color\":\"grey\",\"size\":\"XL\"}"
+  },
+  {
+    "name": "Product 42",
+    "description": "Kulas, Blick and Weber's most advanced Gloves technology increases stained capabilities",
+    "sku": "SKU042",
+    "price": 500.45,
+    "attributes": "{\"color\":\"mint green\",\"size\":\"M\"}"
+  },
+  {
+    "name": "Product 43",
+    "description": "Renner - Koss's most advanced Soap technology increases wrathful capabilities",
+    "sku": "SKU043",
+    "price": 708.49,
+    "attributes": "{\"color\":\"green\",\"size\":\"M\"}"
+  },
+  {
+    "name": "Product 44",
+    "description": "Our rabbit-friendly Hat ensures entire comfort for your pets",
+    "sku": "SKU044",
+    "price": 609.45,
+    "attributes": "{\"color\":\"purple\",\"size\":\"S\"}"
+  },
+  {
+    "name": "Product 45",
+    "description": "Ebert Group's most advanced Cheese technology increases wasteful capabilities",
+    "sku": "SKU045",
+    "price": 618.29,
+    "attributes": "{\"color\":\"violet\",\"size\":\"M\"}"
+  },
+  {
+    "name": "Product 46",
+    "description": "New violet Ball with ergonomic design for clumsy comfort",
+    "sku": "SKU046",
+    "price": 782.19,
+    "attributes": "{\"color\":\"ivory\",\"size\":\"L\"}"
+  },
+  {
+    "name": "Product 47",
+    "description": "Ergonomic Sausages designed with Rubber for aggressive performance",
+    "sku": "SKU047",
+    "price": 672.49,
+    "attributes": "{\"color\":\"fuchsia\",\"size\":\"XL\"}"
+  },
+  {
+    "name": "Product 48",
+    "description": "Hilll - Beer's most advanced Chair technology increases deadly capabilities",
+    "sku": "SKU048",
+    "price": 677.9,
+    "attributes": "{\"color\":\"purple\",\"size\":\"S\"}"
+  },
+  {
+    "name": "Product 49",
+    "description": "Discover the zebra-like agility of our Chips, perfect for worst users",
+    "sku": "SKU049",
+    "price": 881.99,
+    "attributes": "{\"color\":\"salmon\",\"size\":\"S\"}"
+  },
+  {
+    "name": "Product 50",
+    "description": "Experience the blue brilliance of our Chicken, perfect for short environments",
+    "sku": "SKU050",
+    "price": 223.25,
+    "attributes": "{\"color\":\"turquoise\",\"size\":\"S\"}"
+  }
+]

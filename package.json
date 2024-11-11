@@ -21,9 +21,10 @@
     "migration:run": "ts-node node_modules/typeorm/cli.js migration:run -d  ./apps/config/dataSource.ts",
     "migration:generate": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate ./apps/database/migrations/$npm_config_name",
     "migration:create": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js  migration:create ./apps/database/migrations/$npm_config_name",
-    "migration:revert": "npm run typeorm -- -d ./src/config/typeorm.ts migration:revert"
+    "migration:revert": "ts-node node_modules/typeorm/cli.js migration:revert -d  ./apps/config/dataSource.ts"
   },
   "dependencies": {
+    "@faker-js/faker": "^9.2.0",
     "@nestjs/axios": "^3.1.2",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.2.3",

@@ -1,0 +1,352 @@
+[
+  {
+    "productId": 1,
+    "quantity": 131,
+    "reservedQuantity": 0,
+    "location": "Warehouse B",
+    "status": "in-stock"
+  },
+  {
+    "productId": 2,
+    "quantity": 52,
+    "reservedQuantity": 0,
+    "location": "Warehouse C",
+    "status": "in-stock"
+  },
+  {
+    "productId": 3,
+    "quantity": 92,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 4,
+    "quantity": 121,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 5,
+    "quantity": 171,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 6,
+    "quantity": 185,
+    "reservedQuantity": 0,
+    "location": "Warehouse C",
+    "status": "in-stock"
+  },
+  {
+    "productId": 7,
+    "quantity": 87,
+    "reservedQuantity": 0,
+    "location": "Warehouse B",
+    "status": "in-stock"
+  },
+  {
+    "productId": 8,
+    "quantity": 153,
+    "reservedQuantity": 0,
+    "location": "Warehouse B",
+    "status": "in-stock"
+  },
+  {
+    "productId": 9,
+    "quantity": 57,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 10,
+    "quantity": 106,
+    "reservedQuantity": 0,
+    "location": "Warehouse B",
+    "status": "in-stock"
+  },
+  {
+    "productId": 11,
+    "quantity": 92,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 12,
+    "quantity": 161,
+    "reservedQuantity": 0,
+    "location": "Warehouse C",
+    "status": "in-stock"
+  },
+  {
+    "productId": 13,
+    "quantity": 135,
+    "reservedQuantity": 0,
+    "location": "Warehouse C",
+    "status": "in-stock"
+  },
+  {
+    "productId": 14,
+    "quantity": 153,
+    "reservedQuantity": 0,
+    "location": "Warehouse B",
+    "status": "in-stock"
+  },
+  {
+    "productId": 15,
+    "quantity": 61,
+    "reservedQuantity": 0,
+    "location": "Warehouse B",
+    "status": "in-stock"
+  },
+  {
+    "productId": 16,
+    "quantity": 149,
+    "reservedQuantity": 0,
+    "location": "Warehouse C",
+    "status": "in-stock"
+  },
+  {
+    "productId": 17,
+    "quantity": 156,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 18,
+    "quantity": 169,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 19,
+    "quantity": 87,
+    "reservedQuantity": 0,
+    "location": "Warehouse B",
+    "status": "in-stock"
+  },
+  {
+    "productId": 20,
+    "quantity": 154,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 21,
+    "quantity": 105,
+    "reservedQuantity": 0,
+    "location": "Warehouse C",
+    "status": "in-stock"
+  },
+  {
+    "productId": 22,
+    "quantity": 168,
+    "reservedQuantity": 0,
+    "location": "Warehouse B",
+    "status": "in-stock"
+  },
+  {
+    "productId": 23,
+    "quantity": 141,
+    "reservedQuantity": 0,
+    "location": "Warehouse C",
+    "status": "in-stock"
+  },
+  {
+    "productId": 24,
+    "quantity": 91,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 25,
+    "quantity": 76,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 26,
+    "quantity": 159,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 27,
+    "quantity": 57,
+    "reservedQuantity": 0,
+    "location": "Warehouse C",
+    "status": "in-stock"
+  },
+  {
+    "productId": 28,
+    "quantity": 159,
+    "reservedQuantity": 0,
+    "location": "Warehouse B",
+    "status": "in-stock"
+  },
+  {
+    "productId": 29,
+    "quantity": 74,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 30,
+    "quantity": 85,
+    "reservedQuantity": 0,
+    "location": "Warehouse B",
+    "status": "in-stock"
+  },
+  {
+    "productId": 31,
+    "quantity": 199,
+    "reservedQuantity": 0,
+    "location": "Warehouse B",
+    "status": "in-stock"
+  },
+  {
+    "productId": 32,
+    "quantity": 70,
+    "reservedQuantity": 0,
+    "location": "Warehouse C",
+    "status": "in-stock"
+  },
+  {
+    "productId": 33,
+    "quantity": 98,
+    "reservedQuantity": 0,
+    "location": "Warehouse C",
+    "status": "in-stock"
+  },
+  {
+    "productId": 34,
+    "quantity": 81,
+    "reservedQuantity": 0,
+    "location": "Warehouse B",
+    "status": "in-stock"
+  },
+  {
+    "productId": 35,
+    "quantity": 150,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 36,
+    "quantity": 154,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 37,
+    "quantity": 99,
+    "reservedQuantity": 0,
+    "location": "Warehouse C",
+    "status": "in-stock"
+  },
+  {
+    "productId": 38,
+    "quantity": 75,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 39,
+    "quantity": 62,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 40,
+    "quantity": 133,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 41,
+    "quantity": 192,
+    "reservedQuantity": 0,
+    "location": "Warehouse C",
+    "status": "in-stock"
+  },
+  {
+    "productId": 42,
+    "quantity": 156,
+    "reservedQuantity": 0,
+    "location": "Warehouse B",
+    "status": "in-stock"
+  },
+  {
+    "productId": 43,
+    "quantity": 142,
+    "reservedQuantity": 0,
+    "location": "Warehouse C",
+    "status": "in-stock"
+  },
+  {
+    "productId": 44,
+    "quantity": 73,
+    "reservedQuantity": 0,
+    "location": "Warehouse B",
+    "status": "in-stock"
+  },
+  {
+    "productId": 45,
+    "quantity": 160,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 46,
+    "quantity": 199,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 47,
+    "quantity": 187,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 48,
+    "quantity": 78,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 49,
+    "quantity": 59,
+    "reservedQuantity": 0,
+    "location": "Warehouse A",
+    "status": "in-stock"
+  },
+  {
+    "productId": 50,
+    "quantity": 115,
+    "reservedQuantity": 0,
+    "location": "Warehouse C",
+    "status": "in-stock"
+  }
+]

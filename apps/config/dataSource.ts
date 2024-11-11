@@ -9,6 +9,8 @@ const credObj={
     database:'oms',
 }
 console.log(join(__dirname, '/../', 'database/migrations/*{.ts,.js}'));
+console.log(__dirname + '/../**/*.entity{.ts,.js}');
+console.log(join(__dirname, '/../../', 'libs/**/src/entity/*{.ts,.js}'));
 export const connectionSource = new DataSource({
   type: 'postgres',
   host: credObj.host,
@@ -17,7 +19,7 @@ export const connectionSource = new DataSource({
   password: credObj.password,
   database: credObj.database,
   logging: true,
-  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+  entities: [__dirname + '/../**/*.entity{.ts,.js}',join(__dirname, '/../../', 'libs/**/src/entity/*{.ts,.js}')],
   migrations: [join(__dirname, '/../', 'database/migrations/*{.ts,.js}')],
   synchronize: false,
   migrationsTableName: 'typeorm_migrations',

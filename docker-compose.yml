@@ -6,6 +6,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
+      - PORT=3000
     command: npm run  start:debug  --project api-gateway
     networks:
       - oms
@@ -23,6 +24,7 @@ services:
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=oms
+      - PORT=3001
     depends_on:
       - postgres
     command: npm run  start:debug  --project auth
@@ -43,6 +45,7 @@ services:
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=oms
+      - PORT=3002
     depends_on:
       - postgres
     command: npm run  start:debug  --project order
@@ -50,7 +53,48 @@ services:
       - oms
     volumes:
       - ./:/app
-
+  
+  inventory:
+    build:
+      context: .
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_NAME=oms
+      - PORT=3003
+    depends_on:
+      - postgres
+    command: npm run  start:debug  --project inventory
+    networks:
+      - oms
+    volumes:
+      - ./:/app
+    
+  product:
+    build:
+      context: .
+    ports:
+      - "3004:3004"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_NAME=oms
+      - PORT=3004
+    depends_on:
+      - postgres
+    command: npm run  start:debug  --project product
+    networks:
+      - oms
+    volumes:
+      - ./:/app
   postgres:
     image: postgres:14-alpine
     healthcheck:

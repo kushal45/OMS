@@ -11,7 +11,7 @@ export class Product {
   @Column()
   description: string;
 
-  @Column({ type: 'varchar', length: 4 })
+  @Column({ type: 'varchar', length: 20})
   sku: string;
 
   @Column({ type: 'float' })
