@@ -10,5 +10,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Microservice Separation:**
   - **Order Microservice:** Converted the order microservice to its own `docker-compose` file for better modularity and isolation.
-
-
