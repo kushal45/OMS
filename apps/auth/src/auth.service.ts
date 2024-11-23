@@ -6,6 +6,8 @@ import { JwtService } from '@nestjs/jwt';
 import { LoginCustomerDto } from './dto/login-customer.dto';
 import * as bcrypt from 'bcryptjs';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { RegisterCustomerResponseDto } from './dto/register-customer-response.dto';
+import { ValidateTokenResponseDto } from './dto/validate-token-response.dto';
 
 @Injectable()
 export class AuthService {
@@ -16,7 +18,9 @@ export class AuthService {
   ) {}
 
   // Register customer
-  async register(registerDto: RegisterCustomerDto): Promise<Customer> {
+  async register(
+    registerDto: RegisterCustomerDto,
+  ): Promise<RegisterCustomerResponseDto> {
     const { name, email, password } = registerDto;
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -24,11 +28,11 @@ export class AuthService {
       name,
       email,
       password: hashedPassword,
-    });
+    }) as unknown as RegisterCustomerResponseDto;
   }
 
   // Customer login
-  async login(loginDto: LoginCustomerDto) {
+  async login(loginDto: LoginCustomerDto): Promise<{ accessToken: string }> {
     const { email, password } = loginDto;
     const customer = await this.custRepository.findByEmail(email);
 
@@ -36,7 +40,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const payload = { email: customer.email, sub: customer.id ,name:customer.name};
+    const payload = {
+      email: customer.email,
+      sub: customer.id,
+      name: customer.name,
+    };
     return {
       accessToken: this.jwtService.sign(payload),
     };
@@ -56,11 +64,11 @@ export class AuthService {
     return this.tokenBlacklist.has(token);
   }
 
-  validateToken(token: string): unknown  {
-    const payload= this.jwtService.verify(token,{
-      secret:process.env.JWT_SECRET
+  validateToken(token: string): ValidateTokenResponseDto {
+    const payload = this.jwtService.verify(token, {
+      secret: process.env.JWT_SECRET,
     });
     //console.log("Payload is:: ->",payload);
-    return payload;
+    return payload as ValidateTokenResponseDto;
   }
 }

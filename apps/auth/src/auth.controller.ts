@@ -3,9 +3,14 @@ import { AuthService } from './auth.service';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { LoginCustomerDto } from './dto/login-customer.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { ApiResponse } from '../../utils/response.decorator';
 import { ResponseUtil } from "../../utils/response.util"
 import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { RegisterCustomerResponseDto } from './dto/register-customer-response.dto';
+import { RegisterErrResponseDto } from './dto/register-err-response.dto';
+import { LoginResponseDto } from './dto/login-response.dto';
+import { ValidateTokenResponseDto } from './dto/validate-token-response.dto';
 
 
 @ApiTags('auth')
@@ -15,8 +20,8 @@ export class AuthController {
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new customer' })
-  @ApiResponse({ status: 201, description: 'The customer has been successfully registered.' })
-  @ApiResponse({ status: 400, description: 'Bad request or validation error.' })
+  @ApiResponse(RegisterCustomerResponseDto,201)
+  @ApiResponse(RegisterErrResponseDto,500)
   @ApiBody({ type: RegisterCustomerDto })  // This tells Swagger to expect a RegisterCustomerDto
   async register(@Body() registerDto: RegisterCustomerDto,@Res() response) {
     try {
@@ -41,8 +46,8 @@ export class AuthController {
 
   @Post('login')
   @ApiOperation({ summary: 'Customer login' })
-  @ApiResponse({ status: 200, description: 'Successfully logged in.' })
-  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid credentials.' })
+  @ApiResponse(LoginResponseDto)
+  @ApiResponse(RegisterErrResponseDto,500)
   @ApiBody({ type: LoginCustomerDto })  // This tells Swagger to expect a LoginCustomerDto in the body
   async login(@Body() loginDto: LoginCustomerDto, @Res() response) {
     try {
@@ -69,9 +74,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Update customer details' })
   @ApiBearerAuth()  // Add JWT authentication
-  @ApiResponse({ status: 200, description: 'Customer details updated successfully.' })
-  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid token or no token.' })
-  @ApiResponse({ status: 400, description: 'Bad request or validation error.' })
+  @ApiResponse(RegisterCustomerResponseDto)
+  @ApiBody({ type: UpdateCustomerDto })
   async update(@Request() req, @Body() updateData: Partial<UpdateCustomerDto>,@Res() response) {
     try {
       console.log("request",req.user,"request body -->",req.body);
@@ -96,8 +100,8 @@ export class AuthController {
 
   @Post('validate-token')
   @ApiOperation({ summary: 'Validate token' })
-  @ApiResponse({ status: 200, description: 'Token is valid.' })
-  @ApiResponse({ status: 401, description: 'Invalid token.' })
+  @ApiBody({ schema: { type: 'object', properties: { token: { type: 'string' } } } }) 
+  @ApiResponse(ValidateTokenResponseDto)
   async validateToken(@Body('token') token: string) {
     const payload = await this.authService.validateToken(token);
     if (!payload) {
@@ -111,7 +115,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Customer logout' })
   @ApiBearerAuth()  // JWT authentication
-  @ApiResponse({ status: 200, description: 'Logout successful.' })
+  @ApiResponse(LoginResponseDto)
+  @ApiResponse(RegisterErrResponseDto,500)
   async logout(@Req() req: any, @Res() response) {
     const token = req.headers.authorization.split(' ')[1];
     this.authService.logout(token);

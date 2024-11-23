@@ -35,7 +35,22 @@
       ],
       "@app/address/*": [
         "libs/address/src/*"
-      ]
+      ],
+      "@app/databaseMigration/*": [
+        "apps/database/migrations/*"
+      ],
+      "@libs/http": [
+        "libs/http"
+      ],
+      "@libs/constants": [
+        "libs/constants"
+      ],
+      "@libs/swagger": [
+        "libs/swagger"
+      ],
+      "@libs/dtos": [
+        "libs/dtos"
+      ],
     }
   }
 }
