@@ -21,7 +21,7 @@ export class CustomerRepository {
   }
 
   async findByEmail(email: string): Promise<Customer | null> {
-    return await this.custRepo.findOne({ where: { email } ,select:["id","name","email"]});
+    return await this.custRepo.findOne({ where: { email } ,select:["id","name","email","password"]});
   }
 
   async update(id: number, updateData: Partial<Customer>):Promise<Pick<Customer, "id" | "name" | "email">> {
