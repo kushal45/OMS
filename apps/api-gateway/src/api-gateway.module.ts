@@ -11,12 +11,13 @@ import { TracerMiddleWare } from './middleware/tracer.middleware';
 })
 export class ApiGatewayModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(ProxyMiddleware).forRoutes({
+    consumer.apply(TracerMiddleWare).forRoutes('*')
+    .apply(ProxyMiddleware).forRoutes({
       path: "/auth/*",
       method:RequestMethod.ALL
     },{
-      path: "/order/*",
+      path: "/orders/*",
       method:RequestMethod.ALL
-    }).apply(TracerMiddleWare).forRoutes('*');
+    });
   }
 }

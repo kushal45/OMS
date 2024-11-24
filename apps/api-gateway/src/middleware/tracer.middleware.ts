@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 export class TracerMiddleWare implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     // Generate a correlation ID if it doesn't exist
+    console.log("request headers",req.headers);
     const correlationId = req.headers['x-correlation-id'] || uuidv4();
 
     // Attach the correlation ID to the request object

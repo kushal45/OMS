@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, LoggerService, UnauthorizedException } from '@nestjs/common';
 import { CustomerRepository } from './repository/customer.repository';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { Customer } from './entity/customer.entity';
@@ -8,13 +8,16 @@ import * as bcrypt from 'bcryptjs';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { RegisterCustomerResponseDto } from './dto/register-customer-response.dto';
 import { ValidateTokenResponseDto } from './dto/validate-token-response.dto';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 @Injectable()
 export class AuthService {
   private tokenBlacklist: Set<string> = new Set();
+  private context = AuthService.name;
   constructor(
     private readonly custRepository: CustomerRepository,
     private jwtService: JwtService,
+    @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: LoggerService
   ) {}
 
   // Register customer
@@ -39,7 +42,7 @@ export class AuthService {
     if (!customer || !(await bcrypt.compare(password, customer.password))) {
       throw new UnauthorizedException('Invalid email or password');
     }
-
+    this.logger.log(`Customer ${customer.id} logged in`,this.context);
     const payload = {
       email: customer.email,
       sub: customer.id,

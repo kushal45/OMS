@@ -25,6 +25,8 @@ services:
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=oms
       - PORT=3001
+      - ELASTICSEARCH_HOST=http://es01:9200
+      - SERVICE_NAME=auth
     depends_on:
       - postgres
     command: npm run  start:debug  --project auth
@@ -112,9 +114,81 @@ services:
       - oms
     volumes:
       - postgres_data:/var/lib/postgresql/data
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+    environment:
+      - node.name=es01
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es02,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata1:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - oms
+
+  es02:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+    environment:
+      - node.name=es02
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es01,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata2:/usr/share/elasticsearch/data
+    networks:
+      - oms
+
+  es03:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+    environment:
+      - node.name=es03
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es01,es02
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata3:/usr/share/elasticsearch/data
+    networks:
+      - oms
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.15.2
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://es01:9200
+    networks:
+      - oms
+
 
 volumes:
   postgres_data:
+  esdata1:
+  esdata2:
+  esdata3:
 
 networks:
   oms:

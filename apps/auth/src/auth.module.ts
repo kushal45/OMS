@@ -11,6 +11,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Customer } from './entity/customer.entity';
 import { CustomerRepository } from './repository/customer.repository';
+import { LoggerModule } from '@lib/logger/src';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { CustomerRepository } from './repository/customer.repository';
     PassportModule,
     TypeOrmModule.forRootAsync(typeOrmAsyncConfig),
     TypeOrmModule.forFeature([Customer]),
+    LoggerModule
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtAuthGuard,CustomerRepository],

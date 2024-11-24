@@ -51,6 +51,12 @@
       "@libs/dtos": [
         "libs/dtos"
       ],
+      "@app/log": [
+        "libs/logger/src"
+      ],
+      "@app/log/*": [
+        "libs/logger/src/*"
+      ]
     }
   }
 }

@@ -110,6 +110,20 @@ export class AuthController {
     return payload; // Return payload data if token is valid
   }
 
+  @Post('createAddress')
+  @ApiBearerAuth()  // JWT authentication
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Create customer address' })
+
+  async createAddress(@Req() req: any, @Res() response) {
+    
+    return ResponseUtil.success({
+      response,
+      message: 'Address created successfully',
+      statusCode:HttpStatus.OK
+    })
+  }
+
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
