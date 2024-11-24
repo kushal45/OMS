@@ -1,4 +1,4 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {  Injectable, UnauthorizedException } from '@nestjs/common';
 import { CustomerRepository } from './repository/customer.repository';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { JwtService } from '@nestjs/jwt';

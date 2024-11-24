@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { ConfigModule,ConfigService } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeOrmAsyncConfig } from '../../config/typeorm.config';
@@ -12,6 +12,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Customer } from './entity/customer.entity';
 import { CustomerRepository } from './repository/customer.repository';
 import { LoggerModule } from '@lib/logger/src';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -30,9 +31,18 @@ import { LoggerModule } from '@lib/logger/src';
     PassportModule,
     TypeOrmModule.forRootAsync(typeOrmAsyncConfig),
     TypeOrmModule.forFeature([Customer]),
-    LoggerModule
+    LoggerModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard,CustomerRepository],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    JwtAuthGuard,
+    CustomerRepository,
+    {
+      provide: APP_INTERCEPTOR,
+      useExisting: 'LoggerErrorInterceptor', // Use the exported interceptor
+    },
+  ],
 })
 export class AuthModule {}

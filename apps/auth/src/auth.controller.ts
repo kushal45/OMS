@@ -50,7 +50,6 @@ export class AuthController {
   @ApiResponse(RegisterErrResponseDto,500)
   @ApiBody({ type: LoginCustomerDto })  // This tells Swagger to expect a LoginCustomerDto in the body
   async login(@Request() req,@Body() loginDto: LoginCustomerDto, @Res() response) {
-    try {
       const correlationId= req.headers['x-correlation-id'];
       const loggedInToken= await this.authService.login(correlationId,loginDto);
       ResponseUtil.success({
@@ -59,15 +58,6 @@ export class AuthController {
         data: loggedInToken,
         statusCode:HttpStatus.OK
       })
-    } catch (error) {
-      ResponseUtil.error({
-        response,
-        message: 'Unauthorized - Invalid credentials.',
-        error: error.message,
-        statusCode:HttpStatus.UNAUTHORIZED
-      })
-    }
-    
 
   }
 
