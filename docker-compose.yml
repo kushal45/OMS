@@ -48,8 +48,8 @@ services:
     volumes:
       - ./:/app
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://auth:3001/health || exit 1"]
-      interval: 10s
+      test: ["CMD-SHELL", "curl -f http://auth:3001/auth/health || exit 1"]
+      interval: 30s
       timeout: 10s
       retries: 3
 
