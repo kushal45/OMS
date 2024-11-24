@@ -2,12 +2,12 @@ import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/c
 import { ProxyMiddleware } from './middleware/proxy.middleware';
 import { HttpModule } from '@nestjs/axios';
 import { JwtAuthGuard } from './guard/jwt.auth.guard';
-import { Reflector } from '@nestjs/core';
 import { TracerMiddleWare } from './middleware/tracer.middleware';
+import { LoggerModule } from '@lib/logger/src';
 
 @Module({
-  imports: [HttpModule],
-  providers:[JwtAuthGuard,Reflector]
+  imports: [HttpModule,LoggerModule],
+  providers:[JwtAuthGuard]
 })
 export class ApiGatewayModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

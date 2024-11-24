@@ -1,40 +1,36 @@
-import { HttpService } from '@nestjs/axios';
-import { Injectable, NestMiddleware } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { Request, Response, NextFunction } from 'express';
+import { Inject, Injectable, LoggerService, NestMiddleware } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { JwtAuthGuard } from '../guard/jwt.auth.guard';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 @Injectable()
 export class ProxyMiddleware implements NestMiddleware {
   private AUTH_SERVICE_URL = 'http://auth:3001';
   private ORDER_SERVICE_URL = 'http://order:3002';
+  private context = ProxyMiddleware.name;
 
   constructor(
     private readonly jwtAuthGuard: JwtAuthGuard,
-    private reflector: Reflector,
-    private httpService: HttpService,
+    @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: LoggerService
   ) {}
 
   use(req: Request, res: Response, next: () => void) {
-    console.log(
+    this.logger.log(
       'Initial request fetched in proxy middleware  baseUrl-->',
       req.baseUrl,
       'path-->',
       req.url,
+      this.context
     );
     const target = this.determineTarget(req.path);
-    console.log(
-      '[ProxyMiddleware] Proxying request to:',
-      target ? 'Auth Service' : 'Order Service',
-    );
     if (!target) {
-      console.error('[ProxyMiddleware] Missing target for request:', req.path);
+      this.logger.error('[ProxyMiddleware] Missing target for request:', req.path);
       res.status(500).send('Proxy target not found');
       return;
     }
     const pathReq = req.baseUrl;
-    console.log('[ProxyMiddleware] Proxying request to path:', pathReq);
+    this.logger.log('[ProxyMiddleware] Proxying request to path:', pathReq);
     const proxy = createProxyMiddleware({
       target,
       changeOrigin: true,
@@ -45,18 +41,11 @@ export class ProxyMiddleware implements NestMiddleware {
               getRequest: () => req,
             }),
           } as any);
-
           if (!canActivate) {
             console.error('[ProxyMiddleware] Unauthorized request:', req.url);
             res.writeHead(401, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ message: 'Unauthorized Token' }));
           }
-          console.log(
-            '[ProxyMiddleware] Proxy request headers:',
-            proxyReq.getHeaders(),
-          );
-          console.log('[ProxyMiddleware] Proxy request path:', req.url);
-          console.log('[ProxyMiddleware] Proxy request method:', req.method);
         },
         proxyRes: (proxyRes, req, res) => {
           console.log(
