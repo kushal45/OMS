@@ -1,14 +1,13 @@
-import { Inject, Injectable, LoggerService, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { CustomerRepository } from './repository/customer.repository';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
-import { Customer } from './entity/customer.entity';
 import { JwtService } from '@nestjs/jwt';
 import { LoginCustomerDto } from './dto/login-customer.dto';
 import * as bcrypt from 'bcryptjs';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { RegisterCustomerResponseDto } from './dto/register-customer-response.dto';
 import { ValidateTokenResponseDto } from './dto/validate-token-response.dto';
-import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { CustomLoggerService } from '@lib/logger/src/logger.service';
 
 @Injectable()
 export class AuthService {
@@ -17,7 +16,7 @@ export class AuthService {
   constructor(
     private readonly custRepository: CustomerRepository,
     private jwtService: JwtService,
-    @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: LoggerService
+    private logger: CustomLoggerService,
   ) {}
 
   // Register customer
@@ -35,14 +34,25 @@ export class AuthService {
   }
 
   // Customer login
-  async login(loginDto: LoginCustomerDto): Promise<{ accessToken: string }> {
+  async login(
+    correlationId: string,
+    loginDto: LoginCustomerDto,
+  ): Promise<{ accessToken: string }> {
     const { email, password } = loginDto;
     const customer = await this.custRepository.findByEmail(email);
 
     if (!customer || !(await bcrypt.compare(password, customer.password))) {
       throw new UnauthorizedException('Invalid email or password');
     }
-    this.logger.log(`Customer ${customer.id} logged in`,this.context);
+    this.logger.info(
+      {
+        message: 'User logged in successfully',
+        email: customer.email,
+        correlationId
+      },
+      this.context
+    );
+
     const payload = {
       email: customer.email,
       sub: customer.id,

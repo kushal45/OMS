@@ -49,9 +49,10 @@ export class AuthController {
   @ApiResponse(LoginResponseDto)
   @ApiResponse(RegisterErrResponseDto,500)
   @ApiBody({ type: LoginCustomerDto })  // This tells Swagger to expect a LoginCustomerDto in the body
-  async login(@Body() loginDto: LoginCustomerDto, @Res() response) {
+  async login(@Request() req,@Body() loginDto: LoginCustomerDto, @Res() response) {
     try {
-      const loggedInToken= await this.authService.login(loginDto);
+      const correlationId= req.headers['x-correlation-id'];
+      const loggedInToken= await this.authService.login(correlationId,loginDto);
       ResponseUtil.success({
         response,
         message: 'Successfully logged in.',
