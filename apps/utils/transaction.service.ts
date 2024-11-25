@@ -13,9 +13,13 @@ export class TransactionService {
 
     try {
       const result = await work(queryRunner.manager);
+      if(!result) {
+        throw new PreconditionFailedException('Transaction failed');
+      }
       await queryRunner.commitTransaction();
       return result;
     } catch (error) {
+      console.log('error', error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
       throw new PreconditionFailedException(error);

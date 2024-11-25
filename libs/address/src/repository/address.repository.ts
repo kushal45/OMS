@@ -31,6 +31,7 @@ export class AddressRepository {
 
   async delete(id: number): Promise<boolean> {
     const result = await this.addressRepo.delete(id);
+    console.log("address delete result",result);
     return result.affected > 0;
   }
 

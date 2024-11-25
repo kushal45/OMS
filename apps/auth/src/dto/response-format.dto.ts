@@ -1,6 +1,6 @@
 import { ApiProperty, getSchemaPath } from "@nestjs/swagger";
 
-export class ResponseFormatDto<T> {
+export class ResponseFormatDto<T=any> {
     @ApiProperty({ description: 'Response message' })
     message: string;
   

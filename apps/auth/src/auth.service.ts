@@ -92,4 +92,17 @@ export class AuthService {
   async createAddress(userId:number,address:CreateAddressDto):Promise<CreateAddrDataResponseDto>{
     return await this.addressService.createAddress(address,userId) as unknown as CreateAddrDataResponseDto;
   }
+
+  async updateAddress(userId:number,addressId:number,address:CreateAddressDto):Promise<CreateAddrDataResponseDto>{
+    return await this.addressService.update(addressId,address) as unknown as CreateAddrDataResponseDto;
+  }
+
+  async deleteAddress(userId:number,addressId:number):Promise<boolean>{
+    try {
+      return await this.addressService.delete(userId,addressId);
+    } catch (error) {
+       throw error;
+    }
+   
+  }
 }

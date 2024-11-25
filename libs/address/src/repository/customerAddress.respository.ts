@@ -29,8 +29,9 @@ export class CustomerAddressRepository {
     });
   }
 
-  async delete(addressId: number): Promise<boolean> {
-    const result = await this.custAddressRepo.delete(addressId);
+  async delete(addressId: number,userId:number): Promise<boolean> {
+    const result = await this.custAddressRepo.delete({ addressId,userId });
+    console.log('result', result);
     return result.affected > 0;
   }
 
