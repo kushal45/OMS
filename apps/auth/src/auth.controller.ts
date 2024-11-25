@@ -8,9 +8,12 @@ import { ApiResponse } from '../../utils/response.decorator';
 import { ResponseUtil } from "../../utils/response.util"
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { RegisterCustomerResponseDto } from './dto/register-customer-response.dto';
-import { RegisterErrResponseDto } from './dto/register-err-response.dto';
-import { LoginResponseDto } from './dto/login-response.dto';
+import { LoginResponseDataDto } from './dto/login-response.dto';
 import { ValidateTokenResponseDto } from './dto/validate-token-response.dto';
+import { CreateAddressDto } from './dto/create-address.dto';
+import { ResponseFormatDto } from './dto/response-format.dto';
+import { ResponseErrFormatDto } from './dto/response-err-format.dto';
+import { CreateAddrDataResponseDto } from './dto/create-addr-response.dto';
 
 
 @ApiTags('auth')
@@ -21,10 +24,9 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Register a new customer' })
   @ApiResponse(RegisterCustomerResponseDto,201)
-  @ApiResponse(RegisterErrResponseDto,500)
+  @ApiResponse(ResponseErrFormatDto,500)
   @ApiBody({ type: RegisterCustomerDto })  // This tells Swagger to expect a RegisterCustomerDto
   async register(@Body() registerDto: RegisterCustomerDto,@Res() response) {
-    try {
       const newCustCreated=await this.authService.register(registerDto);
       ResponseUtil.success({
         response,
@@ -32,22 +34,12 @@ export class AuthController {
         data: newCustCreated,
         statusCode:HttpStatus.CREATED
       })
-    } catch (error) {
-       ResponseUtil.error({
-        response,
-        message: 'Internal Server Error',
-        error: error.message,
-        statusCode:HttpStatus.BAD_REQUEST
-       })
-    }
-   
-
   }
 
   @Post('login')
   @ApiOperation({ summary: 'Customer login' })
-  @ApiResponse(LoginResponseDto)
-  @ApiResponse(RegisterErrResponseDto,500)
+  @ApiResponse(ResponseFormatDto<LoginResponseDataDto>)
+  @ApiResponse(ResponseErrFormatDto,500)
   @ApiBody({ type: LoginCustomerDto })  // This tells Swagger to expect a LoginCustomerDto in the body
   async login(@Request() req,@Body() loginDto: LoginCustomerDto, @Res() response) {
       const correlationId= req.headers['x-correlation-id'];
@@ -58,7 +50,6 @@ export class AuthController {
         data: loggedInToken,
         statusCode:HttpStatus.OK
       })
-
   }
 
   @Put('update')
@@ -68,7 +59,6 @@ export class AuthController {
   @ApiResponse(RegisterCustomerResponseDto)
   @ApiBody({ type: UpdateCustomerDto })
   async update(@Request() req, @Body() updateData: Partial<UpdateCustomerDto>,@Res() response) {
-    try {
       console.log("request",req.user,"request body -->",req.body);
       const updatedCust= await this.authService.update(req.user.userId, updateData);
       return ResponseUtil.success({
@@ -77,16 +67,6 @@ export class AuthController {
         data: updatedCust,
         statusCode:HttpStatus.OK
       });
-    } catch (error) {
-      console.log("Error is:: ->",error);
-      ResponseUtil.error({
-        response,
-        message: 'Internal Server Error',
-        error: error.message,
-        statusCode:HttpStatus.INTERNAL_SERVER_ERROR
-      })
-    }
-   
   }
 
   @Post('validate-token')
@@ -101,18 +81,21 @@ export class AuthController {
     return payload; // Return payload data if token is valid
   }
 
-  @Post('createAddress')
+  @Post('addresses')
   @ApiBearerAuth()  // JWT authentication
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Create customer address' })
+  @ApiResponse(ResponseFormatDto<CreateAddrDataResponseDto>,201)
+  @ApiBody({ type: CreateAddressDto })  // This tells Swagger to expect a CreateAddressDto in the body
 
-  async createAddress(@Req() req: any, @Res() response) {
-    
-    return ResponseUtil.success({
-      response,
-      message: 'Address created successfully',
-      statusCode:HttpStatus.OK
-    })
+  async createAddress(@Req() req: any, @Res() response, @Body() addressData: CreateAddressDto) {
+     const addressCreated= await this.authService.createAddress(req.user.userId, addressData);
+      ResponseUtil.success({
+        response,
+        message: 'Address created successfully',
+        data: addressCreated,
+        statusCode:HttpStatus.CREATED
+      });
   }
 
 
@@ -120,8 +103,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Customer logout' })
   @ApiBearerAuth()  // JWT authentication
-  @ApiResponse(LoginResponseDto)
-  @ApiResponse(RegisterErrResponseDto,500)
+  @ApiResponse(ResponseFormatDto<RegisterCustomerDto>)
+  @ApiResponse(ResponseErrFormatDto,500)
   async logout(@Req() req: any, @Res() response) {
     const token = req.headers.authorization.split(' ')[1];
     this.authService.logout(token);

@@ -1,4 +1,6 @@
 import { Customer } from '@app/auth/src/entity/customer.entity';
+import { Address } from '@lib/address/src/entity/address.entity';
+import { CustomerAddress } from '@lib/address/src/entity/customerAdress.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import {
   TypeOrmModuleAsyncOptions,
@@ -21,7 +23,7 @@ export const typeOrmAsyncConfig: TypeOrmModuleAsyncOptions = {
       username: configService.get<string>('DB_USERNAME'),
       password: configService.get<string>('DB_PASSWORD'),
       database: configService.get<string>('DB_NAME'),
-      entities: [Customer],
+      entities: [Customer,Address,CustomerAddress],
       migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
       extra: {
         charset: 'utf8mb4_unicode_ci',

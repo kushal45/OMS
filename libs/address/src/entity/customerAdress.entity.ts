@@ -15,7 +15,7 @@ import { Customer } from '@app/auth/src/entity/customer.entity';
 import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn, ManyToMany } from 'typeorm';
 import { Address } from './address.entity';
 
-@Entity()
+@Entity("customerAdress")
 export class CustomerAddress {
   @PrimaryColumn()
   userId: number;

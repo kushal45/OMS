@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
-export class RegisterErrResponseDto {
+export class ResponseErrFormatDto {
   @ApiProperty({ description: 'Status of the response', example: 'error' })
   @IsString()
   @IsNotEmpty()

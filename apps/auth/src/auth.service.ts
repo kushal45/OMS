@@ -8,6 +8,9 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { RegisterCustomerResponseDto } from './dto/register-customer-response.dto';
 import { ValidateTokenResponseDto } from './dto/validate-token-response.dto';
 import { CustomLoggerService } from '@lib/logger/src/logger.service';
+import { AddressService } from '@lib/address/src';
+import { CreateAddressDto } from './dto/create-address.dto';
+import { CreateAddrDataResponseDto } from './dto/create-addr-response.dto';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +20,7 @@ export class AuthService {
     private readonly custRepository: CustomerRepository,
     private jwtService: JwtService,
     private logger: CustomLoggerService,
+    private addressService:AddressService
   ) {}
 
   // Register customer
@@ -83,5 +87,9 @@ export class AuthService {
     });
     //console.log("Payload is:: ->",payload);
     return payload as ValidateTokenResponseDto;
+  }
+
+  async createAddress(userId:number,address:CreateAddressDto):Promise<CreateAddrDataResponseDto>{
+    return await this.addressService.createAddress(address,userId) as unknown as CreateAddrDataResponseDto;
   }
 }

@@ -5,7 +5,7 @@ import { WINSTON_MODULE_NEST_PROVIDER } from "nest-winston";
 export class CustomLoggerService {
     constructor(@Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: LoggerService){}
 
-    info(data: Record<string,string>,context) {
+    info(data: Record<string,unknown>,context) {
         this.logger.log(data,context);
     }
 

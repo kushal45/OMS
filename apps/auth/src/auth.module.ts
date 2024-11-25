@@ -13,6 +13,7 @@ import { Customer } from './entity/customer.entity';
 import { CustomerRepository } from './repository/customer.repository';
 import { LoggerModule } from '@lib/logger/src';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AddressModule } from '@lib/address/src';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
     TypeOrmModule.forRootAsync(typeOrmAsyncConfig),
     TypeOrmModule.forFeature([Customer]),
     LoggerModule,
+    AddressModule
   ],
   controllers: [AuthController],
   providers: [

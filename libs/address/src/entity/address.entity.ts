@@ -5,7 +5,7 @@ export class Address {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({nullable: true})
   street: string;
 
   @Column()
@@ -18,5 +18,5 @@ export class Address {
   country: string;
 
   @Column()
-  postalCode: string;
+  pincode: string;
 }
