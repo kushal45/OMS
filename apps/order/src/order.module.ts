@@ -3,6 +3,7 @@ import { OrderController } from './order.controller';
 import { OrderService } from './order.service';
 import { ConfigModule } from '@nestjs/config';
 import * as path from "path";
+import { OrderRepository } from './repository/order.repository';
 
 @Module({
   imports: [ConfigModule.forRoot({
@@ -10,6 +11,6 @@ import * as path from "path";
     isGlobal: true,       // Makes the environment variables available globally
 })],
   controllers: [OrderController],
-  providers: [OrderService],
+  providers: [OrderService, OrderRepository],
 })
 export class OrderModule {}

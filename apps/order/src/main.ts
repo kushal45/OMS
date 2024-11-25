@@ -2,20 +2,16 @@ import { NestFactory } from '@nestjs/core';
 import { OrderModule } from './order.module';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { setupSwagger } from '@lib/swagger/swagger.controller';
 
 async function bootstrap() {
   const app = await NestFactory.create(OrderModule);
-  const config = new DocumentBuilder()
-    .setTitle('Auth Microservice')
-    .setDescription('Authentication API documentation')
-    .setVersion('1.0')
-    .addBearerAuth() // Optional: for JWT or Bearer token authentication
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('order/docs', app, document); // Custom route for Swagger UI
+  
+  setupSwagger(app,"order/docs");
   const configService = app.get(ConfigService);
   console.log(configService);
   const port = configService.get<number>('PORT');
+  console.log(`Listening on port ${port}`);
   await app.listen(port);
 }
 bootstrap();
