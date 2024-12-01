@@ -9,7 +9,6 @@ import { AddressModule, AddressService } from '@lib/address/src';
 import { TransactionService } from '@app/utils/transaction.service';
 import { LoggerModule } from '@lib/logger/src';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { typeOrmAsyncConfig } from '../../config/typeorm.config';
 import { OrderItems } from './entity/orderItems.entity';
 import { Order } from './entity/order.entity';
 import { APP_INTERCEPTOR } from '@nestjs/core';

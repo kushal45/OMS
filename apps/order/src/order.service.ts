@@ -67,7 +67,7 @@ export class OrderService {
 
   filterOrderResponse(order: Order): CreateOrderResponseDto {
     const filteredOrder = {} as CreateOrderResponseDto;
-    const properties = ['aliasId', 'orderStatus'];
+    const properties = ['aliasId', 'orderStatus', 'totalAmount', 'deliveryCharge','tax'];
     properties.forEach((property) => {
       if (order.hasOwnProperty(property)) {
         filteredOrder[property] = order[property];
@@ -168,7 +168,11 @@ export class OrderService {
     return this.orderRepository.update(order.aliasId, order);
   }
 
-  async deleteOrder(id: number): Promise<void> {
-    await this.orderRepository.delete(id);
+  async deleteOrder(id: number): Promise<boolean> {
+    const order = await this.orderRepository.findOne({
+      id,
+    });
+    if(!order) throw new NotFoundException('Order not found');
+    return await this.orderRepository.delete(id);
   }
 }

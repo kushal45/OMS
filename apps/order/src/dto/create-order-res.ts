@@ -18,4 +18,12 @@ export class CreateOrderResponseDto {
   @ApiProperty({ description: 'The order status', enum: OrderStatus, default: OrderStatus.Pending })
   @IsEnum(OrderStatus, { message: 'Status must be a valid enum value' })
   status: OrderStatus;
+
+  @ApiProperty({ description: 'The order total amount', default: 100 })
+  totalAmount: number;
+
+  @ApiProperty({description:'tax amount',default:10})
+  tax: number;
+  @ApiProperty({description:'deliveryCharge',default:10})
+  deliveryCharge: number;
 }

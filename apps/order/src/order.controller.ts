@@ -9,6 +9,7 @@ import {
   Req,
   HttpStatus,
   Res,
+  NotAcceptableException,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { Order } from './entity/order.entity';
@@ -43,7 +44,6 @@ export class OrderController {
     try {
       const userObj = JSON.parse(req.headers['x-user-data']);
       const userId = userObj.id;
-      console.log('userId', userId);
       const orderRes = await this.orderService.createOrder(order, userId);
       ResponseUtil.success({
         response,
@@ -76,8 +76,14 @@ export class OrderController {
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
   @ApiParam({ name: 'aliasId', required: true })
-  async getOrderItems(@Param('aliasId') aliasId: string): Promise<OrderItems[]> {
-    return await this.orderService.getOrderItems(aliasId);
+  async getOrderItems(@Param('aliasId') aliasId: string, @Res() response) {
+    const orderItems= await this.orderService.getOrderItems(aliasId);
+    ResponseUtil.success({
+      response,
+      message: 'Order items fetched successfully.',
+      data: orderItems,
+      statusCode: HttpStatus.OK,
+    })
   }
 
   @Get('user/:userId')
@@ -111,7 +117,13 @@ export class OrderController {
   }
 
   @Delete(':id')
-  async deleteOrder(@Param('id') id: number): Promise<void> {
-    return await this.orderService.deleteOrder(id);
+  async deleteOrder(@Param('id') id: number, @Res() response) {
+    if(!await this.orderService.deleteOrder(id))
+      throw new NotAcceptableException('Order not Deleted');
+    ResponseUtil.success({
+      response,
+      message: 'Order deleted successfully.',
+      statusCode: HttpStatus.NO_CONTENT,
+    })
   }
 }
