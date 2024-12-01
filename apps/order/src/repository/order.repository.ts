@@ -1,8 +1,13 @@
-import { FindOneOptions, Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Order } from '../entity/order.entity';
+import { OrderInput } from '../interfaces/create-order.interface';
+import { BaseRepository } from '../util/interfaces/base-repository.interface';
 
-export class OrderRepository {
+export class OrderRepository implements BaseRepository<OrderRepository> {
   constructor(private readonly orderRepo: Repository<Order>) {}
+  getRepository(entityManager: EntityManager): OrderRepository {
+    return new OrderRepository(entityManager.getRepository(Order));
+  }
 
   async findOne(id: number): Promise<Order> {
     return await this.orderRepo.findOne({
@@ -10,7 +15,7 @@ export class OrderRepository {
     });
   }
 
-  async create(order: Partial<Order>): Promise<Order> {
+  async create(order:OrderInput): Promise<Exclude<Order,"id">> {
     const newOrder = this.orderRepo.create(order);
     return this.orderRepo.save(newOrder);
   }

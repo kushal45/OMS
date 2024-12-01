@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
 import { Address } from '../../../../libs/address/src/entity/address.entity';
 import { Customer } from '../../../auth/src/entity/customer.entity';
 
@@ -19,10 +19,12 @@ export class Order {
   @Column({ type: 'uuid', unique: true })
   aliasId: string;
 
-  @ManyToOne(() => Address, { eager: true })
+  @ManyToOne(() => Address,address=>address.id, { eager: true })
+  @JoinColumn({ name: 'addressId' })
   address: Address;
 
   @ManyToOne(() => Customer, { eager: true })
+  @JoinColumn({ name: 'userId' })
   user: Customer;
 
   @Column({ type: 'enum', enum: OrderStatus })

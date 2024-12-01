@@ -1,12 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { OrderModule } from './order.module';
 import { ConfigService } from '@nestjs/config';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { setupSwagger } from '@lib/swagger/swagger.controller';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(OrderModule);
-  
+  app.useGlobalPipes(new ValidationPipe());
+  app.flushLogs();
   setupSwagger(app,"order/docs");
   const configService = app.get(ConfigService);
   console.log(configService);
