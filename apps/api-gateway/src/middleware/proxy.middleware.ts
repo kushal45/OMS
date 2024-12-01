@@ -1,7 +1,6 @@
 import { Inject, Injectable, LoggerService, NestMiddleware } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import { JwtAuthGuard } from '../guard/jwt.auth.guard';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 @Injectable()
@@ -11,7 +10,6 @@ export class ProxyMiddleware implements NestMiddleware {
   private context = ProxyMiddleware.name;
 
   constructor(
-    private readonly jwtAuthGuard: JwtAuthGuard,
     @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: LoggerService
   ) {}
 
@@ -29,28 +27,24 @@ export class ProxyMiddleware implements NestMiddleware {
       res.status(500).send('Proxy target not found');
       return;
     }
-    const pathReq = req.baseUrl;
-    this.logger.log('[ProxyMiddleware] Proxying request to path:', pathReq);
     const proxy = createProxyMiddleware({
       target,
       changeOrigin: true,
       on: {
         proxyReq: async (proxyReq, req, res) => {
-          const canActivate = await this.jwtAuthGuard.canActivate({
-            switchToHttp: () => ({
-              getRequest: () => req,
-            }),
-          } as any);
-          if (!canActivate) {
-            console.error('[ProxyMiddleware] Unauthorized request:', req.url);
-            res.writeHead(401, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ message: 'Unauthorized Token' }));
+          console.log("request user is:: ->",(req as any ).user);
+          const user = (req as any).user;
+          console.log("res.headersSent is:: ->",res.headersSent);
+          if(!res.headersSent && user){
+            proxyReq.setHeader('x-user-data', JSON.stringify(user));
           }
         },
         proxyRes: (proxyRes, req, res) => {
           console.log(
             '[ProxyMiddleware] Proxy response status:',
             proxyRes.statusCode,
+            "response headers are:: ->",
+            (req as any ).user
           );
         },
         error: (err, req, res) => {

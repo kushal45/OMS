@@ -22,6 +22,7 @@ export class JwtAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const token = this.extractTokenFromHeader(request);
     const { method, path } = request;
+    let isActivated = false;
     console.log("path is", path);
      const isPublic = this.publicRoutes.some(
       (route) => route.method === method && path.endsWith(route.path),
@@ -31,11 +32,9 @@ export class JwtAuthGuard implements CanActivate {
       // Bypass JWT validation for public routes
       return true;
     }
-    console.log('Token:', token);
     
 
     try {
-      console.log("Token is:: ->",token);
       if (!token) {
         throw new UnauthorizedException('Token not found');
       }
@@ -48,13 +47,13 @@ export class JwtAuthGuard implements CanActivate {
 
       console.log("Response from validate service is:: ->",response.data);
       request.user = response.data;
-      console.log("request user is:: ->",request.user);
       } catch (error) {
         console.log("Error is:: ->",error);
-        return false;
+        isActivated = false;
       }
     
-      return true;
+      isActivated = true;
+      return isActivated;
     } catch (error) {
       //throw new UnauthorizedException('Invalid token');
     }
