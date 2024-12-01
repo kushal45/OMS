@@ -98,4 +98,8 @@ export class AddressService {
         throw error; 
     }
   }
+
+  async isValidAddress(id: number): Promise<boolean> {
+    return this.addressRepository.validateAddress(id);
+  }
 }

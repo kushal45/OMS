@@ -1,17 +1,23 @@
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, FindOptionsSelect, Repository } from 'typeorm';
 import { Address } from '../entity/address.entity';
 import { InjectRepository } from '@nestjs/typeorm';
+import { BaseRepository } from '@app/order/src/util/interfaces/base-repository.interface';
 
 
-export class AddressRepository {
+export class AddressRepository  implements BaseRepository<AddressRepository> {
   
   constructor(
     @InjectRepository(Address)
     private readonly addressRepo: Repository<Address>) {}
 
-  async findOne(id: number): Promise<Address> {
+  async findOne(id: number, selectOption: (keyof Partial<Address>)[]=["id"]): Promise<Address> {
+    const selectCriteria: FindOptionsSelect<Address> = selectOption.reduce((acc, key) => {
+      acc[key] = true;
+      return acc;
+    }, {} as FindOptionsSelect<Address>);
     return await this.addressRepo.findOne({
       where: { id },
+      select: selectCriteria
     });
   }
 
@@ -22,11 +28,16 @@ export class AddressRepository {
 
   async update(id: number, address: Partial<Address>): Promise<Address> {
     await this.addressRepo.update(id, address);
-    return await this.findOne(id);
+    return await this.findOne(id,['id','street','city','state','country','pincode']);
   }
 
   async findAll(): Promise<Address[]> {
     return this.addressRepo.find();
+  }
+
+  async validateAddress(id: number): Promise<boolean> {
+    const address = await this.findOne(id);
+    return !!address;
   }
 
   async delete(id: number): Promise<boolean> {

@@ -11,8 +11,8 @@
 Generate entity table for user_address table
  */
 
-import { Customer } from '@app/auth/src/entity/customer.entity';
-import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn, ManyToMany } from 'typeorm';
+import { Customer } from '../../../../apps/auth/src/entity/customer.entity';
+import { Entity, PrimaryColumn, ManyToOne, JoinColumn, ManyToMany } from 'typeorm';
 import { Address } from './address.entity';
 
 @Entity("customerAdress")
