@@ -22,6 +22,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
     }),
     AddressModule,
     LoggerModule,
+    TypeOrmModule.forFeature([Order, OrderItems]),
   ],
   controllers: [OrderController],
   providers: [

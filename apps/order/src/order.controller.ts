@@ -14,11 +14,12 @@ import { OrderService } from './order.service';
 import { Order } from './entity/order.entity';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiResponse } from '../../utils/response.decorator';
-import { OrderRequestDto } from './dto/order-request.dto';
+import { OrderRequestDto } from './dto/create-order-req';
 import { ResponseErrDto } from '@app/utils/dto/response-err.dto';
 import { ApiResponseFormat } from '@app/utils/dto/response-format.dto';
-import { OrderResponseDto } from './dto/order-response.dto';
+import { OrderResponseDto } from './dto/create-order-res';
 import { ResponseUtil } from '@app/utils/response.util';
+import { OrderItems } from './entity/orderItems.entity';
 
 @ApiTags('orders')
 @Controller('orders')
@@ -53,8 +54,13 @@ export class OrderController {
   }
 
   @Get(':id')
-  async getOrderById(@Param('id') id: number): Promise<Order> {
-    return this.orderService.getOrderById(id);
+  async getOrderById(@Param('aliasId') aliasId: string): Promise<Order> {
+    return this.orderService.getOrderById(aliasId);
+  }
+
+  @Get(":aliasId/orderItems")
+  async getOrderItems(@Param('aliasId') aliasId: string): Promise<OrderItems[]> {
+    return this.orderService.getOrderItems(aliasId);
   }
 
   @Get('user/:userId')

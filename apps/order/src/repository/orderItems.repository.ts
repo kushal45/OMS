@@ -6,6 +6,7 @@ import { BaseRepository } from '../util/interfaces/base-repository.interface';
 
 export class OrderItemsRepository implements BaseRepository<OrderItemsRepository>{
   constructor(
+    @InjectRepository(OrderItems)
     private readonly orderItemsRepo: Repository<OrderItems>,
   ) {}
 
@@ -37,8 +38,10 @@ export class OrderItemsRepository implements BaseRepository<OrderItemsRepository
     return await this.findOne(id);
   }
 
-  async findAll(): Promise<OrderItems[]> {
-    return this.orderItemsRepo.find();
+  async findAll(orderId:number): Promise<OrderItems[]> {
+    return this.orderItemsRepo.find({
+      where: { orderId },
+    });
   }
 
   async delete(id: number): Promise<boolean> {

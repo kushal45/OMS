@@ -2,13 +2,14 @@ import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { OrderRepository } from './repository/order.repository';
 import { Order } from './entity/order.entity';
 import { AddressService } from '@lib/address/src';
-import { OrderRequestDto } from './dto/order-request.dto';
+import { OrderRequestDto } from './dto/create-order-req';
 import { getOrderInfo } from './util/calculateOrderInfo';
 import { PercentageDeliveryChargeStrategy } from './strategy/percentage-delivercharge.strategy';
 import { DefaultOrderConfigService } from './util/orderConfig.service';
 import { OrderItemsRepository } from './repository/orderItems.repository';
 import { TransactionService } from '@app/utils/transaction.service';
-import { OrderResponseDto } from './dto/order-response.dto';
+import { OrderResponseDto } from './dto/create-order-res';
+import { OrderItems } from './entity/orderItems.entity';
 
 @Injectable()
 export class OrderService {
@@ -72,17 +73,31 @@ export class OrderService {
     return filteredOrder;
   }
 
-  async getOrders(userId): Promise<Order[]> {
+  async getOrders(userId:number): Promise<Order[]> {
     return this.orderRepository.find(userId);
   }
 
-  async getOrderById(id: number): Promise<Order> {
-    return this.orderRepository.findOne(id);
+  async getOrderItems(aliasId: string): Promise<OrderItems[]> {
+    const order = await this.orderRepository.findOne({
+      aliasId
+    });
+    if(!order) throw new UnprocessableEntityException('Order not found');
+    return this.orderItemsRepository.findAll(order.id);
+  }
+
+  async getOrderById(aliasId: string): Promise<Order> {
+    const order= this.orderRepository.findOne({
+      aliasId
+    });
+    if(!order) throw new UnprocessableEntityException('Order not found');
+    return order;
   }
 
   async updateOrder(id: number, order: Partial<Order>): Promise<Order> {
     await this.orderRepository.update(id, order);
-    return this.orderRepository.findOne(id);
+    return this.orderRepository.findOne({
+      id
+    });
   }
 
   async deleteOrder(id: number): Promise<void> {
