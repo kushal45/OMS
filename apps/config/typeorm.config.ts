@@ -15,7 +15,7 @@ export const typeOrmAsyncConfig: TypeOrmModuleAsyncOptions = {
     console.log("DB_USERNAME",configService.get<string>('DB_USERNAME'));
     console.log("DB_HOST",configService.get<string>('DB_HOST'));
     console.log("DB_PORT",configService.get<string>('DB_PORT'));
-    console.log("DB_USERNAME",configService.get<string>('DB_USERNAME'));
+    console.log("DB_PASSWORD",configService.get<string>('DB_PASSWORD'));
     return {
       type: 'postgres',
       host: configService.get<string>('DB_HOST'),
