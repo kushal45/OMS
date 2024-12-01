@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { OrderRepository } from './repository/order.repository';
 import { Order, OrderStatus } from './entity/order.entity';
 import { AddressService } from '@lib/address/src';
@@ -31,7 +31,7 @@ export class OrderService {
         userId,
         addressId,
       );
-      if (!isValid) throw new UnprocessableEntityException('Address not valid');
+      if (!isValid) throw new BadRequestException('Address not valid');
       let orderResponse: Order;
       const percentageDeliveryChargeStrategy =
         new PercentageDeliveryChargeStrategy();
@@ -61,7 +61,7 @@ export class OrderService {
       );
       return this.filterOrderResponse(orderResponse);
     } catch (error) {
-      throw new UnprocessableEntityException(error.message);
+      throw error;
     }
   }
 

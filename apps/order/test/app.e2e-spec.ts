@@ -95,6 +95,61 @@ describe('OrderController (e2e)', () => {
       });
   });
 
+  it('/orders (POST) :- invalid addressId passed', () => {
+    const createOrderDto: OrderRequestDto = {
+      addressId: 9999,
+      orderItems: [
+        {
+          productId: 1,
+          quantity: 2,
+          price: 50,
+        },
+      ],
+    };
+    return request(app.getHttpServer())
+      .post('/orders')
+      .set('x-user-data', JSON.stringify(customerCreated))
+      .send(createOrderDto)
+      .expect(400);
+  });
+
+  it('/orders (POST) :- invalid productId passed', () => {
+
+    const createOrderDto: OrderRequestDto = {
+      addressId: addressCreated.id,
+      orderItems: [
+        {
+          productId: 9999,
+          quantity: 2,
+          price: 50,
+        },
+      ],
+    };
+    return request(app.getHttpServer())
+      .post('/orders')
+      .set('x-user-data', JSON.stringify(customerCreated))
+      .send(createOrderDto)
+      .expect(412);
+  });
+
+  it('/orders (POST) :- invalid quantity passed', () => {
+    const createOrderDto: OrderRequestDto = {
+      addressId: addressCreated.id,
+      orderItems: [
+        {
+          productId: 1,
+          quantity: 9999,
+          price: 50,
+        },
+      ],
+    };
+    return request(app.getHttpServer())
+      .post('/orders')
+      .set('x-user-data', JSON.stringify(customerCreated))
+      .send(createOrderDto)
+      .expect(412);
+  });
+
   it('/orders/:aliasId (GET)', () => {
     return request(app.getHttpServer())
       .get(`/orders/${testAliasId}`)
@@ -106,6 +161,12 @@ describe('OrderController (e2e)', () => {
         expect(responsedata.aliasId).toEqual(testAliasId);
         orderCreatedId = responsedata.id;
       });
+  });
+
+  it('/orders/:aliasId (GET) :- invalid aliasId passed', () => {
+    return request(app.getHttpServer())
+      .get('/orders/test-alias-id')
+      .expect(500);
   });
 
   it('/orders/:aliasId/orderItems (GET)', () => {
