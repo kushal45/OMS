@@ -11,8 +11,8 @@ import { RegisterCustomerResponseDto } from './dto/register-customer-response.dt
 import { LoginResponseDataDto } from './dto/login-response.dto';
 import { ValidateTokenResponseDto } from './dto/validate-token-response.dto';
 import { CreateAddressDto } from './dto/create-address.dto';
-import { ResponseFormatDto } from './dto/response-format.dto';
-import { ResponseErrFormatDto } from './dto/response-err-format.dto';
+import { ApiResponseFormat,ResponseFormatDto } from '../../utils/dto/response-format.dto';
+import { ResponseErrDto } from '../../utils/dto/response-err.dto';
 import { CreateAddrDataResponseDto } from './dto/create-addr-response.dto';
 
 
@@ -24,7 +24,7 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Register a new customer' })
   @ApiResponse(RegisterCustomerResponseDto,201)
-  @ApiResponse(ResponseErrFormatDto,500)
+  @ApiResponse(ResponseErrDto,500)
   @ApiBody({ type: RegisterCustomerDto })  // This tells Swagger to expect a RegisterCustomerDto
   async register(@Body() registerDto: RegisterCustomerDto,@Res() response) {
       const newCustCreated=await this.authService.register(registerDto);
@@ -38,8 +38,8 @@ export class AuthController {
 
   @Post('login')
   @ApiOperation({ summary: 'Customer login' })
-  @ApiResponse(ResponseFormatDto<LoginResponseDataDto>)
-  @ApiResponse(ResponseErrFormatDto,500)
+  @ApiResponse(ApiResponseFormat(LoginResponseDataDto),200)
+  @ApiResponse(ResponseErrDto,500)
   @ApiBody({ type: LoginCustomerDto })  // This tells Swagger to expect a LoginCustomerDto in the body
   async login(@Request() req,@Body() loginDto: LoginCustomerDto, @Res() response) {
       const correlationId= req.headers['x-correlation-id'];
@@ -85,7 +85,7 @@ export class AuthController {
   @ApiBearerAuth()  // JWT authentication
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Create customer address' })
-  @ApiResponse(ResponseFormatDto<CreateAddrDataResponseDto>,201)
+  @ApiResponse(ApiResponseFormat(CreateAddrDataResponseDto),201)
   @ApiBody({ type: CreateAddressDto })  // This tells Swagger to expect a CreateAddressDto in the body
 
   async createAddress(@Req() req: any, @Res() response, @Body() addressData: CreateAddressDto) {
@@ -102,7 +102,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Update customer address' })
   @ApiBearerAuth()  // JWT authentication
-  @ApiResponse(ResponseFormatDto<CreateAddrDataResponseDto>)
+  @ApiResponse(ApiResponseFormat(CreateAddrDataResponseDto))
   @ApiBody({ type: CreateAddressDto })  // This tells Swagger to expect a CreateAddressDto in the body
   @ApiParam({ name: 'addressId', type: 'number' })  // This tells Swagger to expect a number in the URL parameter
   async updateAddress(@Req() req: any, @Res() response, @Body() addressData: CreateAddressDto) {
@@ -144,7 +144,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Customer logout' })
   @ApiBearerAuth()  // JWT authentication
   @ApiResponse(ResponseFormatDto)
-  @ApiResponse(ResponseErrFormatDto,500)
+  @ApiResponse(ResponseErrDto,500)
   async logout(@Req() req: any, @Res() response) {
     const token = req.headers.authorization.split(' ')[1];
     this.authService.logout(token);
