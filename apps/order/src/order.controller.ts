@@ -12,14 +12,17 @@ import {
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { Order } from './entity/order.entity';
-import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { ApiResponse } from '../../utils/response.decorator';
 import { OrderRequestDto } from './dto/create-order-req';
 import { ResponseErrDto } from '@app/utils/dto/response-err.dto';
 import { ApiResponseFormat } from '@app/utils/dto/response-format.dto';
-import { OrderResponseDto } from './dto/create-order-res';
+import { CreateOrderResponseDto } from './dto/create-order-res';
 import { ResponseUtil } from '@app/utils/response.util';
 import { OrderItems } from './entity/orderItems.entity';
+import { OrderResponseDto } from './dto/get-order-res';
+import { OrderItemsResponseDto } from './dto/get-order-items-res';
+import { UpdateOrderDto } from './dto/update-order-req.dto';
 
 @ApiTags('orders')
 @Controller('orders')
@@ -27,7 +30,7 @@ export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
   @ApiOperation({ summary: 'Create new Order' })
-  @ApiResponse(ApiResponseFormat(OrderResponseDto), 201)
+  @ApiResponse(ApiResponseFormat(CreateOrderResponseDto), 201)
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
   @Post()
@@ -53,31 +56,62 @@ export class OrderController {
     }
   }
 
-  @Get(':id')
-  async getOrderById(@Param('aliasId') aliasId: string): Promise<Order> {
-    return this.orderService.getOrderById(aliasId);
+  @Get(':aliasId')
+  @ApiResponse(ApiResponseFormat(OrderResponseDto), 200)
+  @ApiResponse(ResponseErrDto, 400)
+  @ApiResponse(ResponseErrDto, 500)
+  @ApiParam({ name: 'aliasId', required: true })
+  async getOrderById(@Param('aliasId') aliasId: string,@Res() response) {
+    const order= await this.orderService.getOrderById(aliasId);
+    ResponseUtil.success({
+      response,
+      message: 'Order fetched successfully.',
+      data: order,
+      statusCode: HttpStatus.OK,
+    });
   }
 
   @Get(":aliasId/orderItems")
+  @ApiResponse(ApiResponseFormat(OrderItemsResponseDto), 200)
+  @ApiResponse(ResponseErrDto, 400)
+  @ApiResponse(ResponseErrDto, 500)
+  @ApiParam({ name: 'aliasId', required: true })
   async getOrderItems(@Param('aliasId') aliasId: string): Promise<OrderItems[]> {
-    return this.orderService.getOrderItems(aliasId);
+    return await this.orderService.getOrderItems(aliasId);
   }
 
   @Get('user/:userId')
   async getOrders(@Param('userId') userId: number): Promise<Order[]> {
-    return this.orderService.getOrders(userId);
+    return await this.orderService.getOrders(userId);
   }
 
-  @Put(':id')
+  @Put(':aliasId')
+  @ApiParam({ name: 'aliasId', required: true })
+  @ApiResponse(ApiResponseFormat(CreateOrderResponseDto), 200)
+  @ApiResponse(ResponseErrDto, 400)
+  @ApiResponse(ResponseErrDto, 500)
+  @ApiBody({ type: UpdateOrderDto })
   async updateOrder(
-    @Param('id') id: number,
-    @Body() order: Partial<Order>,
-  ): Promise<Order> {
-    return this.orderService.updateOrder(id, order);
+    @Param('aliasId') aliasId: string,
+    @Body() order: UpdateOrderDto,
+    @Res() response,
+  ) {
+    const orderResponse= await this.orderService.updateOrder(aliasId, order);
+    ResponseUtil.success({
+      response,
+      message: 'Order updated successfully.',
+      data: orderResponse,
+      statusCode: HttpStatus.OK,
+    })
+  }
+
+  @Put(':aliasId/cancel')
+  async cancelOrder(@Param('aliasId') aliasId: string): Promise<Order> {
+    return await this.orderService.cancelOrder(aliasId);
   }
 
   @Delete(':id')
   async deleteOrder(@Param('id') id: number): Promise<void> {
-    return this.orderService.deleteOrder(id);
+    return await this.orderService.deleteOrder(id);
   }
 }

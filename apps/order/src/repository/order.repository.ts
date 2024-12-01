@@ -29,10 +29,12 @@ export class OrderRepository implements BaseRepository<OrderRepository> {
     return await this.orderRepo.save(createdOrder);
   }
 
-  async update(id: number, order: Partial<Order>): Promise<Order> {
-    await this.orderRepo.update(id, order);
+  async update(aliasId: string, order: OrderQueryInterface.UpdateOrderInput): Promise<Order> {
+    await this.orderRepo.update({
+      aliasId,
+    }, order);
     return await this.findOne({
-      id,
+      aliasId
     });
   }
 

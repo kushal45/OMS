@@ -14,10 +14,14 @@ export function getOrderInfo(
 
   for (const orderItem of orderItems) {
     orderInfo.totalAmount += orderItem.price * orderItem.quantity;
-    orderInfo.tax += orderItem.price * orderItem.quantity * (config.taxRate / 100);
+    orderInfo.tax += (orderItem.price * orderItem.quantity * (config.taxRate / 100));
   }
 
   orderInfo.deliveryCharge = deliveryChargeStrategy.calculateDeliveryCharge(orderInfo.totalAmount, config);
 
-  return orderInfo;
+  return {
+    totalAmount: parseFloat(orderInfo.totalAmount.toFixed(2)),
+    tax: parseFloat(orderInfo.tax.toFixed(2)),
+    deliveryCharge: parseFloat(orderInfo.deliveryCharge.toFixed(2)),
+  };
 }

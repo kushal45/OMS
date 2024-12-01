@@ -10,7 +10,7 @@ enum OrderStatus {
     Delivered = 'Delivered',
 }
 
-export class OrderResponseDto {
+export class CreateOrderResponseDto {
   @ApiProperty({ description: 'The order ID' ,default: '123e4567-e89b-12d3-a456-426614174000'})
   @IsUUID()
   aliasId: string;

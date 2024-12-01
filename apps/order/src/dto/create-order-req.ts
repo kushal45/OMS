@@ -10,7 +10,7 @@ class OrderItemDto {
 
   @ApiProperty({ description: 'The price of the product' })
   @IsNumber({ allowInfinity: false, allowNaN: false }, { message: 'Price must be a valid number' })
-  @Min(0.01, { message: 'Price must be at least 0.01' })
+  @Min(1, { message: 'Price must be at least 1' })
   @Max(10000, { message: 'Price must be at most 10000' })
   price: number = 1.0;
   @IsInt()

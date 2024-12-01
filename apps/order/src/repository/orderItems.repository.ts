@@ -44,6 +44,29 @@ export class OrderItemsRepository implements BaseRepository<OrderItemsRepository
     });
   }
 
+  async insertBulk(orderItems:OrderItems[]): Promise<number> {
+
+    const result = await this.orderItemsRepo.createQueryBuilder()
+      .insert()
+      .into(OrderItems)
+      .values(orderItems)
+      .execute();
+    return result.identifiers.length;
+  }
+
+  async updateBulk(orderItems:OrderItems[]): Promise<number> {
+    return await this.orderItemsRepo.manager.transaction(async (transactionalEntityManager) => {
+      let affectedRows = 0;
+
+      for (const orderItem of orderItems) {
+        const result = await transactionalEntityManager.update(OrderItems, orderItem.id, orderItem);
+        affectedRows += result.affected || 0;
+      }
+
+      return affectedRows;
+    });
+  }
+
   async delete(id: number): Promise<boolean> {
     const result = await this.orderItemsRepo.delete(id);
     return result.affected > 0;
