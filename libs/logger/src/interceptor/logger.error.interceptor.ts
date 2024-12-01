@@ -20,6 +20,7 @@ export class LoggerErrorInterceptor implements NestInterceptor {
     return next.handle().pipe(
         tap({
             next: (response) => {
+              console.log("response intercepted");
             },
             error: (err) => {
               console.log('Error caught in interceptor', err.status); // Debug statement

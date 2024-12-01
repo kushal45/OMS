@@ -99,7 +99,7 @@ export class AddressService {
     }
   }
 
-  async isValidAddress(id: number): Promise<boolean> {
-    return this.addressRepository.validateAddress(id);
+  async isValidAddress(userId:number,addressId:number): Promise<boolean> {
+    return await this.customerAddressRepository.isValidAddress(userId, addressId);
   }
 }

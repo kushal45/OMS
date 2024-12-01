@@ -23,7 +23,6 @@ export class JwtAuthGuard implements CanActivate {
     const token = this.extractTokenFromHeader(request);
     const { method, path } = request;
     let isActivated = false;
-    console.log("path is", path);
      const isPublic = this.publicRoutes.some(
       (route) => route.method === method && path.endsWith(route.path),
     );

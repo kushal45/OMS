@@ -1,7 +1,8 @@
 import { EntityManager, Repository } from 'typeorm';
-import { Order } from '../entity/order.entity';
+import { Order, OrderStatus } from '../entity/order.entity';
 import { OrderInput } from '../interfaces/create-order.interface';
 import { BaseRepository } from '../util/interfaces/base-repository.interface';
+import { v4 as uuidv4 } from 'uuid';
 
 export class OrderRepository implements BaseRepository<OrderRepository> {
   constructor(private readonly orderRepo: Repository<Order>) {}
@@ -15,9 +16,12 @@ export class OrderRepository implements BaseRepository<OrderRepository> {
     });
   }
 
-  async create(order:OrderInput): Promise<Exclude<Order,"id">> {
-    const newOrder = this.orderRepo.create(order);
-    return this.orderRepo.save(newOrder);
+  async create(order:OrderInput): Promise<Order> {
+    const newOrder = order as unknown as Order;
+    newOrder.orderStatus= OrderStatus.Pending;
+    newOrder.aliasId= uuidv4();
+    const createdOrder = this.orderRepo.create(newOrder);
+    return await this.orderRepo.save(createdOrder);
   }
 
   async update(id: number, order: Partial<Order>): Promise<Order> {

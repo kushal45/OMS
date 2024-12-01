@@ -8,6 +8,7 @@ import { PercentageDeliveryChargeStrategy } from './strategy/percentage-deliverc
 import { DefaultOrderConfigService } from './util/orderConfig.service';
 import { OrderItemsRepository } from './repository/orderItems.repository';
 import { TransactionService } from '@app/utils/transaction.service';
+import { OrderResponseDto } from './dto/order-response.dto';
 
 @Injectable()
 export class OrderService {
@@ -18,38 +19,57 @@ export class OrderService {
     private readonly transactionService: TransactionService,
   ) {}
 
-  async createOrder(order: OrderRequestDto, userId: number): Promise<Order> {
-    const { addressId, orderItems } = order;
-    const isValid = this.addressService.isValidAddress(order.addressId);
-    if (!isValid) throw new UnprocessableEntityException('Address not valid');
-    let orderResponse: Order;
-    const percentageDeliveryChargeStrategy =
-      new PercentageDeliveryChargeStrategy();
-    const config = new DefaultOrderConfigService().getOrderConfig();
-    await this.transactionService.executeInTransaction(
-      async (entityManager) => {
-        const totalOrderAmtInfo = getOrderInfo(
-          orderItems,
-          config,
-          percentageDeliveryChargeStrategy,
-        );
-        const orderRepo =
-          await this.orderRepository.getRepository(entityManager);
-        const orderItemsRepo =
-          await this.orderItemsRepository.getRepository(entityManager);
-        const orderRes = await orderRepo.create({
-          addressId,
-          userId,
-          ...totalOrderAmtInfo,
-        });
-        const orderItemsToSave = await orderItemsRepo.createMany({
-          orderId: orderRes.id,
-          orderItems: orderItems,
-        });
-        return orderItemsToSave === orderItems.length;
-      },
-    );
-    return orderResponse;
+  async createOrder(order: OrderRequestDto, userId: number): Promise<OrderResponseDto> {
+    try {
+      const { addressId, orderItems } = order;
+      const isValid = await this.addressService.isValidAddress(userId, addressId);
+      if (!isValid) throw new UnprocessableEntityException('Address not valid');
+      let orderResponse: Order;
+      const percentageDeliveryChargeStrategy =
+        new PercentageDeliveryChargeStrategy();
+      const config = new DefaultOrderConfigService().getOrderConfig();
+      await this.transactionService.executeInTransaction(
+        async (entityManager) => {
+          const totalOrderAmtInfo = getOrderInfo(
+            orderItems,
+            config,
+            percentageDeliveryChargeStrategy,
+          );
+          const orderRepo =
+            await this.orderRepository.getRepository(entityManager);
+          const orderItemsRepo =
+            await this.orderItemsRepository.getRepository(entityManager);
+           orderResponse = await orderRepo.create({
+            ...totalOrderAmtInfo,
+            addressId,
+            userId,
+          });
+          const orderItemsToSave = await orderItemsRepo.createMany({
+            orderId: orderResponse.id,
+            orderItems: orderItems,
+          });
+          return orderItemsToSave === orderItems.length;
+        },
+      );
+      return this.filterOrderResponse(orderResponse);
+    } catch (error) {
+      throw new UnprocessableEntityException(error.message);
+    }
+   
+  }
+
+  filterOrderResponse(order: Order): OrderResponseDto {
+    const filteredOrder = {} as OrderResponseDto;
+    const properties = [
+      "aliasId",
+      'orderStatus',
+    ];
+    properties.forEach((property) => {
+      if (order.hasOwnProperty(property)) {
+        filteredOrder[property] = order[property];
+      }
+    });
+    return filteredOrder;
   }
 
   async getOrders(userId): Promise<Order[]> {

@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Req, HttpStatus, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Req,
+  HttpStatus,
+  Res,
+} from '@nestjs/common';
 import { OrderService } from './order.service';
 import { Order } from './entity/order.entity';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -16,20 +27,29 @@ export class OrderController {
 
   @ApiOperation({ summary: 'Create new Order' })
   @ApiResponse(ApiResponseFormat(OrderResponseDto), 201)
-  @ApiResponse(ResponseErrDto,400)
-  @ApiResponse(ResponseErrDto,500)
+  @ApiResponse(ResponseErrDto, 400)
+  @ApiResponse(ResponseErrDto, 500)
   @Post()
   @ApiBody({ type: OrderRequestDto })
-  async createOrder(@Req() req, @Body() order: OrderRequestDto, @Res() response) {
-    const userObj= JSON.parse(req.headers['x-user-data']);
-    const userId= userObj.id;
-    const orderRes=this.orderService.createOrder(order, userId);
-    ResponseUtil.success({
-      response,
-      message: 'Order created successfully.',
-      data: orderRes,
-      statusCode:HttpStatus.CREATED
-    });
+  async createOrder(
+    @Req() req,
+    @Body() order: OrderRequestDto,
+    @Res() response,
+  ) {
+    try {
+      const userObj = JSON.parse(req.headers['x-user-data']);
+      const userId = userObj.id;
+      console.log('userId', userId);
+      const orderRes = await this.orderService.createOrder(order, userId);
+      ResponseUtil.success({
+        response,
+        message: 'Order created successfully.',
+        data: orderRes,
+        statusCode: HttpStatus.CREATED,
+      });
+    } catch (error) {
+      throw error;
+    }
   }
 
   @Get(':id')
@@ -43,7 +63,10 @@ export class OrderController {
   }
 
   @Put(':id')
-  async updateOrder(@Param('id') id: number, @Body() order: Partial<Order>): Promise<Order> {
+  async updateOrder(
+    @Param('id') id: number,
+    @Body() order: Partial<Order>,
+  ): Promise<Order> {
     return this.orderService.updateOrder(id, order);
   }
 

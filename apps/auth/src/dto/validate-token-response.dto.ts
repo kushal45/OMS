@@ -10,7 +10,7 @@ export class ValidateTokenResponseDto {
   @ApiProperty({ description: 'ID of the customer' })
   @IsString()
   @IsNotEmpty()
-  readonly sub: string;
+  readonly id: string;
 
   @ApiProperty({ description: 'Name of the customer' })
   @IsString()

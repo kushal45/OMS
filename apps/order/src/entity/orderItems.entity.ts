@@ -15,6 +15,12 @@ export class OrderItems {
   @JoinColumn({ name: 'productId' })
   product: Product;
 
+  @Column('int')
+  orderId: number;
+
+  @Column('int')
+  productId: number;
+
   @CreateDateColumn({ type: 'timestamp' })
   creationDate: Date;
 

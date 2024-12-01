@@ -23,11 +23,17 @@ export class Order {
   @JoinColumn({ name: 'addressId' })
   address: Address;
 
-  @ManyToOne(() => Customer, { eager: true })
+  @ManyToOne(() => Customer, customer=>customer.id, { eager: true })
   @JoinColumn({ name: 'userId' })
   user: Customer;
 
-  @Column({ type: 'enum', enum: OrderStatus })
+  @Column("int")
+  addressId: number;
+
+  @Column("int")
+  userId: number;
+
+  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.Pending })
   orderStatus: OrderStatus;
 
   @Column({ type: 'float' })
