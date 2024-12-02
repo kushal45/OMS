@@ -4,27 +4,57 @@ import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(private httpService: HttpService) {}
+  private VALIDATE_SERVICE_URL = 'http://auth:3001/auth/validate-token';
+  constructor(
+    private httpService: HttpService,
+  ) {
+    
+  }
+   // Define a list of public (blacklisted) routes
+   private readonly publicRoutes: Array<{ method: string; path: string }> = [
+    { method: 'POST', path: '/auth/login' },
+    { method: 'POST', path: '/auth/register' },
+    { method: 'POST', path: '/auth/validate-token' },
+  ];
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    console.log("canActivate guard called");
     const request = context.switchToHttp().getRequest();
     const token = this.extractTokenFromHeader(request);
+    const { method, path } = request;
+    let isActivated = false;
+     const isPublic = this.publicRoutes.some(
+      (route) => route.method === method && path.endsWith(route.path),
+    );
 
-    if (!token) {
-      throw new UnauthorizedException('Token not found');
+    if (isPublic) {
+      // Bypass JWT validation for public routes
+      return true;
     }
+    
 
     try {
-      // Send token to Auth Service for validation
+      if (!token) {
+        throw new UnauthorizedException('Token not found');
+      }
+
+      try {
+          // Send token to Auth Service for validation
       const response = await firstValueFrom(
-        this.httpService.post('http://auth/auth/validate-token', { token })
+        this.httpService.post(this.VALIDATE_SERVICE_URL, { token })
       );
 
-      // Attach user data to the request object if the token is valid
+      console.log("Response from validate service is:: ->",response.data);
       request.user = response.data;
-      return true;
+      } catch (error) {
+        console.log("Error is:: ->",error);
+        isActivated = false;
+      }
+    
+      isActivated = true;
+      return isActivated;
     } catch (error) {
-      throw new UnauthorizedException('Invalid token');
+      //throw new UnauthorizedException('Invalid token');
     }
   }
 

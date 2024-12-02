@@ -18,12 +18,13 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./apps/oms/test/jest-e2e.json",
-    "migration:run": "typeorm migration:run -d ./ormconfig.js",
-    "migration:generate": "npm run typeorm -- -d ./src/config/typeorm.ts migration:generate ./src/migrations/$npm_config_name",
-    "migration:create": "npm run typeorm -- migration:create ./src/migrations/$npm_config_name",
-    "migration:revert": "npm run typeorm -- -d ./src/config/typeorm.ts migration:revert"
+    "migration:run": "ts-node node_modules/typeorm/cli.js migration:run -d  ./apps/config/dataSource.ts",
+    "migration:generate": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate ./apps/database/migrations/$npm_config_name",
+    "migration:create": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js  migration:create ./apps/database/migrations/$npm_config_name",
+    "migration:revert": "ts-node node_modules/typeorm/cli.js migration:revert -d  ./apps/config/dataSource.ts"
   },
   "dependencies": {
+    "@faker-js/faker": "^9.2.0",
     "@nestjs/axios": "^3.1.2",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.2.3",
@@ -39,13 +40,20 @@
     "class-validator": "^0.14.1",
     "dotenv": "^16.4.5",
     "http-proxy-middleware": "^3.0.3",
+    "nest-winston": "^1.9.7",
+    "nimma": "^0.7.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.13.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.1",
-    "typeorm": "^0.3.20"
+    "tsc": "^2.0.4",
+    "typeorm": "^0.3.20",
+    "uuid": "^11.0.3",
+    "uuidv4": "^6.2.13",
+    "winston": "^3.17.0",
+    "winston-elasticsearch": "^0.19.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
@@ -92,7 +100,9 @@
       "<rootDir>/libs/"
     ],
     "moduleNameMapper": {
-      "^@app/config(|/.*)$": "<rootDir>/libs/config/src/$1"
+      "^@app/config(|/.*)$": "<rootDir>/libs/config/src/$1",
+      "^@app/address(|/.*)$": "<rootDir>/libs/address/src/$1",
+      "^@app/log(|/.*)$": "<rootDir>/libs/log/src/$1"
     }
   }
 }

@@ -81,7 +81,7 @@ describe('AuthService', () => {
 
       const result = await authService.login(loginDto);
       expect(bcrypt.compare).toHaveBeenCalledWith(loginDto.password, customer.password);
-      expect(jwtService.sign).toHaveBeenCalledWith({ email: customer.email, sub: customer.id });
+      expect(jwtService.sign).toHaveBeenCalledWith({ email: customer.email, id: customer.id });
       expect(result).toEqual({ access_token: token });
     });
 

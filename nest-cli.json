@@ -42,6 +42,42 @@
       "compilerOptions": {
         "tsConfigPath": "apps/api-gateway/tsconfig.app.json"
       }
+    },
+    "address": {
+      "type": "library",
+      "root": "libs/address",
+      "entryFile": "index",
+      "sourceRoot": "libs/address/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/address/tsconfig.lib.json"
+      }
+    },
+    "inventory": {
+      "type": "application",
+      "root": "apps/inventory",
+      "entryFile": "main",
+      "sourceRoot": "apps/inventory/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/inventory/tsconfig.app.json"
+      }
+    },
+    "product": {
+      "type": "application",
+      "root": "apps/product",
+      "entryFile": "main",
+      "sourceRoot": "apps/product/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/product/tsconfig.app.json"
+      }
+    },
+    "log": {
+      "type": "library",
+      "root": "libs/log",
+      "entryFile": "index",
+      "sourceRoot": "libs/log/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/log/tsconfig.lib.json"
+      }
     }
   }
 }

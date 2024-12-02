@@ -3,6 +3,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { LoginCustomerDto } from './dto/login-customer.dto';
+import { Customer } from './entity/customer.entity';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -40,7 +41,7 @@ describe('AuthController', () => {
     it('should register a new customer', async () => {
       const registerDto: RegisterCustomerDto = { name: 'John Doe', email: 'john@example.com', password: 'password' };
       const result = { id: 1, ...registerDto };
-      jest.spyOn(authService, 'register').mockResolvedValue(result);
+      jest.spyOn(authService, 'register').mockResolvedValue(result as Customer);
 
       await authController.register(registerDto, mockResponse);
       expect(mockResponse.status).toHaveBeenCalledWith(201);
@@ -55,7 +56,7 @@ describe('AuthController', () => {
   describe('login', () => {
     it('should login a customer', async () => {
       const loginDto: LoginCustomerDto = { email: 'john@example.com', password: 'password' };
-      const result = { access_token: 'token' };
+      const result = { accessToken: 'token' };
       jest.spyOn(authService, 'login').mockResolvedValue(result);
 
       await authController.login(loginDto, mockResponse);

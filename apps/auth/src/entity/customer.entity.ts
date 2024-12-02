@@ -13,4 +13,10 @@ export class Customer {
 
   @Column()
   password: string;
+
+  @Column({ nullable: true })
+  phoneNumber: string;
+
+  @Column({ nullable: true })
+  countryCode: string;
 }
