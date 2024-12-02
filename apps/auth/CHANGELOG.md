@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2024-10-17
 
 ### Added
+
 - **Initial Release of the Auth Microservice:**
 - **User Registration Endpoint:** Allows new users to register by providing their details.
 - **User Login Endpoint:** Enables users to log in using their credentials.
@@ -17,12 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Request Body Validation:** Ensures data integrity and security using `class-validator` and `class-transformer`.
 - **Docker Integration:** Added the microservice to the `docker-compose` file, enabling it to run as a separate microservice inside Docker.
 - **Database Integration:** Initial customer table migration and TypeORM setup with PostgreSQL.
+**Customer Swagger API Response Decorator:**
+  - Added a custom Swagger API response decorator for customer endpoints.
+  - Implemented the decorator in the `auth` endpoint.
+
+- **Custom Logger Integration:**
+  - Integrated the custom logger module with the `auth` module for enhanced logging.
 
 ### Changed
+
 - No changes in this release.
 
 ### Fixed
+
 - No fixes in this release.
 
 ### Security
+
 - No security updates in this release.
