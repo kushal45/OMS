@@ -20,7 +20,6 @@ import { ResponseErrDto } from '@app/utils/dto/response-err.dto';
 import { ApiResponseFormat } from '@app/utils/dto/response-format.dto';
 import { CreateOrderResponseDto } from './dto/create-order-res';
 import { ResponseUtil } from '@app/utils/response.util';
-import { OrderItems } from './entity/orderItems.entity';
 import { OrderResponseDto } from './dto/get-order-res';
 import { OrderItemsResponseDto } from './dto/get-order-items-res';
 import { UpdateOrderDto } from './dto/update-order-req.dto';
@@ -54,6 +53,11 @@ export class OrderController {
     } catch (error) {
       throw error;
     }
+  }
+
+  @Get("health")
+  async health(@Res() response) {
+    response.status(HttpStatus.OK).send('OK');
   }
 
   @Get(':aliasId')

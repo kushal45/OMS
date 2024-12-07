@@ -12,8 +12,8 @@ services:
     depends_on:
       auth:
         condition: service_healthy
-      #order:
-       # condition: service_healthy
+      order:
+       condition: service_healthy
      
     environment:
       - NODE_ENV=development
@@ -57,20 +57,17 @@ services:
       - oms
     volumes:
       - ./:/app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://order:3002/orders/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
   
   inventory:
     build:
       context: .
     ports:
       - "3003:3003"
-    environment:
-      - NODE_ENV=development
-      - DATABASE_HOST=postgres
-      - DATABASE_PORT=5432
-      - DATABASE_USER=postgres
-      - DATABASE_PASSWORD=postgres
-      - DATABASE_NAME=oms
-      - PORT=3003
     depends_on:
       - postgres
     command: npm run  start:debug  --project inventory
@@ -184,13 +181,99 @@ services:
       ELASTICSEARCH_HOSTS: http://es01:9200
     networks:
       - oms
+  kafka1:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka1
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_KRAFT_MODE: 'true'
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9093,2@kafka2:9093,3@kafka3:9093"
+      KAFKA_LISTENERS: "PLAINTEXT://kafka1:9092,CONTROLLER://kafka1:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://localhost:9092"
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: 'false'
+      CLUSTER_ID: DK3WNslFRemFujcyCzKORw
+    volumes:
+      - kafka1_data:/var/lib/kafka/data
+    networks:
+      - oms
 
+  kafka2:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka2
+    ports:
+      - "9094:9092"
+    environment:
+      KAFKA_KRAFT_MODE: 'true'
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 2
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9093,2@kafka2:9093,3@kafka3:9093"
+      KAFKA_LISTENERS: "PLAINTEXT://kafka2:9092,CONTROLLER://kafka2:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://localhost:9094"
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: 'false'
+      CLUSTER_ID: DK3WNslFRemFujcyCzKORw
+    volumes:
+      - kafka2_data:/var/lib/kafka/data
+    networks:
+      - oms
+
+  kafka3:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka3
+    ports:
+      - "9095:9092"
+    environment:
+      KAFKA_KRAFT_MODE: 'true'
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 3
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9093,2@kafka2:9093,3@kafka3:9093"
+      KAFKA_LISTENERS: "PLAINTEXT://kafka3:9092,CONTROLLER://kafka3:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://localhost:9095"
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: 'false'
+      CLUSTER_ID: DK3WNslFRemFujcyCzKORw
+    volumes:
+      - kafka3_data:/var/lib/kafka/data
+    networks:
+      - oms
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:9092,kafka2:9092,kafka3:9092
+    networks:
+      - oms
 
 volumes:
   postgres_data:
   esdata1:
   esdata2:
   esdata3:
+  kafka1_data:
+  kafka2_data:
+  kafka3_data:
 
 networks:
   oms:

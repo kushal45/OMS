@@ -1,14 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Inventory } from '../entity/inventory.entity';
+import { BaseRepository } from '@app/order/src/util/interfaces/base-repository.interface';
 
 @Injectable()
-export class InventoryRepository {
+export class InventoryRepository  implements BaseRepository<InventoryRepository> {
   constructor(
     @InjectRepository(Inventory)
     private readonly repository: Repository<Inventory>,
   ) {}
+  
+  getRepository(entityManager: EntityManager): InventoryRepository {
+    return new InventoryRepository(entityManager.getRepository(Inventory));
+  }
 
   async create(inventory: Partial<Inventory>): Promise<Inventory> {
     const newInventory = this.repository.create(inventory);

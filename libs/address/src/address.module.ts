@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AddressService } from './address.service';
 import { TransactionService } from '@app/utils/transaction.service';
-import { DataSource } from 'typeorm';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeOrmAsyncConfig } from '../../../apps/config/typeorm.config';
 import { CustomerAddressRepository } from './repository/customerAddress.respository';
