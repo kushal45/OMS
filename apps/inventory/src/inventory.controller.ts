@@ -1,13 +1,20 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Res, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Res, HttpStatus, Inject } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { Inventory } from './entity/inventory.entity';
 import { ResponseUtil } from '@app/utils/response.util';
-import { response } from 'express';
+import { ClientKafka } from '@nestjs/microservices';
+import { ConfigService } from '@nestjs/config';
+import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
+import { KafkaConsumer } from '@lib/kafka/KafkaConsumer';
 
 
 @Controller('inventories')
 export class InventoryController {
-  constructor(private readonly inventoryService: InventoryService) {}
+  constructor(private readonly inventoryService: InventoryService,
+    @Inject(ConfigService) private readonly configService: ConfigService,
+    @Inject(KafkaAdminClient) private readonly kafkaAdminClient: KafkaAdminClient,
+    @Inject(KafkaConsumer) private readonly kafkaConsumer: KafkaConsumer
+  ) {}
 
   @Post()
   async createInventory(@Body() inventory: Partial<Inventory>, @Res() response) {
@@ -16,6 +23,14 @@ export class InventoryController {
       message: 'Inventory created successfully',
       data: await this.inventoryService.createInventory(inventory),
       statusCode:HttpStatus.CREATED
+    });
+  }
+
+  async onModuleInit() {
+    await this.kafkaAdminClient.createTopic(this.configService.get<string>('INVENTORY_UPDATE_TOPIC'));
+    await this.kafkaConsumer.subscribe(this.configService.get<string>('INVENTORY_UPDATE_TOPIC'));
+    await this.kafkaConsumer.postSubscribeCallback(async (topic, partition, message) => {
+      console.log(`Received message from topic ${topic} partition ${partition} message ${message}`);
     });
   }
 

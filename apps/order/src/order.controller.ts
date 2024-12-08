@@ -10,6 +10,7 @@ import {
   HttpStatus,
   Res,
   NotAcceptableException,
+  Inject,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { Order } from './entity/order.entity';
@@ -23,11 +24,14 @@ import { ResponseUtil } from '@app/utils/response.util';
 import { OrderResponseDto } from './dto/get-order-res';
 import { OrderItemsResponseDto } from './dto/get-order-items-res';
 import { UpdateOrderDto } from './dto/update-order-req.dto';
+import { KafkaProducer } from '@lib/kafka/KafkaProducer';
+import { ConfigService } from '@nestjs/config';
 
 @ApiTags('orders')
 @Controller('orders')
 export class OrderController {
-  constructor(private readonly orderService: OrderService) {}
+  constructor(private readonly orderService: OrderService
+  ) {}
 
   @ApiOperation({ summary: 'Create new Order' })
   @ApiResponse(ApiResponseFormat(CreateOrderResponseDto), 201)

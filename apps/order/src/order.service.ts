@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { OrderRepository } from './repository/order.repository';
 import { Order, OrderStatus } from './entity/order.entity';
 import { AddressService } from '@lib/address/src';
@@ -63,6 +63,18 @@ export class OrderService {
     } catch (error) {
       throw error;
     }
+  }
+
+  async validateOrder(order: OrderRequestDto): Promise<void> {
+    const { orderItems } = order;
+    if (orderItems.length === 0) {
+      throw new BadRequestException('Order items cannot be empty');
+    }
+    /**
+     * we perform grpc call to validate order items present in the Inventory service
+     * and throw error if any of the item is not present with the items list
+     * if all items are present then we return the response
+     */
   }
 
   filterOrderResponse(order: Order): CreateOrderResponseDto {

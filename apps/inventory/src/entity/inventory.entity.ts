@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToOne } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToOne, JoinColumn } from 'typeorm';
 import { Product } from '../../../product/src/entity/product.entity';
 
 export enum InventoryStatus {
@@ -12,7 +12,11 @@ export class Inventory {
   id: number;
 
   @OneToOne(() => Product, { eager: true })
+  @JoinColumn({ name: 'productId' })
   product: Product;
+
+  @Column({ type: 'int' })
+  productId: number;
 
   @Column({ type: 'int' })
   quantity: number;
