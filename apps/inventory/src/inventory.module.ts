@@ -11,6 +11,7 @@ import { CustomLoggerService, LoggerModule } from '@lib/logger/src';
 import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
 import { KafkaConfig } from 'kafkajs';
 import { KafkaConsumer } from '@lib/kafka/KafkaConsumer';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 
 @Module({
   imports: [
@@ -20,7 +21,7 @@ import { KafkaConsumer } from '@lib/kafka/KafkaConsumer';
     }),
     TypeOrmModule.forRootAsync(typeOrmAsyncConfig),
     TypeOrmModule.forFeature([Inventory]),
-    LoggerModule,
+    LoggerModule
   ],
   controllers: [InventoryController],
   providers: [InventoryService,InventoryRepository,ConfigService,

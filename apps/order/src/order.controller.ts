@@ -24,8 +24,6 @@ import { ResponseUtil } from '@app/utils/response.util';
 import { OrderResponseDto } from './dto/get-order-res';
 import { OrderItemsResponseDto } from './dto/get-order-items-res';
 import { UpdateOrderDto } from './dto/update-order-req.dto';
-import { KafkaProducer } from '@lib/kafka/KafkaProducer';
-import { ConfigService } from '@nestjs/config';
 
 @ApiTags('orders')
 @Controller('orders')
@@ -44,7 +42,6 @@ export class OrderController {
     @Body() order: OrderRequestDto,
     @Res() response,
   ) {
-    try {
       const userObj = JSON.parse(req.headers['x-user-data']);
       const userId = userObj.id;
       const orderRes = await this.orderService.createOrder(order, userId);
@@ -54,9 +51,6 @@ export class OrderController {
         data: orderRes,
         statusCode: HttpStatus.CREATED,
       });
-    } catch (error) {
-      throw error;
-    }
   }
 
   @Get("health")

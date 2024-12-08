@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package INVENTORY_PACKAGE;
+
+
+service InventoryService {
+  rpc validate (ValidateInventoryReq) returns (ValidateInventoryRes);
+}
+
+message OrderItem {
+  int32 productId = 1;
+  int32 price = 2;
+  int32 quantity = 3;
+}
+
+message ValidateInventoryReq {
+  repeated OrderItem orderItems = 1;
+}
+
+message InvalidOrderItemWithReason {
+  OrderItem orderItem = 1;
+  repeated string reasons = 2;
+}
+
+message ValidateInventoryRes {
+  bool success = 1;
+  repeated InvalidOrderItemWithReason invalidOrderItems = 2;
+}

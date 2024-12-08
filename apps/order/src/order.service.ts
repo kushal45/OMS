@@ -1,4 +1,10 @@
-import { BadRequestException, Inject, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { OrderRepository } from './repository/order.repository';
 import { Order, OrderStatus } from './entity/order.entity';
 import { AddressService } from '@lib/address/src';
@@ -11,14 +17,27 @@ import { TransactionService } from '@app/utils/transaction.service';
 import { CreateOrderResponseDto } from './dto/create-order-res';
 import { OrderItems } from './entity/orderItems.entity';
 import { UpdateOrderDto } from './dto/update-order-req.dto';
+import { ClientGrpc } from '@nestjs/microservices';
+import { OrderQueryInterface } from './interfaces/order-query-interface';
+import { firstValueFrom, Observable } from 'rxjs';
+import { CustomLoggerService } from '@lib/logger/src';
+
+interface InventoryService {
+  validate(
+    orderItems: OrderQueryInterface.ValidateOrderItemsInput,
+  ): Observable<OrderQueryInterface.ValidateOrderItemsResponse>;
+}
 
 @Injectable()
 export class OrderService {
+  private context = OrderService.name;
   constructor(
     private orderRepository: OrderRepository,
     private orderItemsRepository: OrderItemsRepository,
     private readonly addressService: AddressService,
     private readonly transactionService: TransactionService,
+    @Inject('INVENTORY_PACKAGE') private readonly inventoryService: ClientGrpc,
+    private readonly customLoggerService: CustomLoggerService,
   ) {}
 
   async createOrder(
@@ -32,33 +51,34 @@ export class OrderService {
         addressId,
       );
       if (!isValid) throw new BadRequestException('Address not valid');
+      await this.validateOrder(order);
       let orderResponse: Order;
-      const percentageDeliveryChargeStrategy =
-        new PercentageDeliveryChargeStrategy();
-      const config = new DefaultOrderConfigService().getOrderConfig();
-      await this.transactionService.executeInTransaction(
-        async (entityManager) => {
-          const totalOrderAmtInfo = getOrderInfo(
-            orderItems,
-            config,
-            percentageDeliveryChargeStrategy,
-          );
-          const orderRepo =
-            await this.orderRepository.getRepository(entityManager);
-          const orderItemsRepo =
-            await this.orderItemsRepository.getRepository(entityManager);
-          orderResponse = await orderRepo.create({
-            ...totalOrderAmtInfo,
-            addressId,
-            userId,
-          });
-          const orderItemsToSave = await orderItemsRepo.createMany({
-            orderId: orderResponse.id,
-            orderItems: orderItems,
-          });
-          return orderItemsToSave === orderItems.length;
-        },
-      );
+      // const percentageDeliveryChargeStrategy =
+      //   new PercentageDeliveryChargeStrategy();
+      // const config = new DefaultOrderConfigService().getOrderConfig();
+      // await this.transactionService.executeInTransaction(
+      //   async (entityManager) => {
+      //     const totalOrderAmtInfo = getOrderInfo(
+      //       orderItems,
+      //       config,
+      //       percentageDeliveryChargeStrategy,
+      //     );
+      //     const orderRepo =
+      //       await this.orderRepository.getRepository(entityManager);
+      //     const orderItemsRepo =
+      //       await this.orderItemsRepository.getRepository(entityManager);
+      //     orderResponse = await orderRepo.create({
+      //       ...totalOrderAmtInfo,
+      //       addressId,
+      //       userId,
+      //     });
+      //     const orderItemsToSave = await orderItemsRepo.createMany({
+      //       orderId: orderResponse.id,
+      //       orderItems: orderItems,
+      //     });
+      //     return orderItemsToSave === orderItems.length;
+      //   },
+      // );
       return this.filterOrderResponse(orderResponse);
     } catch (error) {
       throw error;
@@ -75,11 +95,27 @@ export class OrderService {
      * and throw error if any of the item is not present with the items list
      * if all items are present then we return the response
      */
+    console.log("orderItems before sending to inventory",orderItems);
+    const validationResponse = await firstValueFrom(
+      this.inventoryService
+        .getService<InventoryService>('InventoryService')
+        .validate({orderItems}),
+    );
+    console.log('validationResponse', JSON.stringify(validationResponse));
+    if (!validationResponse.success) {
+      throw new BadRequestException(validationResponse.invalidOrderItems);
+    }
   }
 
   filterOrderResponse(order: Order): CreateOrderResponseDto {
     const filteredOrder = {} as CreateOrderResponseDto;
-    const properties = ['aliasId', 'orderStatus', 'totalAmount', 'deliveryCharge','tax'];
+    const properties = [
+      'aliasId',
+      'orderStatus',
+      'totalAmount',
+      'deliveryCharge',
+      'tax',
+    ];
     properties.forEach((property) => {
       if (order.hasOwnProperty(property)) {
         filteredOrder[property] = order[property];
@@ -108,21 +144,27 @@ export class OrderService {
     return order;
   }
 
-  async updateOrder(aliasId: string ,order: UpdateOrderDto): Promise<CreateOrderResponseDto| Error>{
-    const isUpdated = await this.validateAndProcessOrderItems(aliasId, order.orderItems);
+  async updateOrder(
+    aliasId: string,
+    order: UpdateOrderDto,
+  ): Promise<CreateOrderResponseDto | Error> {
+    const isUpdated = await this.validateAndProcessOrderItems(
+      aliasId,
+      order.orderItems,
+    );
     console.log('isUpdated', isUpdated);
-    if(!isUpdated)
+    if (!isUpdated)
       throw new UnprocessableEntityException('No change in order items');
     const percentageDeliveryChargeStrategy =
-        new PercentageDeliveryChargeStrategy();
-      const config = new DefaultOrderConfigService().getOrderConfig();
+      new PercentageDeliveryChargeStrategy();
+    const config = new DefaultOrderConfigService().getOrderConfig();
     const totalOrderAmtInfo = getOrderInfo(
       order.orderItems,
       config,
       percentageDeliveryChargeStrategy,
     );
-    const updatedOrderResponse=await this.orderRepository.update(aliasId, {
-      ...totalOrderAmtInfo
+    const updatedOrderResponse = await this.orderRepository.update(aliasId, {
+      ...totalOrderAmtInfo,
     });
     return this.filterOrderResponse(updatedOrderResponse);
   }
@@ -134,18 +176,18 @@ export class OrderService {
     const order = await this.orderRepository.findOne({
       aliasId,
     });
-    if(!order) throw new NotFoundException('Order not found');
-    let orderId=order.id;
+    if (!order) throw new NotFoundException('Order not found');
+    let orderId = order.id;
     const existingOrderItems = await this.orderItemsRepository.findAll(orderId);
 
     const itemsToUpdate = [];
     const itemsToCreate = [];
-    let insertLen=0;
-    let updateLen=0;
+    let insertLen = 0;
+    let updateLen = 0;
     await this.transactionService.executeInTransaction(
       async (entityManager) => {
-        
-        const orderItemsRepo =this.orderItemsRepository.getRepository(entityManager);
+        const orderItemsRepo =
+          this.orderItemsRepository.getRepository(entityManager);
         orderItems.forEach((item) => {
           const existingItem = existingOrderItems.find(
             (existing) => existing.productId === item.productId,
@@ -160,15 +202,19 @@ export class OrderService {
         });
 
         if (itemsToUpdate.length > 0) {
-          updateLen=await orderItemsRepo.updateBulk(itemsToUpdate);
+          updateLen = await orderItemsRepo.updateBulk(itemsToUpdate);
         }
 
         if (itemsToCreate.length > 0) {
-          insertLen=await orderItemsRepo.insertBulk(itemsToCreate);
+          insertLen = await orderItemsRepo.insertBulk(itemsToCreate);
         }
-        return insertLen === itemsToCreate.length && updateLen === itemsToUpdate.length;
-      });
-      return insertLen > 0 || updateLen > 0;
+        return (
+          insertLen === itemsToCreate.length &&
+          updateLen === itemsToUpdate.length
+        );
+      },
+    );
+    return insertLen > 0 || updateLen > 0;
   }
 
   async cancelOrder(aliasId: string): Promise<Order> {
@@ -184,7 +230,7 @@ export class OrderService {
     const order = await this.orderRepository.findOne({
       id,
     });
-    if(!order) throw new NotFoundException('Order not found');
+    if (!order) throw new NotFoundException('Order not found');
     return await this.orderRepository.delete(id);
   }
 }

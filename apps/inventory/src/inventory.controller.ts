@@ -2,10 +2,14 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Res, HttpStatus, Injec
 import { InventoryService } from './inventory.service';
 import { Inventory } from './entity/inventory.entity';
 import { ResponseUtil } from '@app/utils/response.util';
-import { ClientKafka } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
 import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
 import { KafkaConsumer } from '@lib/kafka/KafkaConsumer';
+import { ValidateOrderItemsReqDto } from './dto/validate-order-items-req.dto';
+import { ApiResponse } from '../../utils/response.decorator';
+import { ValidateOrderItemsResponseDto } from './dto/validate-order-items-res.dto';
+import { GrpcMethod } from '@nestjs/microservices';
+import { CustomLoggerService } from '@lib/logger/src';
 
 
 @Controller('inventories')
@@ -13,7 +17,8 @@ export class InventoryController {
   constructor(private readonly inventoryService: InventoryService,
     @Inject(ConfigService) private readonly configService: ConfigService,
     @Inject(KafkaAdminClient) private readonly kafkaAdminClient: KafkaAdminClient,
-    @Inject(KafkaConsumer) private readonly kafkaConsumer: KafkaConsumer
+    @Inject(KafkaConsumer) private readonly kafkaConsumer: KafkaConsumer,
+    private readonly logger: CustomLoggerService
   ) {}
 
   @Post()
@@ -44,12 +49,26 @@ export class InventoryController {
     })
   }
 
+  @GrpcMethod('InventoryService','validate')
+  async validate(validateOrderItems) {
+    try {
+      //console.log("validateOrderItems fetched :::",validateOrderItems);
+      const validationResponse= await this.inventoryService.validate(validateOrderItems);
+      this.logger.info(`InventoryService.validate::: ${JSON.stringify(validationResponse)}`, 'InventoryService.validate');
+      return validationResponse;
+    } catch (error) {
+        console.log(error);
+        throw error;
+    }
+     
+  }
+
   @Get(':id')
   async getInventoryById(@Param('id') id: number, @Res() response) {
     ResponseUtil.success({
       response,
       message: 'Successfully fetched inventory',
-      data: await this.inventoryService.getInventoryById(id),
+      data: await this.inventoryService.fetch(id),
       statusCode:HttpStatus.OK
     })
   }
@@ -59,7 +78,7 @@ export class InventoryController {
     ResponseUtil.success({
       response,
       message: 'Inventory updated successfully',
-      data: await this.inventoryService.updateInventory(id, inventory),
+      data: await this.inventoryService.update(id, inventory),
       statusCode:HttpStatus.OK
     });
   }
@@ -69,7 +88,7 @@ export class InventoryController {
     ResponseUtil.success({
       response,
       message: 'Inventory deleted successfully',
-      data: await this.inventoryService.deleteInventory(id),
+      data: await this.inventoryService.delete(id),
       statusCode:HttpStatus.NO_CONTENT
     });
   }

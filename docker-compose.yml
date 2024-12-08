@@ -71,6 +71,7 @@ services:
       context: .
     ports:
       - "3003:3003"
+      - "5002:5002"
     depends_on:
       - postgres
       - es01

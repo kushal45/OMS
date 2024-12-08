@@ -28,7 +28,7 @@ export class LoggerErrorInterceptor implements NestInterceptor {
               ResponseUtil.error({
                 response,
                 message: err.message,
-                error: err.message,
+                error: err.response?? err.message,
                 statusCode:err.status?? HttpStatus.INTERNAL_SERVER_ERROR as HttpStatus
               })
             },
@@ -43,6 +43,7 @@ export class LoggerErrorInterceptor implements NestInterceptor {
         method: req.method,
         url: req.url,
         body: req.body,
+        error:JSON.stringify(error),
       };
 
       // Serialize logMessage.message to ensure it's plain text

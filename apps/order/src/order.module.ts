@@ -13,6 +13,7 @@ import { OrderItems } from './entity/orderItems.entity';
 import { Order } from './entity/order.entity';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { KafkaProducer } from '@lib/kafka/KafkaProducer';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 
 @Module({
   imports: [
@@ -20,6 +21,17 @@ import { KafkaProducer } from '@lib/kafka/KafkaProducer';
       envFilePath: path.resolve('apps/order/.env'), // Loads the .env file specific to this microservice
       isGlobal: true, // Makes the environment variables available globally
     }),
+    ClientsModule.register([
+      {
+        name: 'INVENTORY_PACKAGE',
+        transport: Transport.GRPC,
+        options: {
+          package: 'INVENTORY_PACKAGE',
+          protoPath: path.resolve('apps/inventory/src/proto/inventory.proto'),
+          url:`inventory:5002`
+        },
+      },
+    ]),
     AddressModule,
     LoggerModule,
     TypeOrmModule.forFeature([Order, OrderItems]),

@@ -37,16 +37,6 @@ export class KafkaConsumer {
         this.context,
       );
     });
-
-    this.consumer.on('consumer.heartbeat', (event) => {
-      this.logger.info(
-        {
-          message: `Consumer heartbeat`,
-          event: JSON.stringify(event),
-        },
-        this.context,
-      );
-    });
   }
 
   async disconnect(): Promise<void> {
