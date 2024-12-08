@@ -2,25 +2,30 @@ import { CustomLoggerService } from '@lib/logger/src';
 import { ConfigService } from '@nestjs/config';
 import { ModuleRef } from '@nestjs/core';
 import { Consumer, Kafka, KafkaConfig } from 'kafkajs';
+import { SchemaRegistry, SchemaType } from '@kafkajs/confluent-schema-registry';
 
 export class KafkaConsumer {
   private consumer: Consumer;
   private context: string = 'KafkaConsumer';
-
+  private schemaRegistry: SchemaRegistry;
+  
   constructor(
     config: KafkaConfig,
     private moduleRef:ModuleRef
   ) {
+
     const configService = moduleRef.get(ConfigService, { strict: false });
     const groupId = configService.get<string>('INVENTORY_CONSUMER_GROUP_ID');
     this.consumer = new Kafka(config).consumer({ groupId ,retry:{retries:5}});
+    const schemaRegistryUrl = configService.get<string>('SCHEMA_REGISTRY_URL');
+    this.schemaRegistry = new SchemaRegistry({ host: schemaRegistryUrl ,retry: {retries: 5 }});
   }
 
   async subscribe(topic: string): Promise<void> {
     const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
     logger.info(`Subscribing to topic ${topic}`, this.context);
     this.consumer.connect();
-    this.consumer.subscribe({ topic });
+    this.consumer.subscribe({ topic ,fromBeginning:true});
   }
 
   async postSubscribeCallback(
@@ -28,7 +33,8 @@ export class KafkaConsumer {
   ): Promise<void> {
     await this.consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
-        callback(topic, partition, message.value.toString());
+        const decodedMessage = await this.schemaRegistry.decode(message.value);
+        callback(topic, partition, decodedMessage.toString());
       },
     });
 

@@ -5,11 +5,10 @@ import { ResponseUtil } from '@app/utils/response.util';
 import { ConfigService } from '@nestjs/config';
 import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
 import { KafkaConsumer } from '@lib/kafka/KafkaConsumer';
-import { ValidateOrderItemsReqDto } from './dto/validate-order-items-req.dto';
-import { ApiResponse } from '../../utils/response.decorator';
-import { ValidateOrderItemsResponseDto } from './dto/validate-order-items-res.dto';
 import { GrpcMethod } from '@nestjs/microservices';
 import { CustomLoggerService } from '@lib/logger/src';
+import { registerSchema } from '@app/utils/SchemaRegistry';
+import { ModuleRef } from '@nestjs/core';
 
 
 @Controller('inventories')
@@ -18,7 +17,8 @@ export class InventoryController {
     @Inject(ConfigService) private readonly configService: ConfigService,
     @Inject(KafkaAdminClient) private readonly kafkaAdminClient: KafkaAdminClient,
     @Inject("KafkaConsumerInstance") private readonly kafkaConsumer: KafkaConsumer,
-    private readonly logger: CustomLoggerService
+    private readonly logger: CustomLoggerService,
+    private moduleRef: ModuleRef
   ) {}
 
   @Post()
@@ -32,6 +32,7 @@ export class InventoryController {
   }
 
   async onModuleInit() {
+    //await registerSchema(this.moduleRef);
     await this.kafkaAdminClient.createTopic(this.configService.get<string>('INVENTORY_UPDATE_TOPIC'));
     await this.kafkaConsumer.subscribe(this.configService.get<string>('INVENTORY_UPDATE_TOPIC'));
     await this.kafkaConsumer.postSubscribeCallback(async (topic, partition, message) => {

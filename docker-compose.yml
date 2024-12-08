@@ -195,6 +195,11 @@ services:
     ports:
       - "9092:9092"
       - "9093:9093"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "/usr/bin/kafka-broker-api-versions --bootstrap-server=kafka1:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     environment:
       KAFKA_KRAFT_MODE: 'true'
       KAFKA_PROCESS_ROLES: broker,controller
@@ -222,6 +227,11 @@ services:
     ports:
       - "9094:9092"
       - "9096:9093"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "/usr/bin/kafka-broker-api-versions --bootstrap-server=kafka2:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     environment:
       KAFKA_KRAFT_MODE: 'true'
       KAFKA_PROCESS_ROLES: broker,controller
@@ -249,6 +259,11 @@ services:
     ports:
       - "9095:9092"
       - "9097:9093"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "/usr/bin/kafka-broker-api-versions --bootstrap-server=kafka3:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     environment:
       KAFKA_KRAFT_MODE: 'true'
       KAFKA_PROCESS_ROLES: broker,controller
@@ -283,6 +298,23 @@ services:
       - kafka1
       - kafka2
       - kafka3
+    networks:
+      - oms
+  schema-registry:
+    image: confluentinc/cp-schema-registry:latest
+    depends_on:
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka1:9092,PLAINTEXT://kafka2:9092,PLAINTEXT://kafka3:9092
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    ports:
+      - "8081:8081"
     networks:
       - oms
 

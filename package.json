@@ -28,6 +28,7 @@
     "@faker-js/faker": "^9.2.0",
     "@grpc/grpc-js": "^1.12.4",
     "@grpc/proto-loader": "^0.7.13",
+    "@kafkajs/confluent-schema-registry": "^3.3.0",
     "@nestjs/axios": "^3.1.2",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.2.3",

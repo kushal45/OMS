@@ -54,8 +54,8 @@ import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
       inject: [ModuleRef,ConfigService],
       useFactory: (
         moduleRef: ModuleRef,
+        configService: ConfigService,
       ) => {
-        const configService = moduleRef.get(ConfigService, { strict: false });
         const kafkaConfig = {
           clientId: configService.get<string>('ORDER_CLIENT_ID'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),

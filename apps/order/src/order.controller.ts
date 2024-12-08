@@ -24,11 +24,14 @@ import { ResponseUtil } from '@app/utils/response.util';
 import { OrderResponseDto } from './dto/get-order-res';
 import { OrderItemsResponseDto } from './dto/get-order-items-res';
 import { UpdateOrderDto } from './dto/update-order-req.dto';
+import { registerSchema } from '@app/utils/SchemaRegistry';
+import { ModuleRef } from '@nestjs/core';
 
 @ApiTags('orders')
 @Controller('orders')
 export class OrderController {
-  constructor(private readonly orderService: OrderService
+  constructor(private readonly orderService: OrderService,
+    private readonly moduleRef: ModuleRef
   ) {}
 
   @ApiOperation({ summary: 'Create new Order' })
@@ -127,5 +130,9 @@ export class OrderController {
       message: 'Order deleted successfully.',
       statusCode: HttpStatus.NO_CONTENT,
     })
+  }
+
+  async onModuleInit() {
+    await registerSchema(this.moduleRef)
   }
 }

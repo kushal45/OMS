@@ -56,7 +56,7 @@ export class OrderService {
         configService.get<string>('INVENTORY_UPDATE_TOPIC'),
          {
           key: 'order',
-          value: JSON.stringify(orderItems),
+          value: orderItems,
         }
       )
       console.log("response from kafka producer",response);
