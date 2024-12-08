@@ -12,6 +12,7 @@ import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
 import { KafkaConfig } from 'kafkajs';
 import { KafkaConsumer } from '@lib/kafka/KafkaConsumer';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ModuleRef } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -27,35 +28,27 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
   providers: [InventoryService,InventoryRepository,ConfigService,
     {
       provide: KafkaAdminClient,
-      
-      useFactory: (logger: CustomLoggerService,configService:ConfigService) => {
+      inject: [ModuleRef,CustomLoggerService,ConfigService],
+      useFactory: (moduleRef:ModuleRef) => {
+        const configService = moduleRef.get(ConfigService, { strict: false });
         const kafkaConfig: KafkaConfig ={
           clientId: configService.get<string>('INVENTORY_CLIENT_ID'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
         }
-        logger.info({
-          message: 'Creating KafkaAdminClient',
-          kafkaConfig,
-        },'KafkAdminClientProvider');
-        return new KafkaAdminClient(kafkaConfig, logger);
+        return new KafkaAdminClient(kafkaConfig,moduleRef);
       },
-      inject: [CustomLoggerService,ConfigService],
     },
     CustomLoggerService,
     {
-      provide: KafkaConsumer,
-      inject: [ConfigService,CustomLoggerService],
-      useFactory: (configService: ConfigService,logger:CustomLoggerService) => {
-        console.log("configService",configService);
+      provide: "KafkaConsumerInstance",
+      inject: [ModuleRef,ConfigService,CustomLoggerService],
+      useFactory: (moduleRef:ModuleRef) => {
+        const configService = moduleRef.get(ConfigService, { strict: false });
         const kafkaConfig: KafkaConfig ={
           clientId: configService.get<string>('INVENTORY_CLIENT_ID'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
         }
-        logger.info({
-          message: 'Creating KafkaConsumer',
-          kafkaConfig,
-        },'KafkaConsumerProvider');
-        return new KafkaConsumer(kafkaConfig, logger,configService.get<string>('INVENTORY_CONSUMER_GROUP_ID'));
+        return new KafkaConsumer(kafkaConfig,moduleRef);
       },
     }
   ],

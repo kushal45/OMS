@@ -1,5 +1,6 @@
 import { CustomLoggerService } from '@lib/logger/src';
 import { Injectable } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { Admin, KafkaConfig, Kafka, ITopicMetadata } from 'kafkajs';
 
 @Injectable()
@@ -8,7 +9,7 @@ export class KafkaAdminClient {
   private context: string = 'KafkaAdminClient';
   constructor(
     config: KafkaConfig,
-    private logger: CustomLoggerService,
+    private moduleRef: ModuleRef,
   ) {
     // create a single instance of KafkaAdminClient
     if (!KafkaAdminClient.kafkaAdminClient) {
@@ -23,7 +24,8 @@ export class KafkaAdminClient {
         await KafkaAdminClient.kafkaAdminClient.fetchTopicMetadata({ topics });
       return metadata.topics;
     } catch (error) {
-      this.logger.error(
+      const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+      logger.error(
         {
           message: `Failed to fetch topic metadata for topics: ${topics.join(', ')}`,
           error: error.message,
@@ -36,14 +38,16 @@ export class KafkaAdminClient {
   async createTopic(topicName: string): Promise<void> {
     try {
       await KafkaAdminClient.kafkaAdminClient.connect();
+      const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
       const topics = await this.listTopics();
-      this.logger.info(`Topics: ${JSON.stringify(topics)}`, this.context);
+      logger.info(`Topics: ${JSON.stringify(topics)}`, this.context);
       if (!topics.includes(topicName) || topics.length === 0) {
         console.log(`Creating topic ${topicName}`);
         await this.retryCreateTopic(topicName);
       }
     } catch (error) {
-      this.logger.error(
+      const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+      logger.error(
         {
           message: `Failed to create topic ${topicName}`,
           error: error.message,
@@ -57,20 +61,36 @@ export class KafkaAdminClient {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         await KafkaAdminClient.kafkaAdminClient.createTopics({
-          topics: [{
-            topic: topicName,
-            numPartitions: 3,
-          }],
+          topics: [
+            {
+              topic: topicName,
+              numPartitions: 3,
+            },
+          ],
         });
-        this.logger.info(`Successfully created topic ${topicName} on attempt ${attempt}`, this.context);
+        const logger = this.moduleRef.get(CustomLoggerService, {
+          strict: false,
+        });
+        logger.info(
+          `Successfully created topic ${topicName} on attempt ${attempt}`,
+          this.context,
+        );
         return;
       } catch (error) {
         if (attempt === retries) {
-          this.logger.error({
-            message: `Failed to create topic ${topicName} after ${retries} attempts`,
-            error: error.message,
-          }, this.context);
-          throw new Error(`Failed to create topic ${topicName} after ${retries} attempts: ${error.message}`);
+          const logger = this.moduleRef.get(CustomLoggerService, {
+            strict: false,
+          });
+          logger.error(
+            {
+              message: `Failed to create topic ${topicName} after ${retries} attempts`,
+              error: error.message,
+            },
+            this.context,
+          );
+          throw new Error(
+            `Failed to create topic ${topicName} after ${retries} attempts: ${error.message}`,
+          );
         }
       }
     }
@@ -85,13 +105,44 @@ export class KafkaAdminClient {
     }
   }
   async listTopics(): Promise<string[]> {
-    this.logger.info('Listing topics', this.context);
+    const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+    logger.info('Listing topics', this.context);
     return await KafkaAdminClient.kafkaAdminClient.listTopics();
   }
+
   async describeTopic(topicName: string): Promise<string> {
     const topicMetadata = await this.fetchTopicMetadata([topicName]);
     return JSON.stringify(topicMetadata[0]);
   }
+
+  async getNumberOfPartitions(topic: string): Promise<number> {
+    try {
+
+      const admin = KafkaAdminClient.kafkaAdminClient;
+      await admin.connect();
+      const metadata = await admin.fetchTopicMetadata({ topics: [topic] });
+      const topicMetadata = metadata.topics.find((t) => t.name === topic);
+
+      if (!topicMetadata) {
+        throw new Error(`Topic "${topic}" not found`);
+      }
+      await admin.disconnect();
+      return topicMetadata.partitions.length; // Number of partitions
+    } catch (error) {
+      const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+      logger.error(
+        {
+          message: `Failed to get number of partitions for topic ${topic}`,
+          error: error.message,
+        },
+        this.context,
+      );
+      throw new Error(
+        `Failed to get number of partitions for topic ${topic}: ${error.message}`,
+      );
+    }
+  }
+
   async close(): Promise<void> {
     await KafkaAdminClient.kafkaAdminClient.disconnect();
   }

@@ -1,5 +1,7 @@
 import { CustomLoggerService } from "@lib/logger/src";
-import { Kafka, KafkaConfig, Producer } from "kafkajs";
+import { ModuleRef } from "@nestjs/core";
+import { Kafka, KafkaConfig, Producer, RecordMetadata } from "kafkajs";
+import { KafkaAdminClient } from "./KafKaAdminClient";
 
 
 export class KafkaProducer {
@@ -7,32 +9,42 @@ export class KafkaProducer {
     private kafka: Kafka;
     private context: string = 'KafkaProducer';
     
-    constructor(config: KafkaConfig,private logger:CustomLoggerService) {
+    constructor(config: KafkaConfig, private moduleRef: ModuleRef) {
         this.kafka = new Kafka(config);
-        this.producer = this.kafka.producer();
-       
+        this.producer = this.kafka.producer(
+            {
+                idempotent: true,
+            }
+        );
     }
     
-    async send(topic: string, message: string): Promise<void> {
+    async send(topic: string,messageObj:{
+        key:string,
+        value:string
+    }): Promise<RecordMetadata[]> {
         this.producer.connect();
-        this.producer.on('producer.connect', async () => {
-        // validate if the topic exists in the kafka cluster, if not create the topic
-        const topicMetaData=await this.kafka.admin().fetchTopicMetadata({ topics: [topic] });
-        this.logger.info(`Topics: ${JSON.stringify(topicMetaData)}`, this.context);
-        if(topicMetaData.topics.length===0){
-            this.logger.error(`Topic ${topic} does not exist, creating the topic`,this.context);
-            await this.kafka.admin().createTopics({
-                topics: [{ topic }],
-            });
-        }
-        await this.producer.send({
+        
+        const kafkaAdminClient = this.moduleRef.get<KafkaAdminClient>('KafkaAdminInstance', { strict: true });
+        const numPartitions = await kafkaAdminClient.getNumberOfPartitions(topic);
+        const assignedPartition = numPartitions%2;
+        return await this.producer.send({
             topic,
-            messages: [{ value: message }],
-        })
+            messages: [{
+                ...messageObj,
+                partition: assignedPartition
+            }],
+            
         });
-        this.producer.on('producer.network.request_timeout', (event) => {
-            console.error(event);
-        });
+        // this.producer.on('producer.network.request_timeout', (event) => {
+        //     const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+        //     logger.error(
+        //         {
+        //             message: `Failed to send message to topic: ${topic}`,
+        //             error: JSON.stringify(event.payload),
+        //         },
+        //         this.context,
+        //     );
+        // });
     }
 
     async disconnect(): Promise<void> {

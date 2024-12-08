@@ -1,4 +1,6 @@
 import { CustomLoggerService } from '@lib/logger/src';
+import { ConfigService } from '@nestjs/config';
+import { ModuleRef } from '@nestjs/core';
 import { Consumer, Kafka, KafkaConfig } from 'kafkajs';
 
 export class KafkaConsumer {
@@ -7,14 +9,16 @@ export class KafkaConsumer {
 
   constructor(
     config: KafkaConfig,
-    private logger: CustomLoggerService,
-    groupId: string,
+    private moduleRef:ModuleRef
   ) {
-    this.consumer = new Kafka(config).consumer({ groupId });
+    const configService = moduleRef.get(ConfigService, { strict: false });
+    const groupId = configService.get<string>('INVENTORY_CONSUMER_GROUP_ID');
+    this.consumer = new Kafka(config).consumer({ groupId ,retry:{retries:5}});
   }
 
   async subscribe(topic: string): Promise<void> {
-    this.logger.info(`Subscribing to topic ${topic}`, this.context);
+    const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+    logger.info(`Subscribing to topic ${topic}`, this.context);
     this.consumer.connect();
     this.consumer.subscribe({ topic });
   }
@@ -29,7 +33,8 @@ export class KafkaConsumer {
     });
 
     this.consumer.on('consumer.rebalancing', (event) => {
-      this.logger.error(
+      const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+      logger.error(
         {
           message: `Consumer rebalancing`,
           event: JSON.stringify(event),

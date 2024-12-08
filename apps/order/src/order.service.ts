@@ -21,6 +21,9 @@ import { ClientGrpc } from '@nestjs/microservices';
 import { OrderQueryInterface } from './interfaces/order-query-interface';
 import { firstValueFrom, Observable } from 'rxjs';
 import { CustomLoggerService } from '@lib/logger/src';
+import { ServiceLocator } from './service-locator';
+import { KafkaProducer } from '@lib/kafka/KafkaProducer';
+import { ConfigService } from '@nestjs/config';
 
 interface InventoryService {
   validate(
@@ -32,12 +35,7 @@ interface InventoryService {
 export class OrderService {
   private context = OrderService.name;
   constructor(
-    private orderRepository: OrderRepository,
-    private orderItemsRepository: OrderItemsRepository,
-    private readonly addressService: AddressService,
-    private readonly transactionService: TransactionService,
-    @Inject('INVENTORY_PACKAGE') private readonly inventoryService: ClientGrpc,
-    private readonly customLoggerService: CustomLoggerService,
+    private readonly serviceLocator: ServiceLocator,
   ) {}
 
   async createOrder(
@@ -46,12 +44,22 @@ export class OrderService {
   ): Promise<CreateOrderResponseDto> {
     try {
       const { addressId, orderItems } = order;
-      const isValid = await this.addressService.isValidAddress(
+      const isValid = await this.serviceLocator.getAddressService().isValidAddress(
         userId,
         addressId,
       );
       if (!isValid) throw new BadRequestException('Address not valid');
       await this.validateOrder(order);
+      const kafkaProducer = this.serviceLocator.getModuleRef().get<KafkaProducer>("KafkaProducerInstance",{strict:false});
+      const configService = this.serviceLocator.getModuleRef().get(ConfigService,{strict:false});
+      const response= await kafkaProducer.send(
+        configService.get<string>('INVENTORY_UPDATE_TOPIC'),
+         {
+          key: 'order',
+          value: JSON.stringify(orderItems),
+        }
+      )
+      console.log("response from kafka producer",response);
       let orderResponse: Order;
       // const percentageDeliveryChargeStrategy =
       //   new PercentageDeliveryChargeStrategy();
@@ -97,7 +105,7 @@ export class OrderService {
      */
     console.log("orderItems before sending to inventory",orderItems);
     const validationResponse = await firstValueFrom(
-      this.inventoryService
+      this.serviceLocator.getInventoryService()
         .getService<InventoryService>('InventoryService')
         .validate({orderItems}),
     );
@@ -125,19 +133,19 @@ export class OrderService {
   }
 
   async getOrders(userId: number): Promise<Order[]> {
-    return this.orderRepository.find(userId);
+    return this.serviceLocator.getOrderRepository().find(userId);
   }
 
   async getOrderItems(aliasId: string): Promise<OrderItems[]> {
-    const order = await this.orderRepository.findOne({
+    const order = await this.serviceLocator.getOrderRepository().findOne({
       aliasId,
     });
     if (!order) throw new NotFoundException('Order not found');
-    return this.orderItemsRepository.findAll(order.id);
+    return this.serviceLocator.getOrderItemsRepository().findAll(order.id);
   }
 
   async getOrderById(aliasId: string): Promise<Order> {
-    const order = this.orderRepository.findOne({
+    const order = this.serviceLocator.getOrderRepository().findOne({
       aliasId,
     });
     if (!order) throw new NotFoundException('Order not found');
@@ -163,7 +171,7 @@ export class OrderService {
       config,
       percentageDeliveryChargeStrategy,
     );
-    const updatedOrderResponse = await this.orderRepository.update(aliasId, {
+    const updatedOrderResponse = await this.serviceLocator.getOrderRepository().update(aliasId, {
       ...totalOrderAmtInfo,
     });
     return this.filterOrderResponse(updatedOrderResponse);
@@ -173,21 +181,21 @@ export class OrderService {
     aliasId: string,
     orderItems: UpdateOrderDto['orderItems'],
   ): Promise<boolean> {
-    const order = await this.orderRepository.findOne({
+    const order = await this.serviceLocator.getOrderRepository().findOne({
       aliasId,
     });
     if (!order) throw new NotFoundException('Order not found');
     let orderId = order.id;
-    const existingOrderItems = await this.orderItemsRepository.findAll(orderId);
+    const existingOrderItems = await this.serviceLocator.getOrderItemsRepository().findAll(orderId);
 
     const itemsToUpdate = [];
     const itemsToCreate = [];
     let insertLen = 0;
     let updateLen = 0;
-    await this.transactionService.executeInTransaction(
+    await this.serviceLocator.getTransactionService().executeInTransaction(
       async (entityManager) => {
         const orderItemsRepo =
-          this.orderItemsRepository.getRepository(entityManager);
+          this.serviceLocator.getOrderItemsRepository().getRepository(entityManager);
         orderItems.forEach((item) => {
           const existingItem = existingOrderItems.find(
             (existing) => existing.productId === item.productId,
@@ -218,19 +226,19 @@ export class OrderService {
   }
 
   async cancelOrder(aliasId: string): Promise<Order> {
-    const order = await this.orderRepository.findOne({
+    const order = await this.serviceLocator.getOrderRepository().findOne({
       aliasId,
     });
     if (!order) throw new NotFoundException('Order not found');
     order.orderStatus = OrderStatus.Cancelled;
-    return this.orderRepository.update(order.aliasId, order);
+    return this.serviceLocator.getOrderRepository().update(order.aliasId, order);
   }
 
   async deleteOrder(id: number): Promise<boolean> {
-    const order = await this.orderRepository.findOne({
+    const order = await this.serviceLocator.getOrderRepository().findOne({
       id,
     });
     if (!order) throw new NotFoundException('Order not found');
-    return await this.orderRepository.delete(id);
+    return await this.serviceLocator.getOrderRepository().delete(id);
   }
 }

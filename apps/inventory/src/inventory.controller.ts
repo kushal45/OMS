@@ -17,7 +17,7 @@ export class InventoryController {
   constructor(private readonly inventoryService: InventoryService,
     @Inject(ConfigService) private readonly configService: ConfigService,
     @Inject(KafkaAdminClient) private readonly kafkaAdminClient: KafkaAdminClient,
-    @Inject(KafkaConsumer) private readonly kafkaConsumer: KafkaConsumer,
+    @Inject("KafkaConsumerInstance") private readonly kafkaConsumer: KafkaConsumer,
     private readonly logger: CustomLoggerService
   ) {}
 

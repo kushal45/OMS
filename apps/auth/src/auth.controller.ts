@@ -75,9 +75,6 @@ export class AuthController {
   @ApiResponse(ValidateTokenResponseDto)
   async validateToken(@Body('token') token: string) {
     const payload = await this.authService.validateToken(token);
-    if (!payload) {
-      throw new UnauthorizedException('Invalid token from validation');
-    }
     return payload; // Return payload data if token is valid
   }
 

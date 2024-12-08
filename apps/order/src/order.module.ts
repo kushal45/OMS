@@ -11,9 +11,11 @@ import { CustomLoggerService, LoggerModule } from '@lib/logger/src';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrderItems } from './entity/orderItems.entity';
 import { Order } from './entity/order.entity';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_INTERCEPTOR, ModuleRef } from '@nestjs/core';
 import { KafkaProducer } from '@lib/kafka/KafkaProducer';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ServiceLocator } from './service-locator';
+import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
 
 @Module({
   imports: [
@@ -28,7 +30,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
         options: {
           package: 'INVENTORY_PACKAGE',
           protoPath: path.resolve('apps/inventory/src/proto/inventory.proto'),
-          url:`inventory:5002`
+          url: `inventory:5002`,
         },
       },
     ]),
@@ -42,21 +44,38 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
     OrderItemsRepository,
     OrderRepository,
     TransactionService,
+    ServiceLocator,
     {
       provide: APP_INTERCEPTOR,
       useExisting: 'LoggerErrorInterceptor', // Use the exported interceptor
     },
     {
-      provide:"KafkaProducerInstance",
-      inject:[ConfigService,CustomLoggerService],
-      useFactory:(configService:ConfigService,logger:CustomLoggerService) => {
-        const kafkaConfig ={
+      provide: 'KafkaProducerInstance',
+      inject: [ModuleRef,ConfigService],
+      useFactory: (
+        moduleRef: ModuleRef,
+      ) => {
+        const configService = moduleRef.get(ConfigService, { strict: false });
+        const kafkaConfig = {
           clientId: configService.get<string>('ORDER_CLIENT_ID'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
-        }
-        return new KafkaProducer(kafkaConfig,logger);
-      }
-    }
+        };
+        return new KafkaProducer(kafkaConfig,moduleRef);
+      },
+    },
+    {
+      provide: 'KafkaAdminInstance',
+      inject: [ModuleRef,ConfigService],
+      useFactory: (moduleRef: ModuleRef) => {
+        const configService = moduleRef.get(ConfigService, { strict: false });
+        const kafkaConfig = {
+          clientId: configService.get<string>('ORDER_CLIENT_ID'),
+          brokers: configService.get<string>('KAFKA_BROKERS').split(','),
+        };
+        return new KafkaAdminClient(kafkaConfig,moduleRef);
+      },
+      
+    },
   ],
 })
 export class OrderModule {}
