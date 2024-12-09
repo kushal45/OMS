@@ -55,14 +55,15 @@ export class KafkaProducer {
           return this.schemaRegistry.encode(schemaId, validMessage);
         })
       );
-    console.log(`encoded message:`,encodedMessages);
-    
+   // console.log(`encoded message:`,encodedMessages);
+  
     const recordMetaData = await this.producer.send({
         topic,
         messages: encodedMessages.map((encodedMessage, index) => ({
-          key: messageObj.key,
+          key: `${messageObj.key}-${index}`,
           value: encodedMessage,
-          partition: assignedPartition
+          partition: assignedPartition,
+          headers: {"messageCount":messageObj.value.length.toString()},
         })),
       });
     await this.producer.disconnect();

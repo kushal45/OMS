@@ -35,9 +35,7 @@ export class InventoryController {
     //await registerSchema(this.moduleRef);
     await this.kafkaAdminClient.createTopic(this.configService.get<string>('INVENTORY_UPDATE_TOPIC'));
     await this.kafkaConsumer.subscribe(this.configService.get<string>('INVENTORY_UPDATE_TOPIC'));
-    await this.kafkaConsumer.postSubscribeCallback(async (topic, partition, message) => {
-      console.log(`Received message from topic ${topic} partition ${partition} message ${message}`);
-    });
+    await this.inventoryService.eventBasedUpdate(this.kafkaConsumer);
   }
 
   @Get()
@@ -79,7 +77,7 @@ export class InventoryController {
     ResponseUtil.success({
       response,
       message: 'Inventory updated successfully',
-      data: await this.inventoryService.update(id, inventory),
+      //data: await this.inventoryService.update(id, inventory),
       statusCode:HttpStatus.OK
     });
   }

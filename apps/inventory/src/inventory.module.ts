@@ -13,6 +13,7 @@ import { KafkaConfig } from 'kafkajs';
 import { KafkaConsumer } from '@lib/kafka/KafkaConsumer';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ModuleRef } from '@nestjs/core';
+import { TransactionService } from '@app/utils/transaction.service';
 
 @Module({
   imports: [
@@ -50,7 +51,8 @@ import { ModuleRef } from '@nestjs/core';
         }
         return new KafkaConsumer(kafkaConfig,moduleRef);
       },
-    }
+    },
+    TransactionService,
   ],
 })
 export class InventoryModule {}

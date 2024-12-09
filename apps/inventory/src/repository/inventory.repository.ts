@@ -53,6 +53,30 @@ export class InventoryRepository  implements BaseRepository<InventoryRepository>
     });
   }
 
+  async updateBulk(orderItems: Partial<Inventory>[]): Promise<number> {
+    return await this.repository.manager.transaction(async (transactionalEntityManager: EntityManager) => {
+      let updatedItemCount = 0;
+
+      for (const item of orderItems) {
+        const result = await transactionalEntityManager.update(Inventory, { productId: item.productId }, item);
+        if (result.affected && result.affected > 0) {
+          const updatedItem = await transactionalEntityManager.findOne(Inventory, { where: { productId: item.productId } });
+          if (updatedItem) {
+            updatedItemCount++;
+          }
+        } else {
+          throw new Error(`Failed to update item with productId: ${item.productId}`);
+        }
+      }
+
+      if ( updatedItemCount !== orderItems.length) {
+        throw new Error('Not all items were updated successfully');
+      }
+
+      return updatedItemCount;
+    });
+  }
+
   async delete(id: number): Promise<boolean> {
     const deleteRes=await this.repository.delete(id);
     if(deleteRes.affected>0) return true;

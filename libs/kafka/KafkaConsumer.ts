@@ -1,7 +1,7 @@
 import { CustomLoggerService } from '@lib/logger/src';
 import { ConfigService } from '@nestjs/config';
 import { ModuleRef } from '@nestjs/core';
-import { Consumer, Kafka, KafkaConfig } from 'kafkajs';
+import { Consumer, IHeaders, Kafka, KafkaConfig } from 'kafkajs';
 import { SchemaRegistry, SchemaType } from '@kafkajs/confluent-schema-registry';
 
 export class KafkaConsumer {
@@ -29,12 +29,13 @@ export class KafkaConsumer {
   }
 
   async postSubscribeCallback(
-    callback: (topic: string, partition: number, message: string) => void,
+    callback: (topic: string, partition: number, message: string,headers:IHeaders) => void,
   ): Promise<void> {
     await this.consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
         const decodedMessage = await this.schemaRegistry.decode(message.value);
-        callback(topic, partition, decodedMessage.toString());
+        const headers = message.headers;
+        callback(topic, partition, decodedMessage.toString(),headers);
       },
     });
 
