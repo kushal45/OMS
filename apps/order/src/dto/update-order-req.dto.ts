@@ -3,9 +3,6 @@ import { IsArray, IsInt, IsNumber, IsOptional, IsString, ValidateNested,Min,Max,
 import { Type } from 'class-transformer';
 
 class UpdateOrderItemDto {
-  @IsOptional()
-  @ApiProperty({ example: 1 })
-  orderItemId?: number;
   @ApiProperty({ example: 1 })
   @IsInt()
   productId: number;

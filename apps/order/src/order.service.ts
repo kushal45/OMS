@@ -20,7 +20,6 @@ import { UpdateOrderDto } from './dto/update-order-req.dto';
 import { ClientGrpc } from '@nestjs/microservices';
 import { OrderQueryInterface } from './interfaces/order-query-interface';
 import { firstValueFrom, Observable } from 'rxjs';
-import { CustomLoggerService } from '@lib/logger/src';
 import { ServiceLocator } from './service-locator';
 import { KafkaProducer } from '@lib/kafka/KafkaProducer';
 import { ConfigService } from '@nestjs/config';
@@ -49,22 +48,21 @@ export class OrderService {
         addressId,
       );
       if (!isValid) throw new BadRequestException('Address not valid');
-      await this.validateOrder(order);
-      const kafkaProducer = this.serviceLocator.getModuleRef().get<KafkaProducer>("KafkaProducerInstance",{strict:false});
-      const configService = this.serviceLocator.getModuleRef().get(ConfigService,{strict:false});
-      const response= await kafkaProducer.send(
-        configService.get<string>('INVENTORY_UPDATE_TOPIC'),
-         {
-          key: 'order',
-          value: orderItems,
-        }
-      )
-      console.log("response from kafka producer",response);
-      let orderResponse: Order;
+      await this.validateOrder(orderItems);
+      // const kafkaProducer = this.serviceLocator.getModuleRef().get<KafkaProducer>("KafkaProducerInstance",{strict:false});
+      // const configService = this.serviceLocator.getModuleRef().get(ConfigService,{strict:false});
+      // await kafkaProducer.send(
+      //   configService.get<string>('INVENTORY_UPDATE_TOPIC'),
+      //    {
+      //     key: 'order',
+      //     value: orderItems,
+      //   }
+      // );
+      // let orderResponse: Order;
       // const percentageDeliveryChargeStrategy =
       //   new PercentageDeliveryChargeStrategy();
       // const config = new DefaultOrderConfigService().getOrderConfig();
-      // await this.transactionService.executeInTransaction(
+      // await this.serviceLocator.getTransactionService().executeInTransaction(
       //   async (entityManager) => {
       //     const totalOrderAmtInfo = getOrderInfo(
       //       orderItems,
@@ -72,9 +70,9 @@ export class OrderService {
       //       percentageDeliveryChargeStrategy,
       //     );
       //     const orderRepo =
-      //       await this.orderRepository.getRepository(entityManager);
+      //       await this.serviceLocator.getOrderRepository().getRepository(entityManager);
       //     const orderItemsRepo =
-      //       await this.orderItemsRepository.getRepository(entityManager);
+      //       await this.serviceLocator.getOrderItemsRepository().getRepository(entityManager);
       //     orderResponse = await orderRepo.create({
       //       ...totalOrderAmtInfo,
       //       addressId,
@@ -87,14 +85,14 @@ export class OrderService {
       //     return orderItemsToSave === orderItems.length;
       //   },
       // );
-      return this.filterOrderResponse(orderResponse);
+      //return this.filterOrderResponse(orderResponse);
+      return {} as CreateOrderResponseDto;
     } catch (error) {
       throw error;
     }
   }
 
-  async validateOrder(order: OrderRequestDto): Promise<void> {
-    const { orderItems } = order;
+  async validateOrder(orderItems: OrderQueryInterface.OrderItemInput[]): Promise<void> {
     if (orderItems.length === 0) {
       throw new BadRequestException('Order items cannot be empty');
     }

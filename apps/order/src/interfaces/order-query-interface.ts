@@ -16,17 +16,17 @@ export namespace OrderQueryInterface {
     tax?: number;
   }
 
-  interface OrderItem {
+  export interface OrderItemInput {
     productId: number;
     price: number;
     quantity: number;
   }
   export interface ValidateOrderItemsInput {
-    orderItems: OrderItem[];
+    orderItems: OrderItemInput[];
   }
 
   export interface InvalidOrderItemWithReason {
-    orderItem: OrderItem;
+    orderItem: OrderItemInput;
     reasons: string[];
   }
   export interface ValidateOrderItemsResponse {
