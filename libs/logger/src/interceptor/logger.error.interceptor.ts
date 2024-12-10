@@ -17,10 +17,17 @@ export class LoggerErrorInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const req = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
+    const handler = context.getHandler().name;
+    const args = context.getArgs();
+    this.logger.info({
+      message: 'Response caught in interceptor',
+      handler,
+      args: this.safeStringify(args),
+    },LoggerErrorInterceptor.name);
     return next.handle().pipe(
         tap({
             next: (response) => {
-              console.log("response intercepted");
+              
             },
             error: (err) => {
               console.log('Error caught in interceptor', err.status); // Debug statement
@@ -34,6 +41,19 @@ export class LoggerErrorInterceptor implements NestInterceptor {
             },
           }),
     );
+  }
+
+  private safeStringify(obj: any): string {
+    const seen = new WeakSet();
+    return JSON.stringify(obj, (key, value) => {
+      if (typeof value === "object" && value !== null) {
+        if (seen.has(value)) {
+          return "[Circular]";
+        }
+        seen.add(value);
+      }
+      return value;
+    });
   }
 
   private logError(req: any, error: any) {

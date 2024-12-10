@@ -11,8 +11,7 @@ import { CustomLoggerService, LoggerModule } from '@lib/logger/src';
 import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
 import { KafkaConfig } from 'kafkajs';
 import { KafkaConsumer } from '@lib/kafka/KafkaConsumer';
-import { ClientsModule, Transport } from '@nestjs/microservices';
-import { ModuleRef } from '@nestjs/core';
+import { APP_INTERCEPTOR, ModuleRef } from '@nestjs/core';
 import { TransactionService } from '@app/utils/transaction.service';
 
 @Module({
@@ -27,6 +26,10 @@ import { TransactionService } from '@app/utils/transaction.service';
   ],
   controllers: [InventoryController],
   providers: [InventoryService,InventoryRepository,ConfigService,
+    {
+      provide: APP_INTERCEPTOR,
+      useExisting: 'LoggerErrorInterceptor', // Use the exported interceptor
+    },
     {
       provide: KafkaAdminClient,
       inject: [ModuleRef,CustomLoggerService,ConfigService],
