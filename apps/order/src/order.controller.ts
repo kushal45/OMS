@@ -10,6 +10,7 @@ import {
   HttpStatus,
   Res,
   NotAcceptableException,
+  Inject,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { Order } from './entity/order.entity';
@@ -20,15 +21,18 @@ import { ResponseErrDto } from '@app/utils/dto/response-err.dto';
 import { ApiResponseFormat } from '@app/utils/dto/response-format.dto';
 import { CreateOrderResponseDto } from './dto/create-order-res';
 import { ResponseUtil } from '@app/utils/response.util';
-import { OrderItems } from './entity/orderItems.entity';
 import { OrderResponseDto } from './dto/get-order-res';
 import { OrderItemsResponseDto } from './dto/get-order-items-res';
 import { UpdateOrderDto } from './dto/update-order-req.dto';
+import { registerSchema } from '@app/utils/SchemaRegistry';
+import { ModuleRef } from '@nestjs/core';
 
 @ApiTags('orders')
 @Controller('orders')
 export class OrderController {
-  constructor(private readonly orderService: OrderService) {}
+  constructor(private readonly orderService: OrderService,
+    private readonly moduleRef: ModuleRef
+  ) {}
 
   @ApiOperation({ summary: 'Create new Order' })
   @ApiResponse(ApiResponseFormat(CreateOrderResponseDto), 201)
@@ -41,7 +45,6 @@ export class OrderController {
     @Body() order: OrderRequestDto,
     @Res() response,
   ) {
-    try {
       const userObj = JSON.parse(req.headers['x-user-data']);
       const userId = userObj.id;
       const orderRes = await this.orderService.createOrder(order, userId);
@@ -51,9 +54,11 @@ export class OrderController {
         data: orderRes,
         statusCode: HttpStatus.CREATED,
       });
-    } catch (error) {
-      throw error;
-    }
+  }
+
+  @Get("health")
+  async health(@Res() response) {
+    response.status(HttpStatus.OK).send('OK');
   }
 
   @Get(':aliasId')
@@ -125,5 +130,9 @@ export class OrderController {
       message: 'Order deleted successfully.',
       statusCode: HttpStatus.NO_CONTENT,
     })
+  }
+
+  async onModuleInit() {
+    await registerSchema(this.moduleRef)
   }
 }

@@ -1,10 +1,8 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToOne } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToOne, JoinColumn } from 'typeorm';
 import { Product } from '../../../product/src/entity/product.entity';
+import { QueryInput } from '../interfaces/query-input.interface';
 
-export enum InventoryStatus {
-  IN_STOCK = 'in-stock',
-  OUT_OF_STOCK = 'out-of-stock',
-}
+
 
 @Entity()
 export class Inventory {
@@ -12,7 +10,11 @@ export class Inventory {
   id: number;
 
   @OneToOne(() => Product, { eager: true })
+  @JoinColumn({ name: 'productId' })
   product: Product;
+
+  @Column({ type: 'int' })
+  productId: number;
 
   @Column({ type: 'int' })
   quantity: number;
@@ -23,6 +25,6 @@ export class Inventory {
   @Column()
   location: string;
 
-  @Column({ type: 'enum', enum: InventoryStatus })
-  status: InventoryStatus;
+  @Column({ type: 'enum', enum: QueryInput.InventoryStatus, default: QueryInput.InventoryStatus.IN_STOCK })
+  status: QueryInput.InventoryStatus;
 }
