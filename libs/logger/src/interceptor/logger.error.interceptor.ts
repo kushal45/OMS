@@ -5,48 +5,48 @@ import {
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
-import { Observable, throwError } from 'rxjs';
-import { catchError, tap } from 'rxjs/operators';
-import { CustomLoggerService } from '../logger.service';
+import { Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
+import { LoggerService } from '../logger.service';
 import { ResponseUtil } from '@app/utils/response.util';
 
 @Injectable()
 export class LoggerErrorInterceptor implements NestInterceptor {
-  constructor(private readonly logger: CustomLoggerService) {}
+  constructor(private readonly logger: LoggerService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const req = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
     return next.handle().pipe(
-        tap({
-            next: (response) => {
-              console.log("response intercepted");
-            },
-            error: (err) => {
-              console.log('Error caught in interceptor', err.status); // Debug statement
-              this.logError(req, err);
-              ResponseUtil.error({
-                response,
-                message: err.message,
-                error: err.message,
-                statusCode:err.status?? HttpStatus.INTERNAL_SERVER_ERROR as HttpStatus
-              })
-            },
-          }),
+      tap({
+        next: (response) => {
+          console.log('response intercepted');
+        },
+        error: (err) => {
+          console.log('Error caught in interceptor', err.status); // Debug statement
+          this.logError(req, err);
+          ResponseUtil.error({
+            response,
+            message: err.message,
+            error: err.message,
+            statusCode:
+              err.status ?? (HttpStatus.INTERNAL_SERVER_ERROR as HttpStatus),
+          });
+        },
+      }),
     );
   }
 
   private logError(req: any, error: any) {
     const logMessage = {
-        message: `Message: ${error.message}, Stack: ${error.stack}`,
-        context: 'ExceptionHandler',
-        method: req.method,
-        url: req.url,
-        body: req.body,
-      };
+      message: `Message: ${error.message}, Stack: ${error.stack}`,
+      context: 'ExceptionHandler',
+      method: req.method,
+      url: req.url,
+      body: req.body,
+    };
 
-      // Serialize logMessage.message to ensure it's plain text
-      logMessage.message = JSON.stringify(logMessage.message);
-      this.logger.error(logMessage,"intercept");
+    // Serialize logMessage.message to ensure it's plain text
+    this.logger.error(JSON.stringify(logMessage.message), 'intercept');
   }
 }

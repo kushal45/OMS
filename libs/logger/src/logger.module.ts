@@ -1,20 +1,72 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 import { ElasticsearchTransport } from 'winston-elasticsearch';
-import { CustomLoggerService } from './logger.service';
+import { LoggerService } from './logger.service';
 import { LoggerErrorInterceptor } from './interceptor/logger.error.interceptor';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ElasticsearchModule } from '@nestjs/elasticsearch';
 
 @Module({
   imports: [
+    ConfigModule,
+    ElasticsearchModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const esHost = configService.get<string>('ELASTICSEARCH_HOST');
+        // Support comma-separated list of hosts
+        const nodes = esHost
+          ? esHost.split(',').map((host) => host.trim())
+          : [];
+
+        return {
+          nodes,
+          // Add connection pool settings for load balancing
+          maxRetries: 10,
+          requestTimeout: 60000,
+          sniffOnStart: true,
+        };
+      },
+    }),
     WinstonModule.forRootAsync({
-      useFactory: () => {
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const esHost = configService.get<string>('ELASTICSEARCH_HOST');
+        const serviceName = configService.get<string>(
+          'SERVICE_NAME',
+          'unknown',
+        );
+
+        if (!esHost) {
+          console.warn(
+            'ELASTICSEARCH_HOST not configured, using console transport only',
+          );
+          return {
+            transports: [
+              new winston.transports.Console({
+                format: winston.format.combine(
+                  winston.format.timestamp(),
+                  winston.format.json(),
+                ),
+              }),
+            ],
+          };
+        }
+
+        // Support comma-separated list of hosts for winston-elasticsearch
+        const nodes = esHost.split(',').map((host) => host.trim());
+
         const esTransport = new ElasticsearchTransport({
           level: 'info',
           clientOpts: {
-            node: process.env.ELASTICSEARCH_HOST,
+            nodes,
+            maxRetries: 5,
+            requestTimeout: 30000,
+            sniffOnStart: true,
             context: {
-              service: process.env.SERVICE_NAME,
+              service: serviceName,
             },
           },
           transformer: (logData) => {
@@ -22,7 +74,8 @@ import { LoggerErrorInterceptor } from './interceptor/logger.error.interceptor';
             const { message, ...meta } = logData;
             return {
               ...meta,
-              message: typeof message === 'string' ? message : JSON.stringify(message),
+              message:
+                typeof message === 'string' ? message : JSON.stringify(message),
             };
           },
         });
@@ -42,13 +95,14 @@ import { LoggerErrorInterceptor } from './interceptor/logger.error.interceptor';
     }),
   ],
   providers: [
-    CustomLoggerService,
+    LoggerService,
     {
       provide: 'LoggerErrorInterceptor',
-      useFactory: (logger:CustomLoggerService) => new LoggerErrorInterceptor(logger),
-      inject: ['winston',CustomLoggerService], // Inject Winston logger instance
+      useFactory: (loggerService: LoggerService) =>
+        new LoggerErrorInterceptor(loggerService),
+      inject: [LoggerService],
     },
   ],
-  exports: [WinstonModule, CustomLoggerService,'LoggerErrorInterceptor'],
+  exports: [WinstonModule, LoggerService, 'LoggerErrorInterceptor'],
 })
 export class LoggerModule {}

@@ -7,3 +7,4 @@ else
 fi
 docker image prune -f
 DEBUG=1 docker-compose -f docker-compose.yml up --remove-orphans --build -d
+docker compose watch

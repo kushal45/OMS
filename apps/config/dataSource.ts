@@ -1,27 +1,26 @@
-import { DataSource } from 'typeorm';
-import { join } from 'path';
+import { DataSource, DataSourceOptions } from 'typeorm';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
 
-const credObj={
-    username: 'postgres',
-    password: 'postgres',
-    host: 'localhost',
-    port:5433,
-    database:'oms',
-}
-console.log(join(__dirname, '/../', 'database/migrations/*{.ts,.js}'));
-console.log(__dirname + '/../**/*.entity{.ts,.js}');
-console.log(join(__dirname, '/../../', 'libs/**/src/entity/*{.ts,.js}'));
-export const connectionSource = new DataSource({
+// Load environment variables based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
+dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+
+export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
-  host: credObj.host,
-  port: credObj.port,
-  username: credObj.username,
-  password: credObj.password,
-  database: credObj.database,
-  logging: true,
-  entities: [__dirname + '/../**/*.entity{.ts,.js}',join(__dirname, '/../../', 'libs/**/src/entity/*{.ts,.js}')],
-  migrations: [join(__dirname, '/../', 'database/migrations/*{.ts,.js}')],
+  host: process.env.DATABASE_HOST,
+  port: parseInt(process.env.DATABASE_PORT, 10) || 5432,
+  username: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  database: process.env.DATABASE_NAME,
+  entities: [
+    'dist/apps/**/entity/*.entity.js',
+    'dist/libs/**/entity/*.entity.js'
+  ],
+  migrations: ['dist/apps/database/migrations/*.js'],
   synchronize: false,
-  migrationsTableName: 'typeorm_migrations',
-  migrationsRun: false,
-});
+  logging: process.env.NODE_ENV !== 'production',
+};
+
+const dataSource = new DataSource(dataSourceOptions);
+export default dataSource;

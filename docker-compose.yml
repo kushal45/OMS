@@ -18,13 +18,18 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - ELASTICSEARCH_HOST=http://es01:9200
+      - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200,http://es03:9200
       - SERVICE_NAME=gateway
-    command: npm run  start:debug  --project api-gateway
+    command: npm run start:debug --project api-gateway
     networks:
       - oms
     volumes:
       - ./:/app
+    develop:
+      watch:
+        - action: sync
+          path: ./
+          target: /app
   auth:
     build:
       context: .

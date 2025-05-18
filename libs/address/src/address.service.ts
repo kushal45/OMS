@@ -4,7 +4,7 @@ import { CustomerAddressRepository } from './repository/customerAddress.resposit
 import { Address } from './entity/address.entity';
 import { TransactionService } from '@app/utils/transaction.service';
 import { CustomerAddress } from './entity/customerAdress.entity';
-import { CustomLoggerService } from '@lib/logger/src';
+import { LoggerService } from '@lib/logger/src';
 
 @Injectable()
 export class AddressService {
@@ -12,7 +12,7 @@ export class AddressService {
     private readonly addressRepository: AddressRepository,
     private readonly customerAddressRepository: CustomerAddressRepository,
     private readonly transactionService: TransactionService,
-    private readonly loggerService: CustomLoggerService,
+    private readonly loggerService: LoggerService,
   ) {}
 
   async createAddress(
@@ -24,7 +24,7 @@ export class AddressService {
       userId: userId,
       message: 'Address beginning',
     };
-    this.loggerService.info(data, AddressService.name);
+    this.loggerService.log(data, AddressService.name);
     let addressCreated: Address;
     await this.transactionService.executeInTransaction(
       async (entityManager) => {
@@ -41,7 +41,7 @@ export class AddressService {
         return !!addressCreated;
       },
     );
-    this.loggerService.info(
+    this.loggerService.log(
       {
         address: addressCreated,
         userId: userId,
@@ -69,9 +69,12 @@ export class AddressService {
             await this.customerAddressRepository.getRepository(entityManager);
           const addressRepository =
             await this.addressRepository.getRepository(entityManager);
-          const isCustEntityDeleted = await custRepository.delete(addressId,userId);
+          const isCustEntityDeleted = await custRepository.delete(
+            addressId,
+            userId,
+          );
           isAddressDeleted = await addressRepository.delete(addressId);
-          this.loggerService.info(
+          this.loggerService.log(
             {
               userId: userId,
               addressId: addressId,
@@ -80,26 +83,29 @@ export class AddressService {
             },
             AddressService.name,
           );
-            this.loggerService.info(
-                {
-                userId: userId,
-                addressId: addressId,
-                message: 'Address delete',
-                isAddressDeleted,
-                isCustEntityDeleted
-                },
-                AddressService.name,
-            );
+          this.loggerService.log(
+            {
+              userId: userId,
+              addressId: addressId,
+              message: 'Address delete',
+              isAddressDeleted,
+              isCustEntityDeleted,
+            },
+            AddressService.name,
+          );
           return isAddressDeleted && isCustEntityDeleted;
         },
       );
       return isAddressDeleted;
     } catch (error) {
-        throw error; 
+      throw error;
     }
   }
 
-  async isValidAddress(userId:number,addressId:number): Promise<boolean> {
-    return await this.customerAddressRepository.isValidAddress(userId, addressId);
+  async isValidAddress(userId: number, addressId: number): Promise<boolean> {
+    return await this.customerAddressRepository.isValidAddress(
+      userId,
+      addressId,
+    );
   }
 }

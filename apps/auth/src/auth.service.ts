@@ -1,4 +1,4 @@
-import {  Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { CustomerRepository } from './repository/customer.repository';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { JwtService } from '@nestjs/jwt';
@@ -7,7 +7,7 @@ import * as bcrypt from 'bcryptjs';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { RegisterCustomerResponseDto } from './dto/register-customer-response.dto';
 import { ValidateTokenResponseDto } from './dto/validate-token-response.dto';
-import { CustomLoggerService } from '@lib/logger/src/logger.service';
+import { LoggerService } from '@lib/logger/src/logger.service';
 import { AddressService } from '@lib/address/src';
 import { CreateAddressDto } from './dto/create-address.dto';
 import { CreateAddrDataResponseDto } from './dto/create-addr-response.dto';
@@ -19,8 +19,8 @@ export class AuthService {
   constructor(
     private readonly custRepository: CustomerRepository,
     private jwtService: JwtService,
-    private logger: CustomLoggerService,
-    private addressService:AddressService
+    private logger: LoggerService,
+    private addressService: AddressService,
   ) {}
 
   // Register customer
@@ -52,9 +52,9 @@ export class AuthService {
       {
         message: 'User logged in successfully',
         email: customer.email,
-        correlationId
+        correlationId,
       },
-      this.context
+      this.context,
     );
 
     const payload = {
@@ -89,20 +89,32 @@ export class AuthService {
     return payload as ValidateTokenResponseDto;
   }
 
-  async createAddress(userId:number,address:CreateAddressDto):Promise<CreateAddrDataResponseDto>{
-    return await this.addressService.createAddress(address,userId) as unknown as CreateAddrDataResponseDto;
+  async createAddress(
+    userId: number,
+    address: CreateAddressDto,
+  ): Promise<CreateAddrDataResponseDto> {
+    return (await this.addressService.createAddress(
+      address,
+      userId,
+    )) as unknown as CreateAddrDataResponseDto;
   }
 
-  async updateAddress(userId:number,addressId:number,address:CreateAddressDto):Promise<CreateAddrDataResponseDto>{
-    return await this.addressService.update(addressId,address) as unknown as CreateAddrDataResponseDto;
+  async updateAddress(
+    userId: number,
+    addressId: number,
+    address: CreateAddressDto,
+  ): Promise<CreateAddrDataResponseDto> {
+    return (await this.addressService.update(
+      addressId,
+      address,
+    )) as unknown as CreateAddrDataResponseDto;
   }
 
-  async deleteAddress(userId:number,addressId:number):Promise<boolean>{
+  async deleteAddress(userId: number, addressId: number): Promise<boolean> {
     try {
-      return await this.addressService.delete(userId,addressId);
+      return await this.addressService.delete(userId, addressId);
     } catch (error) {
-       throw error;
+      throw error;
     }
-   
   }
 }
