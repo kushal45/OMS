@@ -1,4 +1,5 @@
 import { Customer } from '@app/auth/src/entity/customer.entity';
+import { Inventory } from '@app/inventory/src/entity/inventory.entity';
 import { Order } from '@app/order/src/entity/order.entity';
 import { OrderItems } from '@app/order/src/entity/orderItems.entity';
 import { Product } from '@app/product/src/entity/product.entity';
@@ -26,7 +27,7 @@ export const typeOrmAsyncConfig: TypeOrmModuleAsyncOptions = {
       username: configService.get<string>('DB_USERNAME'),
       password: configService.get<string>('DB_PASSWORD'),
       database: configService.get<string>('DB_NAME'),
-      entities: [Customer,Address,CustomerAddress,Order,OrderItems,Product],
+      entities: [Customer,Address,CustomerAddress,Order,OrderItems,Product,Inventory],
       migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
       extra: {
         charset: 'utf8mb4_unicode_ci',

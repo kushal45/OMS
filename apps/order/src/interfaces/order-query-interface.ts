@@ -15,4 +15,22 @@ export namespace OrderQueryInterface {
     deliveryCharge?: number;
     tax?: number;
   }
+
+  export interface OrderItemInput {
+    productId: number;
+    price: number;
+    quantity: number;
+  }
+  export interface ValidateOrderItemsInput {
+    orderItems: OrderItemInput[];
+  }
+
+  export interface InvalidOrderItemWithReason {
+    orderItem: OrderItemInput;
+    reasons: string[];
+  }
+  export interface ValidateOrderItemsResponse {
+    success: boolean;
+    invalidOrderItems?: InvalidOrderItemWithReason[];
+  }
 }

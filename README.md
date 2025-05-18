@@ -1,11 +1,10 @@
 # OMS
-Implement Clone of  OMS for Ecommerce app 
+
+Implement Clone of  OMS for Ecommerce app
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
 
   <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
     <p align="center">
@@ -31,20 +30,14 @@ Implement Clone of  OMS for Ecommerce app
 ## Project setup
 
 ```bash
-$ npm install
+npm install
 ```
 
 ## Compile and run the project
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+chmod +x docker-compose-up.sh
+./docker-compose-up.sh
 ```
 
 ## Run tests
@@ -69,13 +62,13 @@ Check out a few resources that may come in handy when working with NestJS:
 - To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
 - Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
 - Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com)
+- OMS design architechture [High level design](https://excalidraw.com/#room=a93990f157c122b0837e,tKLu7bu2QAbH2F49SqxicA)
 
 ## Support
 
 Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).

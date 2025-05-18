@@ -15,6 +15,8 @@ class OrderItemDto {
   price: number = 1.0;
   @IsInt()
   @IsNotEmpty()
+  @Min(1, { message: 'Price must be at least 1' })
+  @Max(1000, { message: 'Price must be at most 10000' })
   quantity: number = 1;
 }
 

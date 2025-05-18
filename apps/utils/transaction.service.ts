@@ -13,11 +13,14 @@ export class TransactionService {
 
     try {
       const result = await work(queryRunner.manager);
-      if(!result) {
+      console.log('result', result);
+      if(typeof result === 'boolean' && !result) {
         throw new PreconditionFailedException('Transaction failed');
       }
-      await queryRunner.commitTransaction();
-      return result;
+      if(result){
+        await queryRunner.commitTransaction();
+        return result;
+      }
     } catch (error) {
       console.log('error', error);
       await queryRunner.rollbackTransaction();
