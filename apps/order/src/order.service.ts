@@ -146,7 +146,7 @@ export class OrderService {
   }
 
   async getOrderById(aliasId: string): Promise<Order> {
-    const order = this.serviceLocator.getOrderRepository().findOne({
+    const order = await this.serviceLocator.getOrderRepository().findOne({
       aliasId,
     });
     if (!order) throw new NotFoundException('Order not found');

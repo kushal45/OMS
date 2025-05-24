@@ -26,6 +26,10 @@ export class LoggerService {
     this.logToElasticsearch('info', message, null, context);
     console.log(`[${this.getContext(context)}] ${message}`);
   }
+  async debug(message: Record<string, unknown> | string, context?: string) {
+    this.logToElasticsearch('debug', message, null, context);
+    console.debug(`[${this.getContext(context)}] ${message}`);
+  }
 
   async error(message: string, trace?: string, context?: string) {
     this.logToElasticsearch('error', message, trace, context);

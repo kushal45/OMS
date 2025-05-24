@@ -1,4 +1,4 @@
-import { CustomLoggerService } from '@lib/logger/src';
+import { LoggerService } from '@lib/logger/src';
 import { ConfigService } from '@nestjs/config';
 import { ModuleRef } from '@nestjs/core';
 import { Consumer, IHeaders, Kafka, KafkaConfig } from 'kafkajs';
@@ -22,7 +22,7 @@ export class KafkaConsumer {
   }
 
   async subscribe(topic: string): Promise<void> {
-    const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+    const logger = this.moduleRef.get(LoggerService, { strict: false });
     logger.info(`Subscribing to topic ${topic}`, this.context);
     this.consumer.connect();
     this.consumer.subscribe({ topic ,fromBeginning:true});
@@ -40,12 +40,12 @@ export class KafkaConsumer {
     });
 
     this.consumer.on('consumer.rebalancing', (event) => {
-      const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+      const logger = this.moduleRef.get(LoggerService, { strict: false });
       logger.error(
-        {
+        JSON.stringify({
           message: `Consumer rebalancing`,
-          event: JSON.stringify(event),
-        },
+          event,
+        }),
         this.context,
       );
     });

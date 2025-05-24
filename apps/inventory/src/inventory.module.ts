@@ -7,12 +7,13 @@ import { Inventory } from './entity/inventory.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import { typeOrmAsyncConfig } from '../../../apps/config/typeorm.config';
-import { CustomLoggerService, LoggerModule } from '@lib/logger/src';
+import { LoggerService, LoggerModule } from '@lib/logger/src';
 import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
 import { KafkaConfig } from 'kafkajs';
 import { KafkaConsumer } from '@lib/kafka/KafkaConsumer';
 import { APP_INTERCEPTOR, ModuleRef } from '@nestjs/core';
 import { TransactionService } from '@app/utils/transaction.service';
+import { ElasticsearchModule } from '@nestjs/elasticsearch';
 
 @Module({
   imports: [
@@ -22,7 +23,14 @@ import { TransactionService } from '@app/utils/transaction.service';
     }),
     TypeOrmModule.forRootAsync(typeOrmAsyncConfig),
     TypeOrmModule.forFeature([Inventory]),
-    LoggerModule
+    LoggerModule,
+    ElasticsearchModule.registerAsync({
+      useFactory: (configService: ConfigService) => ({
+        node: configService.get<string>('ELASTICSEARCH_NODE', 'http://localhost:9200'),
+    
+      }),
+      inject: [ConfigService],
+    })
   ],
   controllers: [InventoryController],
   providers: [InventoryService,InventoryRepository,ConfigService,
@@ -32,7 +40,7 @@ import { TransactionService } from '@app/utils/transaction.service';
     },
     {
       provide: KafkaAdminClient,
-      inject: [ModuleRef,CustomLoggerService,ConfigService],
+      inject: [ModuleRef,LoggerService,ConfigService],
       useFactory: (moduleRef:ModuleRef) => {
         const configService = moduleRef.get(ConfigService, { strict: false });
         const kafkaConfig: KafkaConfig ={
@@ -42,10 +50,10 @@ import { TransactionService } from '@app/utils/transaction.service';
         return new KafkaAdminClient(kafkaConfig,moduleRef);
       },
     },
-    CustomLoggerService,
+    LoggerService,
     {
       provide: "KafkaConsumerInstance",
-      inject: [ModuleRef,ConfigService,CustomLoggerService],
+      inject: [ModuleRef,ConfigService,LoggerService],
       useFactory: (moduleRef:ModuleRef) => {
         const configService = moduleRef.get(ConfigService, { strict: false });
         const kafkaConfig: KafkaConfig ={

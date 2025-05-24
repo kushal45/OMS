@@ -1,4 +1,4 @@
-import { CustomLoggerService } from '@lib/logger/src';
+import { LoggerService } from '@lib/logger/src';
 import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { Admin, KafkaConfig, Kafka, ITopicMetadata } from 'kafkajs';
@@ -24,12 +24,12 @@ export class KafkaAdminClient {
         await KafkaAdminClient.kafkaAdminClient.fetchTopicMetadata({ topics });
       return metadata.topics;
     } catch (error) {
-      const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+      const logger = this.moduleRef.get(LoggerService, { strict: false });
       logger.error(
-        {
+        JSON.stringify({
           message: `Failed to fetch topic metadata for topics: ${topics.join(', ')}`,
           error: error.message,
-        },
+        }),
         this.context,
       );
       throw new Error(`Failed to fetch topic metadata: ${error.message}`);
@@ -38,7 +38,7 @@ export class KafkaAdminClient {
   async createTopic(topicName: string): Promise<void> {
     try {
       await KafkaAdminClient.kafkaAdminClient.connect();
-      const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+      const logger = this.moduleRef.get(LoggerService, { strict: false });
       const topics = await this.listTopics();
       logger.info(`Topics: ${JSON.stringify(topics)}`, this.context);
       if (!topics.includes(topicName) || topics.length === 0) {
@@ -46,12 +46,12 @@ export class KafkaAdminClient {
         await this.retryCreateTopic(topicName);
       }
     } catch (error) {
-      const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+      const logger = this.moduleRef.get(LoggerService, { strict: false });
       logger.error(
-        {
+        JSON.stringify({
           message: `Failed to create topic ${topicName}`,
           error: error.message,
-        },
+        }),
         this.context,
       );
     }
@@ -68,7 +68,7 @@ export class KafkaAdminClient {
             },
           ],
         });
-        const logger = this.moduleRef.get(CustomLoggerService, {
+        const logger = this.moduleRef.get(LoggerService, {
           strict: false,
         });
         logger.info(
@@ -78,15 +78,13 @@ export class KafkaAdminClient {
         return;
       } catch (error) {
         if (attempt === retries) {
-          const logger = this.moduleRef.get(CustomLoggerService, {
+          const logger = this.moduleRef.get(LoggerService, {
             strict: false,
           });
           logger.error(
-            {
-              message: `Failed to create topic ${topicName} after ${retries} attempts`,
-              error: error.message,
-            },
+            `Failed to create topic ${topicName} after ${retries} attempts`,
             this.context,
+            error, // Pass the full error object
           );
           throw new Error(
             `Failed to create topic ${topicName} after ${retries} attempts: ${error.message}`,
@@ -105,7 +103,7 @@ export class KafkaAdminClient {
     }
   }
   async listTopics(): Promise<string[]> {
-    const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+    const logger = this.moduleRef.get(LoggerService, { strict: false });
     logger.info('Listing topics', this.context);
     return await KafkaAdminClient.kafkaAdminClient.listTopics();
   }
@@ -129,13 +127,11 @@ export class KafkaAdminClient {
       await admin.disconnect();
       return topicMetadata.partitions.length; // Number of partitions
     } catch (error) {
-      const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+      const logger = this.moduleRef.get(LoggerService, { strict: false });
       logger.error(
-        {
-          message: `Failed to get number of partitions for topic ${topic}`,
-          error: error.message,
-        },
+        `Failed to get number of partitions for topic ${topic}`,
         this.context,
+        error, // Pass the full error object
       );
       throw new Error(
         `Failed to get number of partitions for topic ${topic}: ${error.message}`,

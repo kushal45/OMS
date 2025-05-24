@@ -6,7 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
 import { KafkaConsumer } from '@lib/kafka/KafkaConsumer';
 import { GrpcMethod } from '@nestjs/microservices';
-import { CustomLoggerService } from '@lib/logger/src';
+import { LoggerService } from '@lib/logger/src';
 import { registerSchema } from '@app/utils/SchemaRegistry';
 import { ModuleRef } from '@nestjs/core';
 
@@ -17,7 +17,7 @@ export class InventoryController {
     @Inject(ConfigService) private readonly configService: ConfigService,
     @Inject(KafkaAdminClient) private readonly kafkaAdminClient: KafkaAdminClient,
     @Inject("KafkaConsumerInstance") private readonly kafkaConsumer: KafkaConsumer,
-    private readonly logger: CustomLoggerService,
+    private readonly logger: LoggerService,
     private moduleRef: ModuleRef
   ) {}
 

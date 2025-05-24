@@ -29,7 +29,7 @@ export class OrderRepository implements BaseRepository<OrderRepository> {
     newOrderEntity.totalAmount = orderInput.totalAmount;
     newOrderEntity.deliveryCharge = orderInput.deliveryCharge;
     newOrderEntity.tax = orderInput.tax;
-    newOrderEntity.orderStatus = OrderStatus.Pending;
+    newOrderEntity.orderStatus = orderInput.orderStatus || OrderStatus.Pending;
     newOrderEntity.aliasId = uuidv4();
 
     // TypeORM's create method can take a partial object and merge it into a new entity instance

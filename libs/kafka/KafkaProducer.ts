@@ -1,4 +1,4 @@
-import { CustomLoggerService } from '@lib/logger/src';
+import { LoggerService } from '@lib/logger/src';
 import { ModuleRef } from '@nestjs/core';
 import { Kafka, KafkaConfig, Producer, RecordMetadata } from 'kafkajs';
 import { KafkaAdminClient } from './KafKaAdminClient';
@@ -35,7 +35,7 @@ export class KafkaProducer {
     },
   ): Promise<RecordMetadata[]> {
     this.producer.connect();
-    const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
+    const logger = this.moduleRef.get(LoggerService, { strict: false });
     const kafkaAdminClient = this.moduleRef.get<KafkaAdminClient>(
       'KafkaAdminInstance',
       { strict: false },
