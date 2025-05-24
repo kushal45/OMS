@@ -18,10 +18,11 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./apps/oms/test/jest-e2e.json",
-    "migration:run": "ts-node node_modules/typeorm/cli.js migration:run -d  ./apps/config/dataSource.ts",
+    "migration:run": "dotenv -e .env.db -- ts-node node_modules/typeorm/cli.js migration:run -d  ./apps/config/dataSource.ts",
     "migration:generate": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate ./apps/database/migrations/$npm_config_name",
     "migration:create": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js  migration:create ./apps/database/migrations/$npm_config_name",
-    "migration:revert": "ts-node node_modules/typeorm/cli.js migration:revert -d  ./apps/config/dataSource.ts"
+    "migration:revert": "ts-node node_modules/typeorm/cli.js migration:revert -d  ./apps/config/dataSource.ts",
+    "seed": "dotenv -e .env.db -- ts-node apps/database/seeders/seed.ts"
   },
   "dependencies": {
     "-": "^0.0.1",
@@ -73,6 +74,7 @@
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "copyfiles": "^2.4.1",
+    "dotenv-cli": "^8.0.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.0",
