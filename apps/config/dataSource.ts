@@ -2,25 +2,43 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
-// Load environment variables based on NODE_ENV
-const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
-dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+// Load environment variables specifically for database migrations
+// from .env.db at the project root.
+dotenv.config({ path: path.resolve(process.cwd(), '.env.db') });
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
-  host: process.env.DATABASE_HOST,
-  port: parseInt(process.env.DATABASE_PORT, 10) || 5432,
-  username: process.env.DATABASE_USER,
-  password: process.env.DATABASE_PASSWORD,
-  database: process.env.DATABASE_NAME,
+  host: process.env.DATABASE_HOST || 'localhost',
+  port: parseInt(process.env.DATABASE_PORT, 10) || 5433,
+  username: process.env.DATABASE_USER || 'postgres',
+  password: process.env.DATABASE_PASSWORD || 'postgres',
+  database: process.env.DATABASE_NAME || 'postgres',
   entities: [
-    'dist/apps/**/entity/*.entity.js',
-    'dist/libs/**/entity/*.entity.js'
+    '../**/entity/*.entity.ts',
+    '../**/libs/**/entity/*.entity.ts'
   ],
-  migrations: ['dist/apps/database/migrations/*.js'],
+  migrations: [path.resolve(__dirname, '../database/migrations/*.ts')],
   synchronize: false,
   logging: process.env.NODE_ENV !== 'production',
 };
 
 const dataSource = new DataSource(dataSourceOptions);
+
+async function initializeAndMigrate() {
+  try {
+    console.log('DataSource initialized with options:', dataSourceOptions);
+    await dataSource.initialize();
+    await dataSource.runMigrations({ transaction: 'all' });
+    console.log('DataSource has been initialized and migrations have been run successfully.');
+  } catch (error) {
+    console.error('Error during DataSource initialization:', error);
+  }
+}
+
+initializeAndMigrate().then(() => {
+  console.log('DataSource initialization and migration process completed.');
+}).catch((error) => {
+  console.error('Error during DataSource initialization and migration process:', error);
+});
+
 export default dataSource;

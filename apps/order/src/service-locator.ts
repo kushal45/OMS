@@ -4,8 +4,7 @@ import { OrderItemsRepository } from './repository/orderItems.repository';
 import { AddressService } from '@lib/address/src';
 import { TransactionService } from '@app/utils/transaction.service';
 import { ClientGrpc } from '@nestjs/microservices';
-import { CustomLoggerService } from '@lib/logger/src';
-import { KafkaProducer } from '@lib/kafka/KafkaProducer';
+import { LoggerService } from '@lib/logger/src';
 import { ModuleRef } from '@nestjs/core';
 
 @Injectable()
@@ -16,7 +15,7 @@ export class ServiceLocator {
     private readonly orderItemsRepository: OrderItemsRepository,
     private readonly addressService: AddressService,
     private readonly transactionService: TransactionService,
-    private readonly customLoggerService: CustomLoggerService,
+    private readonly customLoggerService: LoggerService,
     private readonly moduleRef: ModuleRef,
   ) {}
 
@@ -40,7 +39,7 @@ export class ServiceLocator {
     return this.inventoryService;
   }
 
-  getCustomLoggerService(): CustomLoggerService {
+  getCustomLoggerService(): LoggerService {
     return this.customLoggerService;
   }
 

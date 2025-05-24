@@ -5,9 +5,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import { OrderRepository } from './repository/order.repository';
 import { OrderItemsRepository } from './repository/orderItems.repository';
-import { AddressModule, AddressService } from '@lib/address/src';
+import { AddressModule } from '@lib/address/src';
 import { TransactionService } from '@app/utils/transaction.service';
-import { CustomLoggerService, LoggerModule } from '@lib/logger/src';
+import { LoggerService, LoggerModule } from '@lib/logger/src'; // Corrected to LoggerService
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrderItems } from './entity/orderItems.entity';
 import { Order } from './entity/order.entity';
@@ -16,6 +16,8 @@ import { KafkaProducer } from '@lib/kafka/KafkaProducer';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ServiceLocator } from './service-locator';
 import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
+import { DefaultOrderConfigService } from './util/orderConfig.service'; // Import DefaultOrderConfigService
+import { ElasticsearchModule } from '@nestjs/elasticsearch';
 
 @Module({
   imports: [
@@ -37,6 +39,16 @@ import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
     AddressModule,
     LoggerModule,
     TypeOrmModule.forFeature([Order, OrderItems]),
+    ElasticsearchModule.registerAsync({
+      useFactory: (configService: ConfigService) => ({
+        node: configService.get<string>('ELASTICSEARCH_NODE', 'http://localhost:9200'),
+        auth: {
+          username: configService.get<string>('ELASTICSEARCH_USERNAME', 'elastic'),
+          password: configService.get<string>('ELASTICSEARCH_PASSWORD', 'changeme'),
+        },
+      }),
+      inject: [ConfigService],
+    }),
   ],
   controllers: [OrderController],
   providers: [
@@ -45,6 +57,7 @@ import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
     OrderRepository,
     TransactionService,
     ServiceLocator,
+    DefaultOrderConfigService, // Add DefaultOrderConfigService to providers
     {
       provide: APP_INTERCEPTOR,
       useExisting: 'LoggerErrorInterceptor', // Use the exported interceptor
@@ -66,16 +79,15 @@ import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
     {
       provide: 'KafkaAdminInstance',
       inject: [ModuleRef,ConfigService],
-      useFactory: (moduleRef: ModuleRef) => {
-        const configService = moduleRef.get(ConfigService, { strict: false });
+      useFactory: (moduleRef: ModuleRef, configService: ConfigService) => {
         const kafkaConfig = {
           clientId: configService.get<string>('ORDER_CLIENT_ID'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
         };
         return new KafkaAdminClient(kafkaConfig,moduleRef);
       },
-      
     },
+    LoggerService,
   ],
 })
 export class OrderModule {}

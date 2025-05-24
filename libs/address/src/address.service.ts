@@ -24,7 +24,7 @@ export class AddressService {
       userId: userId,
       message: 'Address beginning',
     };
-    this.loggerService.log(data, AddressService.name);
+    this.loggerService.info(data, AddressService.name);
     let addressCreated: Address;
     await this.transactionService.executeInTransaction(
       async (entityManager) => {
@@ -41,7 +41,7 @@ export class AddressService {
         return !!addressCreated;
       },
     );
-    this.loggerService.log(
+    this.loggerService.info(
       {
         address: addressCreated,
         userId: userId,
@@ -74,7 +74,7 @@ export class AddressService {
             userId,
           );
           isAddressDeleted = await addressRepository.delete(addressId);
-          this.loggerService.log(
+          this.loggerService.info(
             {
               userId: userId,
               addressId: addressId,
@@ -83,7 +83,7 @@ export class AddressService {
             },
             AddressService.name,
           );
-          this.loggerService.log(
+          this.loggerService.info(
             {
               userId: userId,
               addressId: addressId,

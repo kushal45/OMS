@@ -18,14 +18,24 @@ export class OrderRepository implements BaseRepository<OrderRepository> {
   async findOne(option:Partial<OrderQueryInterface.fetchOrderInput>): Promise<Order> {
     return await this.orderRepo.findOne({
       where: option,
+      relations: ['address', 'user'], // Explicitly load relations
     });
   }
 
-  async create(order:OrderInput): Promise<Order> {
-    const newOrder = order as unknown as Order;
-    newOrder.orderStatus= OrderStatus.Pending;
-    newOrder.aliasId= uuidv4();
-    const createdOrder = this.orderRepo.create(newOrder);
+  async create(orderInput:OrderInput): Promise<Order> {
+    const newOrderEntity = new Order();
+    newOrderEntity.userId = orderInput.userId;
+    newOrderEntity.addressId = orderInput.addressId;
+    newOrderEntity.totalAmount = orderInput.totalAmount;
+    newOrderEntity.deliveryCharge = orderInput.deliveryCharge;
+    newOrderEntity.tax = orderInput.tax;
+    newOrderEntity.orderStatus = OrderStatus.Pending;
+    newOrderEntity.aliasId = uuidv4();
+
+    // TypeORM's create method can take a partial object and merge it into a new entity instance
+    // or we can pass the fully constructed entity.
+    // Passing the constructed entity is more explicit here.
+    const createdOrder = this.orderRepo.create(newOrderEntity);
     return await this.orderRepo.save(createdOrder);
   }
 
@@ -40,7 +50,8 @@ export class OrderRepository implements BaseRepository<OrderRepository> {
 
   find(userId: number): Promise<Order[]> {
     return this.orderRepo.find({
-      where: { user:{id:userId} },  
+      where: { userId: userId }, // Simpler where clause for direct column
+      relations: ['address', 'user'], // Explicitly load relations
     });
   }
 

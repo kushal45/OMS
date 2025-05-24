@@ -3,50 +3,57 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
+  Inject,
 } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
+import { JwtService } from '@nestjs/jwt'; // Import JwtService
+import { ConfigService } from '@nestjs/config'; // Import ConfigService
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  private VALIDATE_SERVICE_URL = 'http://auth:3001/auth/validate-token';
-  constructor(private httpService: HttpService) {}
-  // Define a list of public (blacklisted) routes
-  private readonly publicRoutes: Array<{ method: string; path: string }> = [
-    { method: 'POST', path: '/auth/login' },
-    { method: 'POST', path: '/auth/register' },
-    { method: 'POST', path: '/auth/validate-token' },
+  // Define a list of public routes
+  private readonly publicRoutes: Array<{ method: string; pathRegex: RegExp }> = [
+    { method: 'POST', pathRegex: /\/auth\/login$/ },
+    { method: 'POST', pathRegex: /\/auth\/register$/ },
+    // Keep validate-token public if it's used by other internal services directly,
+    // otherwise, it might not need to be public if gateway handles all auth.
+    // For now, keeping it as per original logic.
+    { method: 'POST', pathRegex: /\/auth\/validate-token$/ },
   ];
 
+  constructor(
+    private jwtService: JwtService,
+    @Inject(ConfigService) private configService: ConfigService,
+  ) {}
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    let isActivated = true;
-    try {
-      const request = context.switchToHttp().getRequest();
-      const token = this.extractTokenFromHeader(request);
-      const { method, path } = request;
+    const request = context.switchToHttp().getRequest();
+    const { method, path } = request;
 
-      const isPublic = this.publicRoutes.some(
-        (route) => route.method === method && path.endsWith(route.path),
-      );
+    const isPublic = this.publicRoutes.some(
+      (route) => route.method === method && route.pathRegex.test(path),
+    );
 
-      if (isPublic) {
-        // Bypass JWT validation for public routes
-        return true;
-      }
-
-      if (!token) {
-        isActivated = false;
-      }
-      const response = await firstValueFrom(
-        this.httpService.post(this.VALIDATE_SERVICE_URL, { token }),
-      );
-      request.user = response.data;
-      return isActivated;
-    } catch (error) {
-      isActivated = false;
+    if (isPublic) {
+      return true; // Bypass JWT validation for public routes
     }
-    console.log('isActivated:: ->', isActivated);
-    return isActivated;
+
+    const token = this.extractTokenFromHeader(request);
+
+    if (!token) {
+      throw new UnauthorizedException('No token provided');
+    }
+
+    try {
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
+      request.user = payload; // Attach payload to request object
+      return true;
+    } catch (error) {
+      // Log the error for debugging if needed
+      // this.logger.error('Token validation error:', error.message);
+      throw new UnauthorizedException('Invalid or expired token');
+    }
   }
 
   private extractTokenFromHeader(request: any): string | null {

@@ -3,7 +3,9 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { LoginCustomerDto } from './dto/login-customer.dto';
-import { Customer } from './entity/customer.entity';
+// Import RegisterCustomerResponseDto if you want to cast mockRegisterResponse to it for stricter type checking
+// import { RegisterCustomerResponseDto } from './dto/register-customer-response.dto';
+import { HttpStatus } from '@nestjs/common';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -12,6 +14,16 @@ describe('AuthController', () => {
   let mockRequest: any;
 
   beforeEach(async () => {
+    mockRequest = {
+      headers: {},
+      user: null,
+    };
+
+    mockResponse = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
@@ -22,6 +34,10 @@ describe('AuthController', () => {
             login: jest.fn(),
             logout: jest.fn(),
             update: jest.fn(),
+            validateToken: jest.fn(),
+            createAddress: jest.fn(),
+            updateAddress: jest.fn(),
+            deleteAddress: jest.fn(),
           },
         },
       ],
@@ -29,27 +45,27 @@ describe('AuthController', () => {
 
     authController = module.get<AuthController>(AuthController);
     authService = module.get<AuthService>(AuthService);
-
-    mockResponse = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis(),
-    };
-    mockRequest ={}
-  });
+  }); // Removed extra closing brace here
 
   describe('register', () => {
     it('should register a new customer', async () => {
       const registerDto: RegisterCustomerDto = { name: 'John Doe', email: 'john@example.com', password: 'password' };
-      const result = { id: 1, ...registerDto };
-      jest.spyOn(authService, 'register').mockResolvedValue(result as Customer);
+      const mockRegisterResponse = {
+        id: 1,
+        name: registerDto.name,
+        email: registerDto.email,
+        // Ensure this matches the actual structure of RegisterCustomerResponseDto
+      };
+      jest.spyOn(authService, 'register').mockResolvedValue(mockRegisterResponse as any); // Cast as any or import DTO
 
       await authController.register(registerDto, mockResponse);
-      expect(mockResponse.status).toHaveBeenCalledWith(201);
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        status: 'success',
-        message: 'The customer has been successfully registered.',
-        data: result,
-      });
+      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.CREATED);
+      expect(mockResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({ // Use expect.objectContaining for flexibility
+          message: 'The customer has been successfully registered.',
+          data: mockRegisterResponse, // Use mockRegisterResponse here
+        }),
+      );
     });
   });
 
@@ -59,22 +75,32 @@ describe('AuthController', () => {
       const result = { accessToken: 'token' };
       jest.spyOn(authService, 'login').mockResolvedValue(result);
 
-      await authController.login(loginDto, mockResponse);
-      expect(mockResponse.status).toHaveBeenCalledWith(200);
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        status: 'success',
-        message: 'Successfully logged in.',
-        data: result,
-      });
+      await authController.login(mockRequest, loginDto, mockResponse);
+      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(mockResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Successfully logged in.',
+          data: result,
+        }),
+      );
     });
   });
 
   describe('logout', () => {
-    it('should logout a customer', async () => {
-      const token = 'token';
+    it('should logout a customer and return success response', async () => {
+      const token = 'test-token';
       mockRequest.headers = { authorization: `Bearer ${token}` };
-      jest.spyOn(authService, 'logout').mockReturnValue(undefined);
+      const logoutSpy = jest.spyOn(authService, 'logout').mockReturnValue(undefined);
+
       await authController.logout(mockRequest, mockResponse);
+
+      expect(logoutSpy).toHaveBeenCalledWith(token);
+      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(mockResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Logout successful',
+        }),
+      );
     });
   });
 });

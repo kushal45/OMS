@@ -1,7 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
-import { ElasticsearchTransport } from 'winston-elasticsearch';
+import { ElasticsearchTransport, ElasticsearchTransportOptions } from 'winston-elasticsearch';
 import { LoggerService } from './logger.service';
 import { LoggerErrorInterceptor } from './interceptor/logger.error.interceptor';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -58,17 +58,21 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
         // Support comma-separated list of hosts for winston-elasticsearch
         const nodes = esHost.split(',').map((host) => host.trim());
 
-        const esTransport = new ElasticsearchTransport({
+        const esTransportOptions: ElasticsearchTransportOptions = {
+          apm:{
+            serviceName: serviceName,
+            environment: configService.get<string>('NODE_ENV', 'development'),
+            serverUrl: configService.get<string>('APM_SERVER_URL', 'http://apm-server:8200'),
+          },
           level: 'info',
           clientOpts: {
-            nodes,
+            node: nodes.length === 1 ? nodes[0] : undefined,
+            nodes: nodes.length > 1 ? nodes : undefined,
             maxRetries: 5,
             requestTimeout: 30000,
             sniffOnStart: true,
-            context: {
-              service: serviceName,
-            },
           },
+          indexPrefix: serviceName,
           transformer: (logData) => {
             // Ensure message is a plain string
             const { message, ...meta } = logData;
@@ -78,7 +82,9 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
                 typeof message === 'string' ? message : JSON.stringify(message),
             };
           },
-        });
+        };
+
+        const esTransport = new ElasticsearchTransport(esTransportOptions);
 
         return {
           transports: [

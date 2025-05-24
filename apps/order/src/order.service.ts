@@ -34,7 +34,9 @@ interface InventoryService {
 export class OrderService {
   private context = OrderService.name;
   constructor(
-    private readonly serviceLocator: ServiceLocator,
+    private readonly serviceLocator: ServiceLocator, // Will be gradually phased out if this approach is continued
+    private readonly orderConfigService: DefaultOrderConfigService,
+    private readonly addressService: AddressService, // Inject AddressService
   ) {}
 
   async createOrder(
@@ -43,7 +45,7 @@ export class OrderService {
   ): Promise<CreateOrderResponseDto> {
     try {
       const { addressId, orderItems } = order;
-      const isValid = await this.serviceLocator.getAddressService().isValidAddress(
+      const isValid = await this.addressService.isValidAddress( // Use injected addressService
         userId,
         addressId,
       );
@@ -58,35 +60,36 @@ export class OrderService {
       //     value: orderItems,
       //   }
       // );
-      // let orderResponse: Order;
-      // const percentageDeliveryChargeStrategy =
-      //   new PercentageDeliveryChargeStrategy();
-      // const config = new DefaultOrderConfigService().getOrderConfig();
-      // await this.serviceLocator.getTransactionService().executeInTransaction(
-      //   async (entityManager) => {
-      //     const totalOrderAmtInfo = getOrderInfo(
-      //       orderItems,
-      //       config,
-      //       percentageDeliveryChargeStrategy,
-      //     );
-      //     const orderRepo =
-      //       await this.serviceLocator.getOrderRepository().getRepository(entityManager);
-      //     const orderItemsRepo =
-      //       await this.serviceLocator.getOrderItemsRepository().getRepository(entityManager);
-      //     orderResponse = await orderRepo.create({
-      //       ...totalOrderAmtInfo,
-      //       addressId,
-      //       userId,
-      //     });
-      //     const orderItemsToSave = await orderItemsRepo.createMany({
-      //       orderId: orderResponse.id,
-      //       orderItems: orderItems,
-      //     });
-      //     return orderItemsToSave === orderItems.length;
-      //   },
-      // );
-      //return this.filterOrderResponse(orderResponse);
-      return {} as CreateOrderResponseDto;
+      let orderResponse: Order;
+      const percentageDeliveryChargeStrategy =
+        new PercentageDeliveryChargeStrategy();
+      const config = this.orderConfigService.getOrderConfig(); // Use injected service
+      await this.serviceLocator.getTransactionService().executeInTransaction(
+        async (entityManager) => {
+          const totalOrderAmtInfo = getOrderInfo(
+            orderItems,
+            config,
+            percentageDeliveryChargeStrategy,
+          );
+          const orderRepo =
+            this.serviceLocator.getOrderRepository().getRepository(entityManager);
+          const orderItemsRepo =
+            this.serviceLocator.getOrderItemsRepository().getRepository(entityManager);
+          orderResponse = await orderRepo.create({
+            ...totalOrderAmtInfo,
+            addressId,
+            userId,
+          });
+          const orderItemsToSave = await orderItemsRepo.createMany({
+            orderId: orderResponse.id,
+            orderItems: orderItems,
+          });
+          // TODO: Consider the implications if orderItemsToSave !== orderItems.length
+          // For now, we assume the transaction will roll back on error in createMany
+          return orderItemsToSave === orderItems.length;
+        },
+      );
+      return this.filterOrderResponse(orderResponse);
     } catch (error) {
       throw error;
     }
@@ -163,7 +166,7 @@ export class OrderService {
       throw new UnprocessableEntityException('No change in order items');
     const percentageDeliveryChargeStrategy =
       new PercentageDeliveryChargeStrategy();
-    const config = new DefaultOrderConfigService().getOrderConfig();
+    const config = this.orderConfigService.getOrderConfig(); // Use injected service
     const totalOrderAmtInfo = getOrderInfo(
       order.orderItems,
       config,

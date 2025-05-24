@@ -13,10 +13,11 @@ class OrderItemDto {
   @Min(1, { message: 'Price must be at least 1' })
   @Max(10000, { message: 'Price must be at most 10000' })
   price: number = 1.0;
-  @IsInt()
-  @IsNotEmpty()
-  @Min(1, { message: 'Price must be at least 1' })
-  @Max(1000, { message: 'Price must be at most 10000' })
+  @ApiProperty({ description: 'The quantity of the product' })
+  @IsInt({ message: 'Quantity must be an integer' })
+  @IsNotEmpty({ message: 'Quantity cannot be empty' })
+  @Min(1, { message: 'Quantity must be at least 1' })
+  @Max(1000, { message: 'Quantity must be at most 1000' }) // Corrected limit and message
   quantity: number = 1;
 }
 

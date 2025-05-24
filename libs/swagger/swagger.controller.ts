@@ -39,8 +39,6 @@ export const setupSwagger = async (app: INestApplication,path:string) => {
     },
   });
   SwaggerModule.setup('openapi', app, removeEndpointsWithoutApiKey(document), {
-    jsonDocumentUrl: 'openapi.json',
-    yamlDocumentUrl: 'openapi.yaml',
     explorer: process.env.NODE_ENV !== 'production',
   });
   sdkSetup(app, document);
@@ -70,8 +68,6 @@ function sdkSetup(app: INestApplication, document: OpenAPIObject) {
   };
 
   SwaggerModule.setup('openapi.sdk', app, transformDocument(document), {
-    jsonDocumentUrl: 'openapi.sdk.json',
-    yamlDocumentUrl: 'openapi.sdk.yaml',
     explorer: process.env.NODE_ENV !== 'production',
   });
 }

@@ -15,22 +15,26 @@ function runCommand(command) {
 
 async function runMigrations() {
   try {
-    process.env.DB_HOST = 'localhost';
-    process.env.DB_PORT = '5433';
-    process.env.DB_USERNAME = 'postgres';
-    process.env.DB_PASSWORD = 'postgres';
-    process.env.DB_NAME = 'oms';
+    // Ensure environment variables are used from the Docker environment
+    // These will be set in the docker-compose.yml for the migration service
+    console.log(`DB_HOST: ${process.env.DATABASE_HOST}`);
+    console.log(`DB_PORT: ${process.env.DATABASE_PORT}`);
+    console.log(`DB_USERNAME: ${process.env.DATABASE_USER}`);
+    console.log(`DB_PASSWORD: ${process.env.DATABASE_PASSWORD}`);
+    console.log(`DB_NAME: ${process.env.DATABASE_NAME}`);
 
-    // Log the environment variables to verify they are set correctly
-    console.log(`DB_HOST: ${process.env.DB_HOST}`);
-    console.log(`DB_PORT: ${process.env.DB_PORT}`);
-    console.log(`DB_USERNAME: ${process.env.DB_USERNAME}`);
-    console.log(`DB_PASSWORD: ${process.env.DB_PASSWORD}`);
-    console.log(`DB_NAME: ${process.env.DB_NAME}`);
+    if (!process.env.DATABASE_HOST || !process.env.DATABASE_PORT || !process.env.DATABASE_USER || !process.env.DATABASE_PASSWORD || !process.env.DATABASE_NAME) {
+      console.error('Database environment variables are not set. Please check your docker-compose.yml or environment setup.');
+      process.exit(1);
+    }
+
+    // The migration:run script in package.json uses apps/config/dataSource.ts,
+    // which should already be configured to use these environment variables.
     await runCommand('npm run migration:run');
-    console.log('Both commands completed successfully');
+    console.log('Migrations completed successfully');
   } catch (error) {
-    console.error('An error occurred:', error);
+    console.error('An error occurred during migrations:', error);
+    process.exit(1); // Exit with error code if migrations fail
   }
 }
 
