@@ -51,18 +51,7 @@ export class OrderService {
         addressId,
       );
       if (!isValid) throw new BadRequestException('Address not valid');
-      await this.validateOrder(orderItems);
-      const kafkaProducer = this.serviceLocator.getModuleRef().get<KafkaProducer>("KafkaProducerInstance",{strict:false});
-      const configService = this.serviceLocator.getModuleRef().get(ConfigService,{strict:false});
-      const recordMetaData=await kafkaProducer.send(
-        configService.get<string>('INVENTORY_UPDATE_TOPIC'),
-         {
-          key: 'order',
-          value: orderItems,
-        }
-      ); 
-      const logger = this.serviceLocator.getLoggerService();
-      logger.info(`Kafka record metadata: ${JSON.stringify(recordMetaData)}`, traceId);
+      await this.validateOrder(orderItems);      
       let orderResponse: Order;
       const percentageDeliveryChargeStrategy =
         new PercentageDeliveryChargeStrategy();
@@ -92,6 +81,17 @@ export class OrderService {
           return orderItemsToSave === orderItems.length;
         },
       );
+      const kafkaProducer = this.serviceLocator.getModuleRef().get<KafkaProducer>("KafkaProducerInstance",{strict:false});
+      const configService = this.serviceLocator.getModuleRef().get(ConfigService,{strict:false});
+      const recordMetaData=await kafkaProducer.send(
+        configService.get<string>('INVENTORY_UPDATE_TOPIC'),
+         {
+          key: 'order',
+          value: orderItems,
+        }
+      ); 
+      const logger = this.serviceLocator.getLoggerService();
+      logger.info(`Kafka record metadata: ${JSON.stringify(recordMetaData)}`, traceId);
       return this.filterOrderResponse(orderResponse);
     } catch (error) {
       throw error;
