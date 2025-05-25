@@ -14,6 +14,7 @@ import { KafkaConsumer } from '@lib/kafka/KafkaConsumer';
 import { APP_INTERCEPTOR, ModuleRef } from '@nestjs/core';
 import { TransactionService } from '@app/utils/transaction.service';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
+import { InventoryUpdateHandler } from './kafka-handlers/inventory-update.handler'; // Import the new handler
 
 @Module({
   imports: [
@@ -33,7 +34,11 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
     })
   ],
   controllers: [InventoryController],
-  providers: [InventoryService,InventoryRepository,ConfigService, // LoggerService removed from here
+  providers: [
+    InventoryService,
+    InventoryRepository,
+    ConfigService,
+    InventoryUpdateHandler, // Add InventoryUpdateHandler to providers
     {
       provide: APP_INTERCEPTOR,
       useExisting: 'LoggerErrorInterceptor', // Use the exported interceptor

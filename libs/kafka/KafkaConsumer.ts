@@ -2,7 +2,8 @@ import { LoggerService } from '@lib/logger/src';
 import { ConfigService } from '@nestjs/config';
 import { ModuleRef } from '@nestjs/core';
 import { Consumer, IHeaders, Kafka, KafkaConfig } from 'kafkajs';
-import { SchemaRegistry, SchemaType } from '@kafkajs/confluent-schema-registry';
+import { SchemaRegistry } from '@kafkajs/confluent-schema-registry';
+import { IMessageHandler } from './interfaces/message-handler.interface'; // Import the new interface
 
 export class KafkaConsumer {
   private consumer: Consumer;
@@ -27,14 +28,29 @@ export class KafkaConsumer {
     this.consumer.subscribe({ topic, fromBeginning: true });
   }
 
-  async postSubscribeCallback(
-    callback: (topic: string, partition: number, message: string, headers: IHeaders) => void,
-  ): Promise<void> {
+  async postSubscribeCallback(handler: IMessageHandler): Promise<void> { // Accept IMessageHandler
     await this.consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
-        const decodedMessage = await this.schemaRegistry.decode(message.value);
-        const headers = message.headers;
-        callback(topic, partition, decodedMessage.toString(), headers);
+        try {
+          const decodedMessage = await this.schemaRegistry.decode(message.value);
+          const headers = message.headers;
+          // Call the handler's handleMessage method
+          await handler.handleMessage(topic, partition, decodedMessage, headers);
+        } catch (error) {
+          this.logger.error(
+            JSON.stringify({
+              message: `Error processing message from topic ${topic} in partition ${partition}`,
+              errorMessage: error.message,
+              errorStack: error.stack,
+              originalMessageValue: message.value?.toString(), // Log raw message value on error
+            }),
+            this.context,
+          );
+          // Depending on the desired behavior, you might want to:
+          // - Throw the error to stop the consumer (if it's a critical, unrecoverable error)
+          // - Log and continue (current behavior)
+          // - Move the message to a dead-letter queue (DLQ) - more advanced setup
+        }
       },
     });
 

@@ -23,6 +23,7 @@ import {
 } from './proto/inventory'; // Import gRPC request/response types
 import { EntityManager } from 'typeorm';
 import { LoggerService } from '@lib/logger/src';
+import { InventoryUpdateHandler } from './kafka-handlers/inventory-update.handler'; // Import the handler
 
 @Injectable()
 export class InventoryService {
@@ -32,7 +33,7 @@ export class InventoryService {
     private readonly inventoryRepository: InventoryRepository,
     private readonly transactionService: TransactionService,
     private readonly logger: LoggerService,
-    private moduleRef: ModuleRef,
+    private readonly inventoryUpdateHandler: InventoryUpdateHandler, // Inject the handler
   ) {}
 
   async createInventory(inventory: Partial<Inventory>): Promise<Inventory> {
@@ -282,54 +283,8 @@ export class InventoryService {
     // Or direct stock adjustments (e.g. new shipment, damage write-off).
     // For now, let's assume a simple event: { productId: string, quantitySoldAndShipped: number }
     // This means this quantity should be removed from reserved and effectively from total.
-    await kafkaConsumer.postSubscribeCallback(
-      async (topic, partition, message, headers) => {
-        this.logger.info(
-          `Received Kafka message from topic ${topic}, partition ${partition}`, this.loggerContext
-        );
-        try {
-          const payload = JSON.parse(message.toString());
-          const productId = payload.productId as string;
-          // Assuming payload.quantity means "quantity sold and to be removed from reserved"
-          // Or if it's a direct stock adjustment, the event should be clearer.
-          // Let's assume it's a "finalize sale" event.
-          const quantityFinalized = parseInt(payload.quantitySold, 10);
-
-          if (!productId || isNaN(quantityFinalized)) {
-            this.logger.error('Invalid payload for inventory update from Kafka', this.loggerContext, payload);
-            return;
-          }
-
-          this.logger.info(`Processing inventory finalization for product ${productId}, quantity: ${quantityFinalized}`, this.loggerContext);
-
-          await this.transactionService.executeInTransaction(async (entityManager: EntityManager) => {
-            const transactionalInventoryRepo = this.inventoryRepository.getRepository(entityManager);
-            const inventory = await transactionalInventoryRepo.findByProductId(productId);
-            if (!inventory) {
-              this.logger.error(`Inventory not found for product ${productId} during Kafka event processing.`, this.loggerContext);
-              // Decide if to throw, or just log and skip. Throwing might halt consumer.
-              return;
-            }
-            if (inventory.reservedQuantity < quantityFinalized) {
-              this.logger.error(
-                `Cannot finalize sale for product ${productId}: requested ${quantityFinalized}, reserved ${inventory.reservedQuantity}. Potential inconsistency.`,
-                this.loggerContext
-              );
-              // This is a critical issue, may require manual intervention or alerting.
-              return;
-            }
-            inventory.reservedQuantity -= quantityFinalized;
-            // Actual quantity was already reduced at reservation time.
-            // If not, then inventory.quantity -= quantityFinalized; // This line would be needed if reservation didn't touch 'quantity'
-            await transactionalInventoryRepo.update(inventory.id, { reservedQuantity: inventory.reservedQuantity });
-            this.logger.info(`Inventory finalized for product ${productId}, new reserved: ${inventory.reservedQuantity}`, this.loggerContext);
-          });
-        } catch (error) {
-          this.logger.error(`Failed to process inventory update from Kafka: ${error.message}`, error.stack, this.loggerContext);
-          // Consider dead-letter queue or other error handling for Kafka messages.
-        }
-      },
-    );
+    // Pass the injected handler instance to postSubscribeCallback
+    await kafkaConsumer.postSubscribeCallback(this.inventoryUpdateHandler);
   }
 
   async delete(productId: string): Promise<boolean> { // productId is now string
