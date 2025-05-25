@@ -7,15 +7,18 @@ import { Admin, KafkaConfig, Kafka, ITopicMetadata } from 'kafkajs';
 export class KafkaAdminClient {
   private static kafkaAdminClient: Admin;
   private context: string = 'KafkaAdminClient';
+  private logger: LoggerService;
   constructor(
     config: KafkaConfig,
-    private moduleRef: ModuleRef,
+    private readonly moduleRef: ModuleRef, // moduleRef might still be needed for other purposes or can be removed if not used elsewhere
+    loggerService: LoggerService, // Add loggerService parameter
   ) {
     // create a single instance of KafkaAdminClient
     if (!KafkaAdminClient.kafkaAdminClient) {
       const kafka = new Kafka(config);
       KafkaAdminClient.kafkaAdminClient = kafka.admin();
     }
+    this.logger = loggerService; // Use the injected loggerService
   }
 
   async fetchTopicMetadata(topics: string[]): Promise<Array<ITopicMetadata>> {
@@ -24,8 +27,7 @@ export class KafkaAdminClient {
         await KafkaAdminClient.kafkaAdminClient.fetchTopicMetadata({ topics });
       return metadata.topics;
     } catch (error) {
-      const logger = this.moduleRef.get(LoggerService, { strict: false });
-      logger.error(
+      this.logger.error(
         JSON.stringify({
           message: `Failed to fetch topic metadata for topics: ${topics.join(', ')}`,
           error: error.message,
@@ -38,16 +40,14 @@ export class KafkaAdminClient {
   async createTopic(topicName: string): Promise<void> {
     try {
       await KafkaAdminClient.kafkaAdminClient.connect();
-      const logger = this.moduleRef.get(LoggerService, { strict: false });
       const topics = await this.listTopics();
-      logger.info(`Topics: ${JSON.stringify(topics)}`, this.context);
+      this.logger.info(`Topics: ${JSON.stringify(topics)}`, this.context);
       if (!topics.includes(topicName) || topics.length === 0) {
         console.log(`Creating topic ${topicName}`);
         await this.retryCreateTopic(topicName);
       }
     } catch (error) {
-      const logger = this.moduleRef.get(LoggerService, { strict: false });
-      logger.error(
+      this.logger.error(
         JSON.stringify({
           message: `Failed to create topic ${topicName}`,
           error: error.message,
@@ -68,20 +68,14 @@ export class KafkaAdminClient {
             },
           ],
         });
-        const logger = this.moduleRef.get(LoggerService, {
-          strict: false,
-        });
-        logger.info(
+        this.logger.info(
           `Successfully created topic ${topicName} on attempt ${attempt}`,
           this.context,
         );
         return;
       } catch (error) {
         if (attempt === retries) {
-          const logger = this.moduleRef.get(LoggerService, {
-            strict: false,
-          });
-          logger.error(
+          this.logger.error(
             `Failed to create topic ${topicName} after ${retries} attempts`,
             this.context,
             error, // Pass the full error object
@@ -103,8 +97,7 @@ export class KafkaAdminClient {
     }
   }
   async listTopics(): Promise<string[]> {
-    const logger = this.moduleRef.get(LoggerService, { strict: false });
-    logger.info('Listing topics', this.context);
+    this.logger.info('Listing topics', this.context);
     return await KafkaAdminClient.kafkaAdminClient.listTopics();
   }
 
@@ -127,8 +120,7 @@ export class KafkaAdminClient {
       await admin.disconnect();
       return topicMetadata.partitions.length; // Number of partitions
     } catch (error) {
-      const logger = this.moduleRef.get(LoggerService, { strict: false });
-      logger.error(
+      this.logger.error(
         `Failed to get number of partitions for topic ${topic}`,
         this.context,
         error, // Pass the full error object

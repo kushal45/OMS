@@ -32,7 +32,7 @@ export class CartService {
 
   constructor(
     private readonly configService: ConfigService,
-    @Inject('LoggerService') private readonly logger: LoggerService,
+    private readonly logger: LoggerService,
     @Inject('KafkaProducerInstance') private readonly kafkaProducer: KafkaProducer,
     @Inject('INVENTORY_PACKAGE') private readonly inventoryClient: ClientGrpc,
     private readonly cartRepository: CartRepository,

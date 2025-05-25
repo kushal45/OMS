@@ -11,7 +11,7 @@ export class CheckProductIdHandler {
 
   handle(orderItem: QueryInput.OrderItem, inventory:QueryInput.InventoryItem[]): string[] {
     const reasons: string[] = [];
-    const matchingInventory = inventory.find(item => item.productId === orderItem.productId);
+    const matchingInventory = inventory.find(item => item.productId == orderItem.productId);
 
     if (!matchingInventory) {
       reasons.push(`Product ID ${orderItem.productId} is missing in inventory.`);

@@ -3,7 +3,7 @@ import { CartController } from './cart.controller';
 import { CartService } from './cart.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as path from 'path';
-import { LoggerModule, LoggerService } from '@lib/logger/src';
+import { LoggerModule } from '@lib/logger/src';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_INTERCEPTOR, ModuleRef } from '@nestjs/core';
 import { KafkaProducer } from '@lib/kafka/KafkaProducer';
@@ -85,7 +85,6 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
         return new KafkaAdminClient(kafkaConfig, moduleRef);
       },
     },
-    LoggerService,
   ],
 })
 export class CartModule {}

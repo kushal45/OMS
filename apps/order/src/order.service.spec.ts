@@ -203,7 +203,8 @@ describe('OrderService', () => {
         } as OrderQueryInterface.ValidateOrderItemsResponse),
       );
       
-      const result = await service.createOrder(orderRequestDto, userId);
+      const traceId = uuidv4(); // Generate a trace ID for logging
+      const result = await service.createOrder(orderRequestDto, userId, traceId);
 
       expect(result).toBeDefined();
       expect(result.aliasId).toBeDefined(); // Changed from orderId to aliasId
@@ -239,8 +240,8 @@ describe('OrderService', () => {
       // For simplicity here, we assume the real AddressService would lead to this.
       // If AddressService itself throws, the test should catch that specific error.
       // Based on OrderService code: if (!isValid) throw new BadRequestException('Address not valid');
-
-      await expect(service.createOrder(orderRequestDto, userId)).rejects.toThrow(
+      const traceId = uuidv4(); // Generate a trace ID for logging
+      await expect(service.createOrder(orderRequestDto, userId, traceId)).rejects.toThrow(
         new BadRequestException('Address not valid'),
       );
     });
@@ -265,7 +266,8 @@ describe('OrderService', () => {
         );
   
         // Based on OrderService code: if (!validationResponse.success) { throw new BadRequestException(validationResponse.invalidOrderItems); }
-        await expect(service.createOrder(orderRequestDto, userId)).rejects.toThrow(
+        const traceId = uuidv4(); // Generate a trace ID for logging
+        await expect(service.createOrder(orderRequestDto, userId, traceId)).rejects.toThrow(
           new BadRequestException([
             {
               orderItem: { productId: testProduct.id, quantity: 100, price: testProduct.price },
@@ -281,8 +283,8 @@ describe('OrderService', () => {
         orderItems: [], // Empty order items
       };
       const userId = testCustomer.id;
-
-      await expect(service.createOrder(orderRequestDto, userId)).rejects.toThrow(
+      const traceId = uuidv4(); // Generate a trace ID for logging
+      await expect(service.createOrder(orderRequestDto, userId, traceId)).rejects.toThrow(
         new BadRequestException('Order items cannot be empty'),
       );
     });

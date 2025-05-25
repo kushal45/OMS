@@ -19,7 +19,16 @@ const options = new DocumentBuilder()
   .setExternalDoc('OMS Documentation', '')
   .setTermsOfService('')
   .setLicense('MIT', 'https://opensource.org/license/mit')
-  .addBearerAuth();
+  .addApiKey( // Define the 'api-key' security scheme
+    {
+      type: 'apiKey',
+      name: 'Authorization', // This is the actual HTTP header name
+      in: 'header',
+      description: 'API key authentication. Usage: Authorization: ApiKey YOUR_API_KEY_HERE',
+    },
+    'api-key' // This name must match what removeEndpointsWithoutApiKey expects
+  )
+  .addBearerAuth(); // Defines the 'bearer' scheme
 export const setupSwagger = async (app: INestApplication,path:string) => {
   const document = injectDocumentComponents(
     SwaggerModule.createDocument(app, options.build(), {

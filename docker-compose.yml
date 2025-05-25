@@ -4,6 +4,7 @@ services:
       context: .
     ports:
       - "3000:3000"
+      - "9229:9229" # Debug port for gateway (host:container)
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://gateway:3000/api-gateway/health || exit 1"]
       interval: 30s
@@ -22,7 +23,12 @@ services:
       - PORT=3000
       - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200,http://es03:9200
       - SERVICE_NAME=gateway
-    command: npm run start:debug --project api-gateway
+    # IMPORTANT: Ensure your 'npm run start:debug --project api-gateway'
+    # starts Node with '--inspect=0.0.0.0:9229'
+    # Example: If start:debug is 'nest start --debug --watch',
+    # you might need a script like 'start:dockerdebug': 'nest start --debug 0.0.0.0:9229 --watch'
+    # and use 'npm run start:dockerdebug --project api-gateway' here.
+    command: npm run start:debug  --project api-gateway # User needs to ensure this script enables inspect on 0.0.0.0:9229
     networks:
       - oms
     volumes:
@@ -37,6 +43,7 @@ services:
       context: .
     ports:
       - "3001:3001"
+      - "9230:9229" # Debug port for auth (host:container)
     depends_on:
       migrations:
         condition: service_completed_successfully
@@ -44,7 +51,8 @@ services:
         condition: service_healthy
       es01:
         condition: service_healthy
-    command: npm run  start:debug  --project auth
+    # IMPORTANT: Ensure this script starts Node with '--inspect=0.0.0.0:9229'
+    command: npm run  start:debug  --project auth # User needs to ensure this script enables inspect on 0.0.0.0:9229
     networks:
       - oms
     volumes:
@@ -60,6 +68,7 @@ services:
       context: .
     ports:
       - "3002:3002"
+      - "9231:9229" # Debug port for order (host:container)
     depends_on:
       migrations:
         condition: service_completed_successfully
@@ -73,7 +82,8 @@ services:
         condition: service_healthy
       kafka3:
         condition: service_healthy
-    command: npm run  start:debug  --project order
+    # IMPORTANT: Ensure this script starts Node with '--inspect=0.0.0.0:9229'
+    command: npm run  start:debug  --project order # User needs to ensure this script enables inspect on 0.0.0.0:9229
     networks:
       - oms
     volumes:
@@ -88,8 +98,9 @@ services:
     build:
       context: .
     ports:
-      - "3003:3003"
-      - "5002:5002"
+      - "3003:3003" # App port
+      - "5002:5002" # gRPC port
+      - "9232:9229" # Debug port for inventory (host:container)
     depends_on:
       migrations:
         condition: service_completed_successfully
@@ -103,7 +114,8 @@ services:
         condition: service_healthy
       kafka3:
         condition: service_healthy
-    command: npm run  start:debug  --project inventory
+    # IMPORTANT: Ensure this script starts Node with '--inspect=0.0.0.0:9229'
+    command: npm run  start:debug  --project inventory # User needs to ensure this script enables inspect on 0.0.0.0:9229
     networks:
       - oms
     volumes:
@@ -113,7 +125,8 @@ services:
     build:
       context: .
     ports:
-      - "3004:3004"
+      - "3004:3004" # Assuming this is the cart service based on previous work
+      - "9233:9229" # Debug port for product/cart (host:container)
     environment:
       - NODE_ENV=development
       - DATABASE_HOST=postgres
@@ -127,7 +140,9 @@ services:
         condition: service_completed_successfully
       postgres: # Still need postgres for the service itself
         condition: service_healthy
-    command: npm run  start:debug  --project product
+    # IMPORTANT: Ensure this script starts Node with '--inspect=0.0.0.0:9229'
+    # Assuming this is the 'cart' service, if 'product' is separate, add similar config for it.
+    command: npm run  start:debug  --project product # Or 'cart' if this is the cart service. User needs to ensure inspect on 0.0.0.0:9229
     networks:
       - oms
     volumes:

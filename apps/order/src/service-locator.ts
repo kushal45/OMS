@@ -15,7 +15,7 @@ export class ServiceLocator {
     private readonly orderItemsRepository: OrderItemsRepository,
     private readonly addressService: AddressService,
     private readonly transactionService: TransactionService,
-    private readonly customLoggerService: LoggerService,
+    private readonly loggerService: LoggerService,
     private readonly moduleRef: ModuleRef,
   ) {}
 
@@ -39,8 +39,8 @@ export class ServiceLocator {
     return this.inventoryService;
   }
 
-  getCustomLoggerService(): LoggerService {
-    return this.customLoggerService;
+  getLoggerService(): LoggerService {
+    return this.loggerService;
   }
 
   getModuleRef(): ModuleRef {

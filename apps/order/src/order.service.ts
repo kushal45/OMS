@@ -61,8 +61,8 @@ export class OrderService {
           value: orderItems,
         }
       ); 
-      const logger = this.serviceLocator.getModuleRef().get('LoggerService', { strict: false });
-      logger.info(`Kafka record metadata: ${JSON.stringify(recordMetaData)}`, traceId, this.context);
+      const logger = this.serviceLocator.getLoggerService();
+      logger.info(`Kafka record metadata: ${JSON.stringify(recordMetaData)}`, traceId);
       let orderResponse: Order;
       const percentageDeliveryChargeStrategy =
         new PercentageDeliveryChargeStrategy();

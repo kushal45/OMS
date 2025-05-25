@@ -7,7 +7,7 @@ import { Inventory } from './entity/inventory.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import { typeOrmAsyncConfig } from '../../../apps/config/typeorm.config';
-import { LoggerService, LoggerModule } from '@lib/logger/src';
+import { LoggerModule, LoggerService } from '@lib/logger/src'; // Import LoggerService
 import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
 import { KafkaConfig } from 'kafkajs';
 import { KafkaConsumer } from '@lib/kafka/KafkaConsumer';
@@ -33,34 +33,31 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
     })
   ],
   controllers: [InventoryController],
-  providers: [InventoryService,InventoryRepository,ConfigService,
+  providers: [InventoryService,InventoryRepository,ConfigService, // LoggerService removed from here
     {
       provide: APP_INTERCEPTOR,
       useExisting: 'LoggerErrorInterceptor', // Use the exported interceptor
     },
     {
       provide: KafkaAdminClient,
-      inject: [ModuleRef,LoggerService,ConfigService],
-      useFactory: (moduleRef:ModuleRef) => {
-        const configService = moduleRef.get(ConfigService, { strict: false });
+      inject: [ConfigService, LoggerService, ModuleRef], // Inject ConfigService, LoggerService, and ModuleRef
+      useFactory: (configService: ConfigService, loggerService: LoggerService, moduleRef: ModuleRef) => { // Correct factory signature
         const kafkaConfig: KafkaConfig ={
           clientId: configService.get<string>('INVENTORY_CLIENT_ID'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
         }
-        return new KafkaAdminClient(kafkaConfig,moduleRef);
+        return new KafkaAdminClient(kafkaConfig, moduleRef, loggerService); // Pass loggerService
       },
     },
-    LoggerService,
     {
       provide: "KafkaConsumerInstance",
-      inject: [ModuleRef,ConfigService,LoggerService],
-      useFactory: (moduleRef:ModuleRef) => {
-        const configService = moduleRef.get(ConfigService, { strict: false });
-        const kafkaConfig: KafkaConfig ={
+      inject: [ConfigService, LoggerService, ModuleRef], // Inject ConfigService, LoggerService, and ModuleRef
+      useFactory: (configService: ConfigService, loggerService: LoggerService, moduleRef: ModuleRef) => { // Correct factory signature
+        const kafkaConfig: KafkaConfig = {
           clientId: configService.get<string>('INVENTORY_CLIENT_ID'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
-        }
-        return new KafkaConsumer(kafkaConfig,moduleRef);
+        };
+        return new KafkaConsumer(kafkaConfig, moduleRef, loggerService); // Pass loggerService
       },
     },
     TransactionService,

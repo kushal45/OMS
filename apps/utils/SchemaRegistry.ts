@@ -6,38 +6,54 @@ import axios from 'axios';
 export async function registerSchema(moduleRef: ModuleRef) {
   const configService = moduleRef.get(ConfigService, { strict: false });
   const schemaRegistryUrl = configService.get<string>('SCHEMA_REGISTRY_URL');
-  const schemaRegistry = new SchemaRegistry(
-    { host: schemaRegistryUrl },
-   
-  );
+  const schemaRegistry = new SchemaRegistry({ host: schemaRegistryUrl });
   const topic = configService.get<string>('INVENTORY_UPDATE_TOPIC');
-  console.log(`Registering schema for topic: ${topic}`);
-  const schema = {
-    type: 'record',
-    name: `${topic}`, // Ensure the schema name is the same as the existing schema
-    fields: [
-      { name: 'productId', type: 'int' },
-      { name: 'price', type: 'int' },
-      { name: 'quantity', type: 'int' },
-    ],
-  };
-  
-  try {
-    await deleteSchema(moduleRef);
-    const response = await schemaRegistry.register({
-      type: SchemaType.AVRO,
-      schema: JSON.stringify(schema),
-    }, { subject: topic });
 
-    console.log(`Schema registered with id: ${response.id}`);
-    const schemaId=await schemaRegistry.getLatestSchemaId(topic);
-    console.log(`SchemaId returned: ${schemaId}`);
-    const schemaFetched = await schemaRegistry.getSchema(schemaId);
-    
-    console.log(`Schema returned: ${JSON.stringify(schemaFetched)}`);
+  try {
+    //deleteSchema(moduleRef)
+     // .then(async () => {
+      //  registerSchemaWithRegistry(schemaRegistry, topic)
+     // })
+     //.catch((error) => {
+        // console.error(
+        //   `Error deleting schema for topic ${topic}: ${error.message}`,
+        // );
+         registerSchemaWithRegistry(schemaRegistry, topic);
+     // });
   } catch (error) {
     console.error(`Failed to register schema: ${error.message}`);
+     registerSchemaWithRegistry(schemaRegistry, topic);
   }
+}
+
+async function registerSchemaWithRegistry(
+  schemaRegistry: SchemaRegistry,
+  topic: string,
+) {
+  console.log(`Registering schema for topic: ${topic}`);
+  const schema = {
+          type: 'record',
+          name: `${topic}`, // Ensure the schema name is the same as the existing schema
+          fields: [
+            { name: 'productId', type: 'int' },
+            { name: 'price', type: 'float' },
+            { name: 'quantity', type: 'int' },
+          ],
+        };
+        const response = await schemaRegistry.register(
+          {
+            type: SchemaType.AVRO,
+            schema: JSON.stringify(schema),
+          },
+          { subject: topic },
+        );
+
+        console.log(`Schema registered with id: ${response.id}`);
+        const schemaId = await schemaRegistry.getLatestSchemaId(topic);
+        console.log(`SchemaId returned: ${schemaId}`);
+        const schemaFetched = await schemaRegistry.getSchema(schemaId);
+
+        console.log(`Schema returned: ${JSON.stringify(schemaFetched)}`);
 }
 
 export async function deleteSchema(moduleRef: ModuleRef) {

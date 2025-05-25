@@ -11,37 +11,35 @@ export class KafkaConsumer {
   
   constructor(
     config: KafkaConfig,
-    private moduleRef:ModuleRef
+    private moduleRef: ModuleRef,
+    private logger: LoggerService,
   ) {
-
     const configService = moduleRef.get(ConfigService, { strict: false });
     const groupId = configService.get<string>('INVENTORY_CONSUMER_GROUP_ID');
-    this.consumer = new Kafka(config).consumer({ groupId ,retry:{retries:5}});
+    this.consumer = new Kafka(config).consumer({ groupId, retry: { retries: 5 } });
     const schemaRegistryUrl = configService.get<string>('SCHEMA_REGISTRY_URL');
-    this.schemaRegistry = new SchemaRegistry({ host: schemaRegistryUrl ,retry: {retries: 5 }});
+    this.schemaRegistry = new SchemaRegistry({ host: schemaRegistryUrl, retry: { retries: 5 } });
   }
 
   async subscribe(topic: string): Promise<void> {
-    const logger = this.moduleRef.get(LoggerService, { strict: false });
-    logger.info(`Subscribing to topic ${topic}`, this.context);
+    this.logger.info(`Subscribing to topic ${topic}`, this.context);
     this.consumer.connect();
-    this.consumer.subscribe({ topic ,fromBeginning:true});
+    this.consumer.subscribe({ topic, fromBeginning: true });
   }
 
   async postSubscribeCallback(
-    callback: (topic: string, partition: number, message: string,headers:IHeaders) => void,
+    callback: (topic: string, partition: number, message: string, headers: IHeaders) => void,
   ): Promise<void> {
     await this.consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
         const decodedMessage = await this.schemaRegistry.decode(message.value);
         const headers = message.headers;
-        callback(topic, partition, decodedMessage.toString(),headers);
+        callback(topic, partition, decodedMessage.toString(), headers);
       },
     });
 
     this.consumer.on('consumer.rebalancing', (event) => {
-      const logger = this.moduleRef.get(LoggerService, { strict: false });
-      logger.error(
+      this.logger.error(
         JSON.stringify({
           message: `Consumer rebalancing`,
           event,

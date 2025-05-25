@@ -7,7 +7,7 @@ import { OrderRepository } from './repository/order.repository';
 import { OrderItemsRepository } from './repository/orderItems.repository';
 import { AddressModule } from '@lib/address/src';
 import { TransactionService } from '@app/utils/transaction.service';
-import { LoggerService, LoggerModule } from '@lib/logger/src'; // Corrected to LoggerService
+import { LoggerModule, LoggerService } from '@lib/logger/src'; // Removed LoggerService from here
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrderItems } from './entity/orderItems.entity';
 import { Order } from './entity/order.entity';
@@ -37,7 +37,7 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
       },
     ]),
     AddressModule,
-    LoggerModule,
+    LoggerModule, // Kept LoggerModule here
     TypeOrmModule.forFeature([Order, OrderItems]),
     ElasticsearchModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
@@ -64,30 +64,30 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
     },
     {
       provide: 'KafkaProducerInstance',
-      inject: [ModuleRef,ConfigService],
+      inject: [ModuleRef, ConfigService, LoggerService],
       useFactory: (
         moduleRef: ModuleRef,
         configService: ConfigService,
+        logger: LoggerService, // Inject LoggerService
       ) => {
         const kafkaConfig = {
           clientId: configService.get<string>('ORDER_CLIENT_ID'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
         };
-        return new KafkaProducer(kafkaConfig,moduleRef);
+        return new KafkaProducer(kafkaConfig, moduleRef, logger); // Pass loggerService
       },
     },
     {
       provide: 'KafkaAdminInstance',
-      inject: [ModuleRef,ConfigService],
-      useFactory: (moduleRef: ModuleRef, configService: ConfigService) => {
+      inject: [ModuleRef, ConfigService, LoggerService], // Add LoggerService to inject
+      useFactory: (moduleRef: ModuleRef, configService: ConfigService, loggerService: LoggerService) => { // Add loggerService to factory params
         const kafkaConfig = {
           clientId: configService.get<string>('ORDER_CLIENT_ID'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
         };
-        return new KafkaAdminClient(kafkaConfig,moduleRef);
+        return new KafkaAdminClient(kafkaConfig, moduleRef, loggerService); // Pass loggerService
       },
     },
-    LoggerService,
   ],
 })
 export class OrderModule {}

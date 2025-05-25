@@ -17,8 +17,8 @@ echo "Pruning Docker build cache and dangling images..."
 docker builder prune -af
 docker image prune -f
 
-echo "Rebuilding (if necessary) and starting containers..."
-docker compose -f docker-compose.yml up --build --remove-orphans -d
+echo "Restarting containers without rebuilding (unless Dockerfile or dependencies have changed)..."
+docker compose -f docker-compose.yml up -d --remove-orphans
 
 echo "Watching for changes to docker-compose.yml..."
 #docker compose watch

@@ -2,11 +2,15 @@ import { Controller, Get, Post, Put, Delete, Body, Param, HttpStatus, Res } from
 import { ProductService } from './product.service';
 import { Product } from './entity/product.entity';
 import { ResponseUtil } from '@app/utils/response.util';
+import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 
 @Controller('products')
+@ApiTags('products')
+@ApiSecurity('api-key')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
+  
   @Post()
   async createProduct(@Body() product: Partial<Product>,@Res() response) {
     ResponseUtil.success({
@@ -18,6 +22,7 @@ export class ProductController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'Fetch Products' })
   async getProducts(@Res() response) {
     ResponseUtil.success({
       response,

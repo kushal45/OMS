@@ -60,7 +60,7 @@ export class ApiGatewayModule implements NestModule {
       path: "/auth/*",
       method:RequestMethod.ALL
     },{
-      path: "/orders/*",
+      path: "/order/*",
       method:RequestMethod.ALL
     });
   }

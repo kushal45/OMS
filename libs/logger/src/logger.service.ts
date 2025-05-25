@@ -6,6 +6,11 @@ import { ConfigService } from '@nestjs/config';
 export class LoggerService {
   private context: string;
   private readonly serviceName: string;
+  private readonly samplingRate: number;
+  private readonly bulkBuffer: any[] = [];
+  private readonly bulkFlushInterval: number = 2000; // ms
+  private readonly bulkBufferSize: number = 50; // flush when buffer reaches this size
+  private bulkFlushTimer: NodeJS.Timeout;
 
   constructor(
     private readonly configService: ConfigService,
@@ -15,6 +20,24 @@ export class LoggerService {
       'SERVICE_NAME',
       'unknown',
     );
+    this.samplingRate = Number(this.configService.get<string>('LOG_SAMPLING_RATE', '1'));
+    this.startBulkFlushTimer();
+  }
+
+  private startBulkFlushTimer() {
+    this.bulkFlushTimer = setInterval(() => this.flushBulkBuffer(), this.bulkFlushInterval);
+  }
+
+  private async flushBulkBuffer() {
+    if (this.bulkBuffer.length === 0) return;
+    const body = this.bulkBuffer.flatMap(doc => [{ index: { _index: doc.index } }, doc.body]);
+    this.bulkBuffer.length = 0; // clear buffer
+    try {
+     //await this.elasticsearchService.bulk({ body });
+     console.log('Flushing bulk buffer to Elasticsearch', body);
+    } catch (error) {
+      console.error('Failed to bulk log to Elasticsearch', error);
+    }
   }
 
   setContext(context: string) {
@@ -32,8 +55,12 @@ export class LoggerService {
   }
 
   async error(message: string, trace?: string, context?: string) {
-    this.logToElasticsearch('error', message, trace, context);
-    console.error(`[${this.getContext(context)}] ${message}`, trace);
+    try {
+      this.logToElasticsearch('error', message, trace, context);
+      console.error(`[${this.getContext(context)}] ${message}`, trace);
+    } catch (error) {
+      console.error('Error logging to Elasticsearch:', error);
+    }
   }
 
   private getContext(context?: string): string {
@@ -46,20 +73,20 @@ export class LoggerService {
     trace?: string,
     context?: string,
   ) {
-    try {
-      await this.elasticsearchService.index({
-        index: `logs-${this.serviceName}-${level}-${new Date().toISOString().split('T')[0]}`,
-        body: {
-          '@timestamp': new Date().toISOString(),
-          service: this.serviceName,
-          context: this.getContext(context),
-          level,
-          message,
-          trace,
-        },
-      });
-    } catch (error) {
-      console.error('Failed to log to Elasticsearch', error);
+    // Sampling: only log if random() < samplingRate
+    if (Math.random() >= this.samplingRate) return;
+    const index = `logs-${this.serviceName}-${level}-${new Date().toISOString().split('T')[0]}`;
+    const body = {
+      '@timestamp': new Date().toISOString(),
+      service: this.serviceName,
+      context: this.getContext(context),
+      level,
+      message,
+      trace,
+    };
+    this.bulkBuffer.push({ index, body });
+    if (this.bulkBuffer.length >= this.bulkBufferSize) {
+      this.flushBulkBuffer();
     }
   }
 }

@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Global, Module, forwardRef } from '@nestjs/common'; // Import Global
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 import { ElasticsearchTransport, ElasticsearchTransportOptions } from 'winston-elasticsearch';
@@ -7,6 +7,7 @@ import { LoggerErrorInterceptor } from './interceptor/logger.error.interceptor';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
 
+@Global() // Make LoggerModule global
 @Module({
   imports: [
     ConfigModule,
@@ -59,11 +60,11 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
         const nodes = esHost.split(',').map((host) => host.trim());
 
         const esTransportOptions: ElasticsearchTransportOptions = {
-          apm:{
-            serviceName: serviceName,
-            environment: configService.get<string>('NODE_ENV', 'development'),
-            serverUrl: configService.get<string>('APM_SERVER_URL', 'http://apm-server:8200'),
-          },
+          // apm:{
+          //   serviceName: serviceName,
+          //   environment: configService.get<string>('NODE_ENV', 'development'),
+          //   serverUrl: configService.get<string>('APM_SERVER_URL', 'http://apm-server:8200'),
+          // },
           level: 'info',
           clientOpts: {
             node: nodes.length === 1 ? nodes[0] : undefined,

@@ -14,6 +14,7 @@ export class KafkaProducer {
   constructor(
     config: KafkaConfig,
     private moduleRef: ModuleRef,
+    private readonly logger: LoggerService,
   ) {
     const configService = this.moduleRef.get(ConfigService, { strict: false });
     const schemaRegistryUrl = configService.get<string>('SCHEMA_REGISTRY_URL');
@@ -35,18 +36,17 @@ export class KafkaProducer {
     },
   ): Promise<RecordMetadata[]> {
     this.producer.connect();
-    const logger = this.moduleRef.get(LoggerService, { strict: false });
+    this.logger.info(`Sending message to topic: ${topic}`, this.context);
     const kafkaAdminClient = this.moduleRef.get<KafkaAdminClient>(
       'KafkaAdminInstance',
       { strict: false },
     );
-    logger.info(`Sending message to topic: ${topic}`, this.context);
     const numPartitions = await kafkaAdminClient.getNumberOfPartitions(topic);
     const assignedPartition = numPartitions % 2;
     const schemaId = await this.schemaRegistry.getLatestSchemaId(
         topic
     );
-    logger.debug(`SchemaId returned ${schemaId}`, this.context);
+    this.logger.debug(`SchemaId returned ${schemaId}`, this.context);
     const schemaFetched = await this.schemaRegistry.getSchema(schemaId);
     console.info(`Schema returned: ${JSON.stringify(schemaFetched)}`);
     const encodedMessages = await Promise.all(
@@ -67,8 +67,7 @@ export class KafkaProducer {
         })),
       });
      this.producer.on('producer.network.request_timeout', (event) => {
-        const logger = this.moduleRef.get(LoggerService, { strict: false });
-        logger.error(
+        this.logger.error(
             JSON.stringify({
                 message: `Failed to send message to topic: ${topic}`,
                 error: JSON.stringify(event.payload),
@@ -84,7 +83,7 @@ export class KafkaProducer {
 
   private validateMessage(schema: any, message: any): any {
     const { fields } = schema;
-    console.log(`fields:`,fields,`message:`,message);
+    //console.log(`fields:`,fields,`message:`,message);
     const validMessage: any = {};
 
     fields.forEach((field: any) => {
