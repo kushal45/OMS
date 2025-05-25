@@ -42,6 +42,7 @@ export class OrderService {
   async createOrder(
     order: OrderRequestDto,
     userId: number,
+    traceId: string, // Assuming traceId is passed for logging purposes
   ): Promise<CreateOrderResponseDto> {
     try {
       const { addressId, orderItems } = order;
@@ -51,15 +52,17 @@ export class OrderService {
       );
       if (!isValid) throw new BadRequestException('Address not valid');
       await this.validateOrder(orderItems);
-      // const kafkaProducer = this.serviceLocator.getModuleRef().get<KafkaProducer>("KafkaProducerInstance",{strict:false});
-      // const configService = this.serviceLocator.getModuleRef().get(ConfigService,{strict:false});
-      // await kafkaProducer.send(
-      //   configService.get<string>('INVENTORY_UPDATE_TOPIC'),
-      //    {
-      //     key: 'order',
-      //     value: orderItems,
-      //   }
-      // );
+      const kafkaProducer = this.serviceLocator.getModuleRef().get<KafkaProducer>("KafkaProducerInstance",{strict:false});
+      const configService = this.serviceLocator.getModuleRef().get(ConfigService,{strict:false});
+      const recordMetaData=await kafkaProducer.send(
+        configService.get<string>('INVENTORY_UPDATE_TOPIC'),
+         {
+          key: 'order',
+          value: orderItems,
+        }
+      ); 
+      const logger = this.serviceLocator.getModuleRef().get('LoggerService', { strict: false });
+      logger.info(`Kafka record metadata: ${JSON.stringify(recordMetaData)}`, traceId, this.context);
       let orderResponse: Order;
       const percentageDeliveryChargeStrategy =
         new PercentageDeliveryChargeStrategy();

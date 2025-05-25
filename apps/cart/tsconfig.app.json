@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../dist/apps/cart",
+    "module": "commonjs",
+    "types": ["node"]
+  },
+  "exclude": ["test", "**/*.spec.ts"],
+  "include": ["**/*.ts"]
+}

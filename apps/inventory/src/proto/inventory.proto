@@ -5,11 +5,13 @@ package INVENTORY_PACKAGE;
 
 service InventoryService {
   rpc validate (ValidateInventoryReq) returns (ValidateInventoryRes);
+  rpc reserveInventory (ReserveInventoryReq) returns (ReserveInventoryRes);
+  rpc releaseInventory (ReleaseInventoryReq) returns (ReleaseInventoryRes);
 }
 
 message OrderItem {
-  int32 productId = 1;
-  int32 price = 2;
+  string productId = 1; // Changed from int32
+  int32 price = 2; // Price might be optional here if inventory service doesn't care
   int32 quantity = 3;
 }
 
@@ -19,10 +21,47 @@ message ValidateInventoryReq {
 
 message InvalidOrderItemWithReason {
   OrderItem orderItem = 1;
-  repeated string reasons = 2;
+  repeated string reasons = 2; // e.g., "INSUFFICIENT_STOCK", "PRODUCT_NOT_FOUND"
 }
 
 message ValidateInventoryRes {
   bool success = 1;
   repeated InvalidOrderItemWithReason invalidOrderItems = 2;
+}
+
+message ReserveInventoryReq {
+  string orderId = 1; // To associate reservation with an order, for idempotency
+  string userId = 2; // For logging or idempotency
+  repeated OrderItem itemsToReserve = 3;
+}
+
+message ReservationStatus {
+  string productId = 1;
+  bool reserved = 2;
+  string reason = 3; // e.g., "INSUFFICIENT_STOCK" if not reserved
+  int32 currentStock = 4; // Optional: current stock after attempt
+}
+
+message ReserveInventoryRes {
+  bool overallSuccess = 1;
+  string orderId = 2;
+  repeated ReservationStatus reservationDetails = 3;
+}
+
+message ReleaseInventoryReq {
+  string orderId = 1; // To identify which reservation to release
+  repeated OrderItem itemsToRelease = 2; // Specify items and quantities to release
+}
+
+message ReleaseStatus {
+  string productId = 1;
+  bool released = 2;
+  string reason = 3; // e.g., "RESERVATION_NOT_FOUND"
+  int32 currentStock = 4; // Optional: current stock after attempt
+}
+
+message ReleaseInventoryRes {
+  bool overallSuccess = 1;
+  string orderId = 2;
+  repeated ReleaseStatus releaseDetails = 3;
 }

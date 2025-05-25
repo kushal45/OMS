@@ -1,19 +1,37 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InventoryRepository } from './repository/inventory.repository';
 import { Inventory } from './entity/inventory.entity';
-import { ValidateOrderItemsReqDto } from './dto/validate-order-items-req.dto';
+// ValidateOrderItemsReqDto and ValidateOrderItemsResponseDto are no longer used directly by the service's public validate method.
+// They might still be used internally or by REST endpoints if those exist and differ from gRPC.
+// For gRPC, we use types from proto.
 import { QueryInput } from './interfaces/query-input.interface';
 import { CheckProductIdHandler } from './util/check-product-id-handler';
 import { CheckQuantityHandler } from './util/check-quantity-handler';
-import { ValidateOrderItemsResponseDto } from './dto/validate-order-items-res.dto';
 import { KafkaConsumer } from '@lib/kafka/KafkaConsumer';
-import { ModuleRef } from '@nestjs/core';
+import { ModuleRef } from '@nestjs/core'; // Keep if used for other dynamic resolutions
 import { TransactionService } from '@app/utils/transaction.service';
+import {
+  ReserveInventoryReq,
+  ReserveInventoryRes,
+  ReleaseInventoryReq,
+  ReleaseInventoryRes,
+  ReservationStatus,
+  ReleaseStatus,
+  OrderItem as ProtoOrderItem,
+  ValidateInventoryReq,
+  ValidateInventoryRes
+} from './proto/inventory'; // Import gRPC request/response types
+import { EntityManager } from 'typeorm';
+import { LoggerService } from '@lib/logger/src';
 
 @Injectable()
 export class InventoryService {
+  private readonly loggerContext = InventoryService.name;
+
   constructor(
     private readonly inventoryRepository: InventoryRepository,
+    private readonly transactionService: TransactionService,
+    private readonly logger: LoggerService,
     private moduleRef: ModuleRef,
   ) {}
 
@@ -26,114 +44,302 @@ export class InventoryService {
   }
 
   async validate(
-    items: ValidateOrderItemsReqDto,
-  ): Promise<ValidateOrderItemsResponseDto> {
+    req: ValidateInventoryReq, // Changed to use gRPC request type
+  ): Promise<ValidateInventoryRes> { // Changed to use gRPC response type
     try {
-      const productIds = items.orderItems.map((item) => item.productId);
+      // The items are now in req.orderItems, which should be an array of ProtoOrderItem
+      const productIds = req.orderItems.map((item) => item.productId);
       const matchingInventories = await this.inventoryRepository.findAll({
-        productId: productIds,
+        productId: productIds, // This is already string[] from ProtoOrderItem
         status: QueryInput.InventoryStatus.IN_STOCK,
       });
-      /**
-       * 1. Check if all products are in stock
-       * 2. Check if the quantity of each product in the inventory is greater than or equal with the order Items requested quantity
-       * 3. If any of the above conditions fail, return those products which are not in stock or have insufficient quantity
-       * Invalid match can be of two types:
-       * 1. Product is not in stock
-       * 2. Product is in stock but the quantity is less than the requested quantity
-       * In both cases, return those entries with the product id and the quantity that is not in stock or is less than the requested quantity
-       */
-      const invalidOrderItems = this.matchInventoriesWithOrderItems(
-        items,
-        matchingInventories,
-      );
-      if (invalidOrderItems.length > 0) {
+
+      // Adapt matchInventoriesWithOrderItems or inline logic for ProtoOrderItem
+      const invalidProtoOrderItems: QueryInput.InvalidOrderItemWithReason[] = [];
+      const checkProductIdHandler = new CheckProductIdHandler();
+      const checkQuantityHandler = new CheckQuantityHandler();
+      checkProductIdHandler.setNext(checkQuantityHandler);
+
+      for (const protoItem of req.orderItems) {
+        // The handlers expect QueryInput.OrderItem, so we need to map or ensure compatibility
+        // For simplicity, let's assume ProtoOrderItem has compatible fields (productId, quantity)
+        // or create a temporary QueryInput.OrderItem
+        const queryInputItem: QueryInput.OrderItem = {
+            productId: protoItem.productId,
+            quantity: protoItem.quantity,
+            price: protoItem.price, // Assuming price is also in ProtoOrderItem
+        };
+        const reasons = checkProductIdHandler.handle(queryInputItem, matchingInventories);
+        if (reasons.length > 0) {
+          // The gRPC response expects InvalidOrderItemWithReason which contains ProtoOrderItem
+          // Our QueryInput.InvalidOrderItemWithReason contains QueryInput.OrderItem.
+          // We need to map this back if the structures are different, or adjust InvalidOrderItemWithReason in proto.
+          // For now, let's assume QueryInput.InvalidOrderItemWithReason is compatible enough for the reasons array.
+          // The actual item in the response should be the ProtoOrderItem.
+          invalidProtoOrderItems.push({
+            orderItem: queryInputItem, // This should ideally be the original protoItem if structures differ significantly
+            reasons: reasons
+          });
+        }
+      }
+
+      if (invalidProtoOrderItems.length > 0) {
+        // Map invalidProtoOrderItems to the structure expected by ValidateInventoryRes.invalidOrderItems
+        // This involves ensuring each item in invalidOrderItems has a ProtoOrderItem.
+        // If QueryInput.OrderItem and ProtoOrderItem are identical in structure, this is simpler.
+        // For now, assuming QueryInput.InvalidOrderItemWithReason is directly usable or needs minor mapping.
         return {
           success: false,
-          invalidOrderItems,
+          // This mapping might be more complex if QueryInput.OrderItem and ProtoOrderItem differ.
+          // The proto expects InvalidOrderItemWithReason which has an 'OrderItem' (ProtoOrderItem) field.
+          // Our current invalidProtoOrderItems has 'orderItem' (QueryInput.OrderItem).
+          // Let's adjust the mapping:
+          invalidOrderItems: invalidProtoOrderItems.map(ipi => ({
+            orderItem: { // This needs to be ProtoOrderItem
+                productId: ipi.orderItem.productId,
+                price: ipi.orderItem.price,
+                quantity: ipi.orderItem.quantity
+            },
+            reasons: ipi.reasons
+          }))
         };
       } else {
         return {
           success: true,
+          invalidOrderItems: [] // Explicitly return empty array for success
         };
       }
     } catch (error) {
-      console.log(error);
-      throw error;
+      this.logger.error(`Validation error: ${error.message}`, error.stack, this.loggerContext);
+      // Ensure the gRPC response structure is met even in case of an unhandled error
+      return { success: false, invalidOrderItems: [{ orderItem: null, reasons: [error.message] }] };
     }
   }
 
+  // This private method might need to be removed or adapted if its DTOs are no longer used.
+  // For now, it's not directly called by the public validate method.
+  /*
   private matchInventoriesWithOrderItems(
-    items: ValidateOrderItemsReqDto,
+    itemsDto: ValidateOrderItemsReqDto, // This DTO is problematic now
     inventories: Inventory[],
   ): Array<QueryInput.InvalidOrderItemWithReason> {
-    const invalidOrderItems: Array<QueryInput.InvalidOrderItemWithReason> = [];
+    // ... implementation ...
+  }
+  */
 
-    const checkProductIdHandler = new CheckProductIdHandler();
-    const checkQuantityHandler = new CheckQuantityHandler();
-
-    checkProductIdHandler.setNext(checkQuantityHandler);
-
-    for (const orderItem of items.orderItems) {
-      const reasons = checkProductIdHandler.handle(orderItem, inventories);
-      if (reasons.length > 0) {
-        invalidOrderItems.push({ orderItem, reasons });
-      }
+  async fetch(productId: string): Promise<Inventory> { // productId is now string
+    const inventory = await this.inventoryRepository.findByProductId(productId);
+    if (!inventory) {
+      throw new NotFoundException(`Inventory for product ID ${productId} not found.`);
     }
-
-    return invalidOrderItems;
+    return inventory;
   }
 
-  async fetch(productId: number): Promise<Inventory> {
-    return await this.inventoryRepository.findOne(productId);
-  }
-
-  async update(
-    productId: number,
-    orderItem: Partial<Inventory>,
-    inventoryRepo: InventoryRepository,
+  private async _updateInventoryInTransaction(
+    productId: string,
+    quantityChange: number, // negative to decrease stock, positive to increase
+    reservedChange: number, // positive to increase reserved, negative to decrease
+    entityManager: EntityManager,
   ): Promise<Inventory> {
-    // check the current quantity of the product and compare it with the incoming orderItem
-    // reduce quantity of the inventory product and increasse the reserved quantity
+    // Get the InventoryRepository instance that uses the transactional EntityManager
+    const transactionalInventoryRepo = this.inventoryRepository.getRepository(entityManager);
+    let inventory = await transactionalInventoryRepo.findByProductId(productId);
 
-    const inventory = await this.inventoryRepository.findOne(productId);
-    if (inventory) {
-      inventory.quantity -= orderItem.quantity;
-      inventory.reservedQuantity += orderItem.quantity;
-      return await inventoryRepo.update(productId, inventory);
+    if (!inventory) {
+      if (quantityChange > 0 && reservedChange === 0) { // Adding new stock for a new product
+        this.logger.info(`Creating new inventory for product ${productId} with quantity ${quantityChange}`, this.loggerContext);
+        // Use the create method of the transactional repository instance
+        inventory = await transactionalInventoryRepo.create({
+          productId,
+          quantity: quantityChange,
+          reservedQuantity: 0,
+          status: QueryInput.InventoryStatus.IN_STOCK,
+          location: 'default', // Consider making location configurable or from event
+        });
+        // The create method in repository should handle the save. If not, an explicit save on the TypeORM repo is needed.
+        // Assuming transactionalInventoryRepo.create also saves. If it just creates the entity, then:
+        // inventory = await transactionalInventoryRepo.repository.save(inventoryEntity);
+      } else {
+        throw new NotFoundException(`Inventory for product ${productId} not found for the operation.`);
+      }
+    } else {
+      inventory.quantity = (inventory.quantity || 0) + quantityChange;
+      inventory.reservedQuantity = (inventory.reservedQuantity || 0) + reservedChange;
     }
+
+    if (inventory.quantity < 0) {
+      throw new BadRequestException(`Insufficient stock for product ${productId}. Available: ${inventory.quantity - quantityChange}, Requested change: ${quantityChange}`);
+    }
+    if (inventory.reservedQuantity < 0) {
+      throw new BadRequestException(`Cannot release more stock than reserved for product ${productId}. Reserved: ${inventory.reservedQuantity + reservedChange}, Requested release: ${-reservedChange}`);
+    }
+
+    inventory.status = inventory.quantity > 0 ? QueryInput.InventoryStatus.IN_STOCK : QueryInput.InventoryStatus.OUT_OF_STOCK;
+    // Use the update method of the transactional repository instance
+    return transactionalInventoryRepo.update(inventory.id, inventory);
+  }
+
+
+  async reserveInventory(req: ReserveInventoryReq): Promise<ReserveInventoryRes> {
+    this.logger.info(`Attempting to reserve inventory for order ${req.orderId}, user ${req.userId}`, this.loggerContext);
+    const reservationDetails: ReservationStatus[] = [];
+    let overallSuccess = true;
+
+    try {
+      await this.transactionService.executeInTransaction(async (entityManager: EntityManager) => {
+        const transactionalInventoryRepo = this.inventoryRepository.getRepository(entityManager);
+        for (const item of req.itemsToReserve) {
+          const currentStatus: ReservationStatus = { productId: item.productId, reserved: false, reason: '', currentStock: 0 };
+          try {
+            let inventory = await transactionalInventoryRepo.findByProductId(item.productId);
+            if (!inventory) {
+              currentStatus.reason = 'PRODUCT_NOT_FOUND';
+              overallSuccess = false;
+            } else if (inventory.quantity < item.quantity) {
+              currentStatus.reason = 'INSUFFICIENT_STOCK';
+              currentStatus.currentStock = inventory.quantity;
+              overallSuccess = false;
+            } else {
+              inventory.quantity -= item.quantity;
+              inventory.reservedQuantity += item.quantity;
+              inventory.status = inventory.quantity > 0 ? QueryInput.InventoryStatus.IN_STOCK : QueryInput.InventoryStatus.OUT_OF_STOCK;
+              await transactionalInventoryRepo.update(inventory.id, inventory); // Use repository's update method
+              currentStatus.reserved = true;
+              currentStatus.currentStock = inventory.quantity;
+            }
+          } catch (e) {
+            this.logger.error(`Error reserving item ${item.productId} for order ${req.orderId}: ${e.message}`, e.stack, this.loggerContext);
+            currentStatus.reason = e.message || 'RESERVATION_FAILED';
+            overallSuccess = false;
+          }
+          reservationDetails.push(currentStatus);
+        }
+        if (!overallSuccess) {
+          throw new Error('One or more items could not be reserved.'); // This will trigger rollback
+        }
+      });
+    } catch (error) { // Catch error from transactionService or the explicit throw
+      this.logger.error(`Inventory reservation failed for order ${req.orderId}: ${error.message}`, error.stack, this.loggerContext);
+      overallSuccess = false; // Ensure this is set if an error bubbles up
+      // For items that might have been processed before the error that caused rollback,
+      // their status in reservationDetails might be true, but they are not persisted.
+      // It's safer to mark all as failed or rely on the overallSuccess flag.
+      // To be more precise, one might re-evaluate statuses here if needed, but gRPC error is primary.
+      reservationDetails.forEach(detail => { if(overallSuccess === false) detail.reserved = false; });
+    }
+    return { overallSuccess, orderId: req.orderId, reservationDetails };
+  }
+
+  async releaseInventory(req: ReleaseInventoryReq): Promise<ReleaseInventoryRes> {
+    this.logger.info(`Attempting to release inventory for order ${req.orderId}`, this.loggerContext);
+    const releaseDetails: ReleaseStatus[] = [];
+    let overallSuccess = true;
+
+    try {
+      await this.transactionService.executeInTransaction(async (entityManager: EntityManager) => {
+        const transactionalInventoryRepo = this.inventoryRepository.getRepository(entityManager);
+        for (const item of req.itemsToRelease) {
+          const currentStatus: ReleaseStatus = { productId: item.productId, released: false, reason: '', currentStock: 0 };
+          try {
+            let inventory = await transactionalInventoryRepo.findByProductId(item.productId);
+            if (!inventory) {
+              currentStatus.reason = 'PRODUCT_NOT_FOUND';
+              overallSuccess = false;
+            } else if (inventory.reservedQuantity < item.quantity) {
+              currentStatus.reason = 'RELEASE_EXCEEDS_RESERVATION';
+              currentStatus.currentStock = inventory.quantity; // Current available stock
+              overallSuccess = false;
+            } else {
+              inventory.quantity += item.quantity; // Add back to available
+              inventory.reservedQuantity -= item.quantity;
+              inventory.status = QueryInput.InventoryStatus.IN_STOCK; // Should always be in stock if adding back
+              await transactionalInventoryRepo.update(inventory.id, inventory); // Use repository's update method
+              currentStatus.released = true;
+              currentStatus.currentStock = inventory.quantity;
+            }
+          } catch (e) {
+            this.logger.error(`Error releasing item ${item.productId} for order ${req.orderId}: ${e.message}`, e.stack, this.loggerContext);
+            currentStatus.reason = e.message || 'RELEASE_FAILED';
+            overallSuccess = false;
+          }
+          releaseDetails.push(currentStatus);
+        }
+        if (!overallSuccess) {
+          throw new Error('One or more items could not be released.'); // Trigger rollback
+        }
+      });
+    } catch (error) {
+      this.logger.error(`Inventory release failed for order ${req.orderId}: ${error.message}`, error.stack, this.loggerContext);
+      overallSuccess = false;
+      releaseDetails.forEach(detail => { if(overallSuccess === false) detail.released = false; });
+    }
+    return { overallSuccess, orderId: req.orderId, releaseDetails };
   }
 
   async eventBasedUpdate(kafkaConsumer: KafkaConsumer) {
-    let index = 0;
-    let count = 0;
-    let orderItemsToUpdate: Partial<Inventory>[] = [];
+    // This method needs to be carefully designed based on the exact nature of events.
+    // Assuming events are for confirmed sales that need to finalize stock deduction from reserved.
+    // Or direct stock adjustments (e.g. new shipment, damage write-off).
+    // For now, let's assume a simple event: { productId: string, quantitySoldAndShipped: number }
+    // This means this quantity should be removed from reserved and effectively from total.
     await kafkaConsumer.postSubscribeCallback(
       async (topic, partition, message, headers) => {
-        console.log(
-          `Received message from topic ${topic} partition ${partition} message ${message}`,
+        this.logger.info(
+          `Received Kafka message from topic ${topic}, partition ${partition}`, this.loggerContext
         );
-        const orderItemPayload = JSON.parse(message);
-        console.log('headers', headers);
-        count = parseInt(headers.messageCount as string);
-        console.log('count', count);
-        index++;
+        try {
+          const payload = JSON.parse(message.toString());
+          const productId = payload.productId as string;
+          // Assuming payload.quantity means "quantity sold and to be removed from reserved"
+          // Or if it's a direct stock adjustment, the event should be clearer.
+          // Let's assume it's a "finalize sale" event.
+          const quantityFinalized = parseInt(payload.quantitySold, 10);
 
-        orderItemsToUpdate.push({
-          productId: orderItemPayload.productId,
-          quantity: orderItemPayload.quantity,
-        });
+          if (!productId || isNaN(quantityFinalized)) {
+            this.logger.error('Invalid payload for inventory update from Kafka', this.loggerContext, payload);
+            return;
+          }
 
-        if (index === count && count > 0) {
-          index = 0;
-          await this.inventoryRepository.updateBulk(orderItemsToUpdate);
-          orderItemsToUpdate = [];
+          this.logger.info(`Processing inventory finalization for product ${productId}, quantity: ${quantityFinalized}`, this.loggerContext);
+
+          await this.transactionService.executeInTransaction(async (entityManager: EntityManager) => {
+            const transactionalInventoryRepo = this.inventoryRepository.getRepository(entityManager);
+            const inventory = await transactionalInventoryRepo.findByProductId(productId);
+            if (!inventory) {
+              this.logger.error(`Inventory not found for product ${productId} during Kafka event processing.`, this.loggerContext);
+              // Decide if to throw, or just log and skip. Throwing might halt consumer.
+              return;
+            }
+            if (inventory.reservedQuantity < quantityFinalized) {
+              this.logger.error(
+                `Cannot finalize sale for product ${productId}: requested ${quantityFinalized}, reserved ${inventory.reservedQuantity}. Potential inconsistency.`,
+                this.loggerContext
+              );
+              // This is a critical issue, may require manual intervention or alerting.
+              return;
+            }
+            inventory.reservedQuantity -= quantityFinalized;
+            // Actual quantity was already reduced at reservation time.
+            // If not, then inventory.quantity -= quantityFinalized; // This line would be needed if reservation didn't touch 'quantity'
+            await transactionalInventoryRepo.update(inventory.id, { reservedQuantity: inventory.reservedQuantity });
+            this.logger.info(`Inventory finalized for product ${productId}, new reserved: ${inventory.reservedQuantity}`, this.loggerContext);
+          });
+        } catch (error) {
+          this.logger.error(`Failed to process inventory update from Kafka: ${error.message}`, error.stack, this.loggerContext);
+          // Consider dead-letter queue or other error handling for Kafka messages.
         }
       },
     );
   }
 
-  async delete(productId: number): Promise<boolean> {
-    return this.inventoryRepository.delete(productId);
+  async delete(productId: string): Promise<boolean> { // productId is now string
+    // Ensure this makes sense. Deleting inventory might need checks (e.g., no stock, no reservations)
+    // The current repository delete takes `id` (PK), not `productId`.
+    // This needs to be aligned. Assuming we want to delete by `productId`.
+    const inventory = await this.inventoryRepository.findByProductId(productId);
+    if (!inventory) {
+        throw new NotFoundException(`Inventory for product ID ${productId} not found, cannot delete.`);
+    }
+    return this.inventoryRepository.delete(inventory.id); // Use the PK for deletion
   }
 }

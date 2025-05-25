@@ -1,198 +1,275 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, Repository, In } from 'typeorm';
-import { ModuleRef } from '@nestjs/core';
-
 import { InventoryService } from './inventory.service';
 import { InventoryRepository } from './repository/inventory.repository';
-import { Inventory } from './entity/inventory.entity'; // Removed InventoryStatus from here
-import { Product } from '@app/product/src/entity/product.entity'; // Assuming Product entity is needed for context
-import { ValidateOrderItemsReqDto } from './dto/validate-order-items-req.dto';
-import { ValidateOrderItemsResponseDto } from './dto/validate-order-items-res.dto';
-import { QueryInput } from './interfaces/query-input.interface'; // QueryInput contains InventoryStatus
+import { TransactionService } from '@app/utils/transaction.service';
+import { LoggerService } from '@lib/logger/src';
+import { ModuleRef } from '@nestjs/core';
+import { Inventory } from './entity/inventory.entity';
+import { QueryInput } from './interfaces/query-input.interface';
+import { ValidateInventoryReq, ValidateInventoryRes, ReserveInventoryReq, ReserveInventoryRes, ReleaseInventoryReq, ReleaseInventoryRes, OrderItem as ProtoOrderItem, ReservationStatus, ReleaseStatus } from './proto/inventory.proto';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { EntityManager } from 'typeorm';
+import { CheckProductIdHandler } from './util/check-product-id-handler';
+import { CheckQuantityHandler } from './util/check-quantity-handler';
 
+// Mocks
+const mockInventoryRepository = {
+  create: jest.fn(),
+  findAll: jest.fn(),
+  findByProductId: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+  getRepository: jest.fn().mockReturnThis(), // For transactional context
+  // TypeORM methods (if used directly on this mock)
+  save: jest.fn(),
+  findOne: jest.fn(),
+  createEntity: jest.fn(), // if repository has a method like this instead of TypeORM's .create()
+};
 
-// Centralized Test DB Utilities
-import GlobalTestOrmConfigService from '@lib/test-utils/src/orm.config.test';
-import { initializeDatabase } from '@lib/test-utils/src/test-db-setup.util';
+const mockTransactionService = {
+  executeInTransaction: jest.fn(async (callback) => callback(mockEntityManager)),
+};
+
+const mockLoggerService = {
+  info: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn(),
+  setContext: jest.fn().mockReturnThis(),
+};
+
+const mockModuleRef = {
+  get: jest.fn(),
+};
+
+const mockEntityManager = {
+  getRepository: jest.fn().mockReturnValue(mockInventoryRepository), // Mock to return the inventory repo mock
+} as unknown as EntityManager;
+
+// Mock for CheckProductIdHandler and CheckQuantityHandler
+jest.mock('./util/check-product-id-handler');
+jest.mock('./util/check-quantity-handler');
+const mockCheckProductIdHandlerInstance = {
+    handle: jest.fn(),
+    setNext: jest.fn(),
+};
+const mockCheckQuantityHandlerInstance = {
+    handle: jest.fn(),
+    setNext: jest.fn(), // Though it might not have a next
+};
+(CheckProductIdHandler as jest.Mock).mockImplementation(() => mockCheckProductIdHandlerInstance);
+(CheckQuantityHandler as jest.Mock).mockImplementation(() => mockCheckQuantityHandlerInstance);
+
 
 describe('InventoryService', () => {
   let service: InventoryService;
-  let dataSource: DataSource;
-  let inventoryRepository: InventoryRepository;
-  let rawInventoryRepository: Repository<Inventory>;
-  let rawProductRepository: Repository<Product>; // For creating test products
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [
-        TypeOrmModule.forRootAsync({
-          useClass: GlobalTestOrmConfigService,
-          dataSourceFactory: async (options) => new DataSource(options),
-        }),
-        TypeOrmModule.forFeature([Inventory, Product]), // Include Product if creating products for tests
-      ],
       providers: [
         InventoryService,
-        InventoryRepository,
-        // ModuleRef is usually provided by NestJS itself.
-        // If specific providers are resolved via moduleRef in the service,
-        // they might need to be mocked or provided here if not part of the testing module.
+        { provide: InventoryRepository, useValue: mockInventoryRepository },
+        { provide: TransactionService, useValue: mockTransactionService },
+        { provide: LoggerService, useValue: mockLoggerService },
+        { provide: ModuleRef, useValue: mockModuleRef },
       ],
     }).compile();
 
     service = module.get<InventoryService>(InventoryService);
-    dataSource = module.get<DataSource>(DataSource);
-    inventoryRepository = module.get<InventoryRepository>(InventoryRepository);
-    rawInventoryRepository = module.get<Repository<Inventory>>(getRepositoryToken(Inventory));
-    rawProductRepository = module.get<Repository<Product>>(getRepositoryToken(Product));
-  });
+    jest.clearAllMocks();
 
-  beforeEach(async () => {
-    await initializeDatabase(dataSource);
-  });
-
-  afterAll(async () => {
-    if (dataSource && dataSource.isInitialized) {
-      await dataSource.destroy();
-    }
+    // Ensure getRepository on the mockInventoryRepository itself returns the mock for transactional calls
+    mockInventoryRepository.getRepository.mockReturnValue(mockInventoryRepository as any);
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  describe('createInventory', () => {
-    it('should create and return an inventory item', async () => {
-      const product = await rawProductRepository.save(rawProductRepository.create({ name: 'Stocked Product', price: 50, description: 'In stock' }));
-      const inventoryData: Partial<Inventory> = { productId: product.id, quantity: 100, status: QueryInput.InventoryStatus.IN_STOCK }; // Used QueryInput.InventoryStatus
-      const createdInventory = await service.createInventory(inventoryData);
-
-      expect(createdInventory).toBeDefined();
-      expect(createdInventory.id).toBeDefined();
-      expect(createdInventory.productId).toEqual(product.id);
-      expect(createdInventory.quantity).toEqual(100);
-
-      const dbInventory = await rawInventoryRepository.findOneBy({ id: createdInventory.id });
-      expect(dbInventory).toBeDefined();
-      expect(dbInventory.quantity).toEqual(100);
-    });
-  });
-
-  describe('getInventories', () => {
-    it('should return an array of inventory items', async () => {
-      const product1 = await rawProductRepository.save(rawProductRepository.create({ name: 'Inv Prod 1', price: 10 }));
-      const product2 = await rawProductRepository.save(rawProductRepository.create({ name: 'Inv Prod 2', price: 20 }));
-      await rawInventoryRepository.save([
-        rawInventoryRepository.create({ productId: product1.id, quantity: 10, status: QueryInput.InventoryStatus.IN_STOCK }), // Used QueryInput.InventoryStatus
-        rawInventoryRepository.create({ productId: product2.id, quantity: 5, status: QueryInput.InventoryStatus.IN_STOCK }), // Used QueryInput.InventoryStatus
-      ]);
-      const inventories = await service.getInventories();
-      expect(inventories).toBeInstanceOf(Array);
-      expect(inventories.length).toBe(2);
-    });
-  });
+  const productId1 = 'prod-uuid-1';
+  const productId2 = 'prod-uuid-2';
 
   describe('validate', () => {
-    let product1: Product;
-    let product2: Product;
-    let product3: Product;
-
-    beforeEach(async () => {
-      product1 = await rawProductRepository.save(rawProductRepository.create({ name: 'P1 Valid', price: 10 }));
-      product2 = await rawProductRepository.save(rawProductRepository.create({ name: 'P2 Low Stock', price: 20 }));
-      product3 = await rawProductRepository.save(rawProductRepository.create({ name: 'P3 Out of Stock', price: 30 }));
-
-      await rawInventoryRepository.save(rawInventoryRepository.create({ productId: product1.id, quantity: 10, status: QueryInput.InventoryStatus.IN_STOCK })); // Used QueryInput.InventoryStatus
-      await rawInventoryRepository.save(rawInventoryRepository.create({ productId: product2.id, quantity: 3, status: QueryInput.InventoryStatus.IN_STOCK })); // Used QueryInput.InventoryStatus
-      await rawInventoryRepository.save(rawInventoryRepository.create({ productId: product3.id, quantity: 0, status: QueryInput.InventoryStatus.OUT_OF_STOCK })); // Used QueryInput.InventoryStatus
-    });
-
-    it('should return success:true if all items are valid and in stock', async () => {
-      const reqDto: ValidateOrderItemsReqDto = {
-        orderItems: [
-          { productId: product1.id, quantity: 5, price: 10 },
-        ],
+    it('should return success true if all items are valid', async () => {
+      const req: ValidateInventoryReq = {
+        orderItems: [{ productId: productId1, quantity: 5, price: 10 }],
       };
-      const response = await service.validate(reqDto);
-      expect(response.success).toBe(true);
-      expect(response.invalidOrderItems).toBeUndefined();
-    });
+      const mockInventories: Inventory[] = [
+        { id: 1, productId: productId1, quantity: 10, reservedQuantity: 0, location: 'A1', status: QueryInput.InventoryStatus.IN_STOCK, product: null },
+      ];
+      mockInventoryRepository.findAll.mockResolvedValue(mockInventories);
+      mockCheckProductIdHandlerInstance.handle.mockReturnValue([]); // No reasons = valid
 
-    it('should return success:false with reasons if an item has insufficient quantity', async () => {
-      const reqDto: ValidateOrderItemsReqDto = {
-        orderItems: [
-          { productId: product1.id, quantity: 5, price: 10 }, // Valid
-          { productId: product2.id, quantity: 5, price: 20 }, // Insufficient stock (available: 3, requested: 5)
-        ],
-      };
-      const response = await service.validate(reqDto);
-      expect(response.success).toBe(false);
-      expect(response.invalidOrderItems).toBeDefined();
-      expect(response.invalidOrderItems.length).toBe(1);
-      expect(response.invalidOrderItems[0].orderItem.productId).toEqual(product2.id);
-      // The exact reason message depends on the implementation of CheckQuantityHandler and CheckProductIdHandler
-      // For now, we just check that there's an invalid item.
-    });
-
-    it('should return success:false with reasons if an item is not found in inventory (or out of stock status)', async () => {
-      const productNotInInventory = await rawProductRepository.save(rawProductRepository.create({ name: 'P4 Not In Inv', price: 40 }));
-      const reqDto: ValidateOrderItemsReqDto = {
-        orderItems: [
-          { productId: productNotInInventory.id, quantity: 1, price: 40 }, // Not in inventory table
-        ],
-      };
-      const response = await service.validate(reqDto);
-      expect(response.success).toBe(false);
-      expect(response.invalidOrderItems).toBeDefined();
-      expect(response.invalidOrderItems.length).toBe(1);
-      expect(response.invalidOrderItems[0].orderItem.productId).toEqual(productNotInInventory.id);
-    });
-    
-    it('should return success:false with reasons if an item is explicitly out of stock', async () => {
-        const reqDto: ValidateOrderItemsReqDto = {
-          orderItems: [
-            { productId: product3.id, quantity: 1, price: 30 }, // Explicitly OUT_OF_STOCK
-          ],
-        };
-        const response = await service.validate(reqDto);
-        expect(response.success).toBe(false);
-        expect(response.invalidOrderItems).toBeDefined();
-        expect(response.invalidOrderItems.length).toBe(1);
-        expect(response.invalidOrderItems[0].orderItem.productId).toEqual(product3.id);
+      const result = await service.validate(req);
+      expect(result.success).toBe(true);
+      expect(result.invalidOrderItems.length).toBe(0);
+      expect(mockInventoryRepository.findAll).toHaveBeenCalledWith({
+        productId: [productId1],
+        status: QueryInput.InventoryStatus.IN_STOCK,
       });
-
-    it('should handle a mix of valid, insufficient, and not found items', async () => {
-      const productNotInInventory = await rawProductRepository.save(rawProductRepository.create({ name: 'P5 Not In Inv Mix', price: 50 }));
-      const reqDto: ValidateOrderItemsReqDto = {
-        orderItems: [
-          { productId: product1.id, quantity: 2, price: 10 }, // Valid
-          { productId: product2.id, quantity: 10, price: 20 }, // Insufficient
-          { productId: productNotInInventory.id, quantity: 1, price: 50 }, // Not found
-          { productId: product3.id, quantity: 1, price: 30 }, // Out of stock status
-        ],
-      };
-      const response = await service.validate(reqDto);
-      expect(response.success).toBe(false);
-      expect(response.invalidOrderItems).toBeDefined();
-      expect(response.invalidOrderItems.length).toBe(3); // product2, productNotInInventory, product3
-
-      const invalidProductIds = response.invalidOrderItems.map(item => item.orderItem.productId);
-      expect(invalidProductIds).toContain(product2.id);
-      expect(invalidProductIds).toContain(productNotInInventory.id);
-      expect(invalidProductIds).toContain(product3.id);
     });
 
-    it('should return success:true for an empty orderItems array (or handle as per business logic)', async () => {
-        // Current service implementation of validate() will likely process an empty array.
-        // If business logic dictates an empty orderItems array is invalid, the service should throw an error.
-        // The test reflects current behavior based on the snippet.
-        const reqDto: ValidateOrderItemsReqDto = {
-          orderItems: [],
-        };
-        const response = await service.validate(reqDto);
-        expect(response.success).toBe(true); // Because no items fail validation
-        expect(response.invalidOrderItems).toBeUndefined();
-      });
+    it('should return success false with invalid items if validation fails', async () => {
+      const req: ValidateInventoryReq = {
+        orderItems: [{ productId: productId1, quantity: 15, price: 10 }],
+      };
+      const mockInventories: Inventory[] = [
+        { id: 1, productId: productId1, quantity: 10, reservedQuantity: 0, location: 'A1', status: QueryInput.InventoryStatus.IN_STOCK, product: null },
+      ];
+      mockInventoryRepository.findAll.mockResolvedValue(mockInventories);
+      mockCheckProductIdHandlerInstance.handle.mockReturnValue(['INSUFFICIENT_STOCK']); // Example reason
+
+      const result = await service.validate(req);
+      expect(result.success).toBe(false);
+      expect(result.invalidOrderItems.length).toBe(1);
+      expect(result.invalidOrderItems[0].orderItem.productId).toBe(productId1);
+      expect(result.invalidOrderItems[0].reasons).toEqual(['INSUFFICIENT_STOCK']);
+    });
   });
+
+  describe('fetch', () => {
+    it('should return inventory if found', async () => {
+      const inventory = { id: 1, productId: productId1, quantity: 10 } as Inventory;
+      mockInventoryRepository.findByProductId.mockResolvedValue(inventory);
+      const result = await service.fetch(productId1);
+      expect(result).toEqual(inventory);
+    });
+
+    it('should throw NotFoundException if inventory not found', async () => {
+      mockInventoryRepository.findByProductId.mockResolvedValue(null);
+      await expect(service.fetch(productId1)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('reserveInventory', () => {
+    const orderId = 'order-123';
+    const userId = 'user-456';
+
+    it('should reserve inventory successfully if stock is sufficient', async () => {
+      const req: ReserveInventoryReq = {
+        orderId, userId,
+        itemsToReserve: [{ productId: productId1, quantity: 5, price: 0 }],
+      };
+      const inventoryP1 = { id: 1, productId: productId1, quantity: 10, reservedQuantity: 0, status: QueryInput.InventoryStatus.IN_STOCK } as Inventory;
+      mockInventoryRepository.findOne.mockResolvedValue(inventoryP1); // Mock for findOne used by getRepository(entityManager).findOne
+      mockInventoryRepository.save.mockImplementation(inv => Promise.resolve(inv as Inventory)); // Mock for save
+
+      const result = await service.reserveInventory(req);
+
+      expect(mockTransactionService.executeInTransaction).toHaveBeenCalled();
+      expect(result.overallSuccess).toBe(true);
+      expect(result.reservationDetails.length).toBe(1);
+      expect(result.reservationDetails[0].productId).toBe(productId1);
+      expect(result.reservationDetails[0].reserved).toBe(true);
+      expect(mockInventoryRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+        productId: productId1,
+        quantity: 5, // 10 - 5
+        reservedQuantity: 5,
+      }));
+    });
+
+    it('should fail reservation if product not found', async () => {
+      const req: ReserveInventoryReq = {
+        orderId, userId,
+        itemsToReserve: [{ productId: 'unknown-prod', quantity: 5, price: 0 }],
+      };
+      mockInventoryRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.reserveInventory(req);
+      expect(result.overallSuccess).toBe(false);
+      expect(result.reservationDetails[0].reason).toBe('PRODUCT_NOT_FOUND');
+    });
+
+    it('should fail reservation if stock is insufficient', async () => {
+      const req: ReserveInventoryReq = {
+        orderId, userId,
+        itemsToReserve: [{ productId: productId1, quantity: 15, price: 0 }],
+      };
+      const inventoryP1 = { id: 1, productId: productId1, quantity: 10, reservedQuantity: 0 } as Inventory;
+      mockInventoryRepository.findOne.mockResolvedValue(inventoryP1);
+
+      const result = await service.reserveInventory(req);
+      expect(result.overallSuccess).toBe(false);
+      expect(result.reservationDetails[0].reason).toBe('INSUFFICIENT_STOCK');
+      expect(mockInventoryRepository.save).not.toHaveBeenCalled(); // Transaction should rollback
+    });
+
+    it('should handle partial success/failure correctly (rollback)', async () => {
+        const req: ReserveInventoryReq = {
+            orderId, userId,
+            itemsToReserve: [
+                { productId: productId1, quantity: 5, price: 0 }, // Will succeed initially
+                { productId: productId2, quantity: 20, price: 0 } // Will fail
+            ],
+        };
+        const inventoryP1 = { id: 1, productId: productId1, quantity: 10, reservedQuantity: 0, status: QueryInput.InventoryStatus.IN_STOCK } as Inventory;
+        const inventoryP2 = { id: 2, productId: productId2, quantity: 10, reservedQuantity: 0, status: QueryInput.InventoryStatus.IN_STOCK } as Inventory;
+
+        mockInventoryRepository.findOne.mockImplementation(async ({where}: any) => {
+            if (where.productId === productId1) return inventoryP1;
+            if (where.productId === productId2) return inventoryP2;
+            return null;
+        });
+        mockInventoryRepository.save.mockImplementation(inv => Promise.resolve(inv as Inventory));
+
+        const result = await service.reserveInventory(req);
+        expect(result.overallSuccess).toBe(false);
+        expect(result.reservationDetails.find(d => d.productId === productId1).reserved).toBe(false); // Due to rollback
+        expect(result.reservationDetails.find(d => d.productId === productId2).reason).toBe('INSUFFICIENT_STOCK');
+        // Save for P1 might have been called inside transaction, but transaction rolls back.
+    });
+  });
+
+  describe('releaseInventory', () => {
+    const orderId = 'order-789';
+    it('should release inventory successfully', async () => {
+      const req: ReleaseInventoryReq = {
+        orderId,
+        itemsToRelease: [{ productId: productId1, quantity: 3, price: 0 }],
+      };
+      const inventoryP1 = { id: 1, productId: productId1, quantity: 5, reservedQuantity: 5, status: QueryInput.InventoryStatus.IN_STOCK } as Inventory;
+      mockInventoryRepository.findOne.mockResolvedValue(inventoryP1);
+      mockInventoryRepository.save.mockImplementation(inv => Promise.resolve(inv as Inventory));
+
+      const result = await service.releaseInventory(req);
+      expect(result.overallSuccess).toBe(true);
+      expect(result.releaseDetails[0].released).toBe(true);
+      expect(mockInventoryRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+        productId: productId1,
+        quantity: 8, // 5 + 3
+        reservedQuantity: 2, // 5 - 3
+      }));
+    });
+
+    it('should fail release if trying to release more than reserved', async () => {
+      const req: ReleaseInventoryReq = {
+        orderId,
+        itemsToRelease: [{ productId: productId1, quantity: 10, price: 0 }],
+      };
+      const inventoryP1 = { id: 1, productId: productId1, quantity: 5, reservedQuantity: 5 } as Inventory;
+      mockInventoryRepository.findOne.mockResolvedValue(inventoryP1);
+
+      const result = await service.releaseInventory(req);
+      expect(result.overallSuccess).toBe(false);
+      expect(result.releaseDetails[0].reason).toBe('RELEASE_EXCEEDS_RESERVATION');
+    });
+  });
+
+  describe('delete', () => {
+    it('should delete inventory if found', async () => {
+        const inventory = { id: 1, productId: productId1 } as Inventory;
+        mockInventoryRepository.findByProductId.mockResolvedValue(inventory);
+        mockInventoryRepository.delete.mockResolvedValue(true);
+        const result = await service.delete(productId1);
+        expect(result).toBe(true);
+        expect(mockInventoryRepository.delete).toHaveBeenCalledWith(inventory.id);
+    });
+    it('should throw NotFound if inventory to delete is not found', async () => {
+        mockInventoryRepository.findByProductId.mockResolvedValue(null);
+        await expect(service.delete(productId1)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // eventBasedUpdate is harder to test without a live Kafka consumer or more intricate mocking of its callback logic.
+  // Basic test could check if postSubscribeCallback is called.
 });

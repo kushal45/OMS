@@ -79,6 +79,15 @@
       "compilerOptions": {
         "tsConfigPath": "libs/log/tsconfig.lib.json"
       }
+    },
+    "cart": {
+      "type": "application",
+      "root": "apps/cart",
+      "entryFile": "main",
+      "sourceRoot": "apps/cart/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/cart/tsconfig.app.json"
+      }
     }
   }
 }

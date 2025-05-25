@@ -46,9 +46,9 @@ export class KafkaProducer {
     const schemaId = await this.schemaRegistry.getLatestSchemaId(
         topic
     );
-    logger.info(`SchemaId returned ${schemaId}`, this.context);
+    logger.debug(`SchemaId returned ${schemaId}`, this.context);
     const schemaFetched = await this.schemaRegistry.getSchema(schemaId);
-    console.log(`Schema returned: ${JSON.stringify(schemaFetched)}`);
+    console.info(`Schema returned: ${JSON.stringify(schemaFetched)}`);
     const encodedMessages = await Promise.all(
         messageObj.value.map(async (msg) => {
           const validMessage = this.validateMessage(schemaFetched, msg);
@@ -66,18 +66,20 @@ export class KafkaProducer {
           headers: {"messageCount":messageObj.value.length.toString()},
         })),
       });
+     this.producer.on('producer.network.request_timeout', (event) => {
+        const logger = this.moduleRef.get(LoggerService, { strict: false });
+        logger.error(
+            JSON.stringify({
+                message: `Failed to send message to topic: ${topic}`,
+                error: JSON.stringify(event.payload),
+            }),
+            
+            this.context,
+        );
+    });
     await this.producer.disconnect();
     return recordMetaData;
-    // this.producer.on('producer.network.request_timeout', (event) => {
-    //     const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
-    //     logger.error(
-    //         {
-    //             message: `Failed to send message to topic: ${topic}`,
-    //             error: JSON.stringify(event.payload),
-    //         },
-    //         this.context,
-    //     );
-    // });
+   
   }
 
   private validateMessage(schema: any, message: any): any {

@@ -13,7 +13,8 @@ export class InventoryRepository  implements BaseRepository<InventoryRepository>
     private readonly repository: Repository<Inventory>,
   ) {}
   
-  getRepository(entityManager: EntityManager): InventoryRepository {
+  getRepository(entityManager: EntityManager): InventoryRepository { // Reverted return type
+    // This creates a new instance of InventoryRepository with the transactional EntityManager's repository
     return new InventoryRepository(entityManager.getRepository(Inventory));
   }
 
@@ -40,15 +41,23 @@ export class InventoryRepository  implements BaseRepository<InventoryRepository>
   
   }
 
-  async findOne(id: number): Promise<Inventory> {
-    return this.repository.findOne({
+  async findOne(id: number, entityManager?: EntityManager): Promise<Inventory> {
+    const repository = entityManager ? entityManager.getRepository(Inventory) : this.repository;
+    return repository.findOne({
         where: { id },
     });
   }
 
-  async update(id: number, inventory: Partial<Inventory>): Promise<Inventory> {
-    await this.repository.update(id, inventory);
-    return this.repository.findOne({
+  async findByProductId(productId: string, entityManager?: EntityManager): Promise<Inventory | null> {
+    const repository = entityManager ? entityManager.getRepository(Inventory) : this.repository;
+    return repository.findOne({ where: { productId } });
+  }
+
+
+  async update(id: number, inventory: Partial<Inventory>, entityManager?: EntityManager): Promise<Inventory> {
+    const repository = entityManager ? entityManager.getRepository(Inventory) : this.repository;
+    await repository.update(id, inventory);
+    return repository.findOne({ // Use the same repository instance for findOne
         where: { id },
     });
   }
@@ -77,8 +86,9 @@ export class InventoryRepository  implements BaseRepository<InventoryRepository>
     });
   }
 
-  async delete(id: number): Promise<boolean> {
-    const deleteRes=await this.repository.delete(id);
+  async delete(id: number, entityManager?: EntityManager): Promise<boolean> {
+    const repository = entityManager ? entityManager.getRepository(Inventory) : this.repository;
+    const deleteRes=await repository.delete(id);
     if(deleteRes.affected>0) return true;
     return false;
   }

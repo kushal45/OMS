@@ -47,7 +47,9 @@ export class OrderController {
   ) {
       const userObj = JSON.parse(req.headers['x-user-data']);
       const userId = userObj.id;
-      const orderRes = await this.orderService.createOrder(order, userId);
+      const traceId = req.headers['x-correlation-id'] || 'default-trace-id';
+
+      const orderRes = await this.orderService.createOrder(order, userId, traceId);
       ResponseUtil.success({
         response,
         message: 'Order created successfully.',

@@ -24,7 +24,7 @@ export class AddressService {
       userId: userId,
       message: 'Address beginning',
     };
-    this.loggerService.info(data, AddressService.name);
+    this.loggerService.debug(data, AddressService.name);
     let addressCreated: Address;
     await this.transactionService.executeInTransaction(
       async (entityManager) => {
@@ -41,7 +41,7 @@ export class AddressService {
         return !!addressCreated;
       },
     );
-    this.loggerService.info(
+    this.loggerService.debug(
       {
         address: addressCreated,
         userId: userId,
@@ -74,7 +74,7 @@ export class AddressService {
             userId,
           );
           isAddressDeleted = await addressRepository.delete(addressId);
-          this.loggerService.info(
+          this.loggerService.debug(
             {
               userId: userId,
               addressId: addressId,
@@ -83,16 +83,11 @@ export class AddressService {
             },
             AddressService.name,
           );
-          this.loggerService.info(
-            {
-              userId: userId,
-              addressId: addressId,
-              message: 'Address delete',
-              isAddressDeleted,
-              isCustEntityDeleted,
-            },
-            AddressService.name,
-          );
+          if (!isAddressDeleted) {
+            throw new UnprocessableEntityException(
+              'Address not deleted, please try again',
+            );
+          }
           return isAddressDeleted && isCustEntityDeleted;
         },
       );

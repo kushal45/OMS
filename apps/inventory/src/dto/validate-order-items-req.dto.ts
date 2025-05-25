@@ -1,10 +1,10 @@
-import { IsInt, IsPositive, IsArray, ValidateNested } from 'class-validator';
+import { IsInt, IsPositive, IsArray, ValidateNested, IsString, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class OrderItemDto {
-  @IsInt()
-  @IsPositive()
-  productId: number;
+  @IsString()
+  @IsNotEmpty()
+  productId: string; // Changed from number
 
   @IsInt()
   @IsPositive()
