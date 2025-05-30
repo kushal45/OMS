@@ -1,40 +1,54 @@
-const { exec } = require('child_process');
-function runCommand(command) {
+const { spawn } = require('child_process');
+
+function logStep(message) {
+  console.log(`\n=== ${message} ===`);
+}
+
+function checkEnvVars(requiredVars) {
+  const missing = requiredVars.filter((v) => !process.env[v]);
+  if (missing.length) {
+    console.error(`Missing required environment variables: ${missing.join(', ')}`);
+    return false;
+  }
+  return true;
+}
+
+function runCommandRealtime(command, args = []) {
   return new Promise((resolve, reject) => {
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`exec error: ${error}`);
-        return reject(error);
+    const proc = spawn(command, args, { stdio: 'inherit', shell: true });
+    proc.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`${command} exited with code ${code}`));
+      } else {
+        resolve();
       }
-      console.log(`stdout: ${stdout}`);
-      console.error(`stderr: ${stderr}`);
-      resolve(stdout);
     });
+    proc.on('error', (err) => reject(err));
   });
 }
 
 async function runMigrations() {
   try {
-    // Ensure environment variables are used from the Docker environment
-    // These will be set in the docker-compose.yml for the migration service
-    console.log(`DB_HOST: ${process.env.DATABASE_HOST}`);
-    console.log(`DB_PORT: ${process.env.DATABASE_PORT}`);
-    console.log(`DB_USERNAME: ${process.env.DATABASE_USER}`);
-    console.log(`DB_PASSWORD: ${process.env.DATABASE_PASSWORD}`);
-    console.log(`DB_NAME: ${process.env.DATABASE_NAME}`);
-
-    if (!process.env.DATABASE_HOST || !process.env.DATABASE_PORT || !process.env.DATABASE_USER || !process.env.DATABASE_PASSWORD || !process.env.DATABASE_NAME) {
-      console.error('Database environment variables are not set. Please check your docker-compose.yml or environment setup.');
+    logStep('Checking required environment variables');
+    const requiredVars = [
+      'DATABASE_HOST',
+      'DATABASE_PORT',
+      'DATABASE_USER',
+      'DATABASE_PASSWORD',
+      'DATABASE_NAME',
+    ];
+    if (!checkEnvVars(requiredVars)) {
       process.exit(1);
     }
+    requiredVars.forEach((v) => console.log(`${v}: ${process.env[v]}`));
 
-    // The migration:run script in package.json uses apps/config/dataSource.ts,
-    // which should already be configured to use these environment variables.
-    await runCommand('npm run migration:run');
-    console.log('Migrations completed successfully');
+    logStep('Running database migrations');
+    await runCommandRealtime('npm', ['run', 'migration:run']);
+    logStep('Migrations completed successfully');
+    process.exit(0);
   } catch (error) {
-    console.error('An error occurred during migrations:', error);
-    process.exit(1); // Exit with error code if migrations fail
+    console.error('\n[Migration Error]', error.message || error);
+    process.exit(1);
   }
 }
 
