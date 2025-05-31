@@ -418,6 +418,43 @@ services:
       - "8200:8200"
     networks:
       - oms
+  cart:
+    build:
+      context: .
+    ports:
+      - "3005:3005"
+      - "9234:9229" # Debug port for cart (host:container)
+    environment:
+      - NODE_ENV=development
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_NAME=oms
+      - PORT=3005
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+    command: npm run start:debug --project cart
+    networks:
+      - oms
+    volumes:
+      - ./:/app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://cart:3005/cart/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   postgres_data:

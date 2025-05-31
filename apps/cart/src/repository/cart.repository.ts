@@ -28,8 +28,8 @@ export class CartRepository {
   ) {}
 
   // This method allows the repository to be used within a transaction
-  public getRepository(entityManager: EntityManager): Repository<Cart> {
-    return entityManager.getRepository(Cart);
+  public getRepository(entityManager: EntityManager): CartRepository {
+    return new CartRepository(entityManager.getRepository(Cart));
   }
 
   async findById(id: string, entityManager?: EntityManager): Promise<Cart | null> {

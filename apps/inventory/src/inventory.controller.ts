@@ -35,6 +35,8 @@ export class InventoryController {
   async onModuleInit() {
     //await registerSchema(this.moduleRef);
     await this.kafkaAdminClient.createTopic(this.configService.get<string>('INVENTORY_UPDATE_TOPIC'));
+    // Add delay to allow topic propagation across brokers
+    await new Promise(resolve => setTimeout(resolve, 3000)); // 3 seconds delay
     await this.kafkaConsumer.subscribe(this.configService.get<string>('INVENTORY_UPDATE_TOPIC'));
     await this.inventoryService.eventBasedUpdate(this.kafkaConsumer);
   }
