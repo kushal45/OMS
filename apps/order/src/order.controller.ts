@@ -24,7 +24,6 @@ import {
 import { ApiResponse } from '../../utils/response.decorator';
 import { OrderRequestDto } from './dto/create-order-req';
 import { ResponseErrDto } from '@app/utils/dto/response-err.dto';
-import { ApiResponseFormat } from '@app/utils/dto/response-format.dto';
 import { CreateOrderResponseDto } from './dto/create-order-res';
 import { ResponseUtil } from '@app/utils/response.util';
 import { OrderResponseDto } from './dto/get-order-res';
@@ -44,7 +43,25 @@ export class OrderController {
 
   @Post('orders')
   @ApiOperation({ summary: 'Create new Order' })
-  @ApiResponse(ApiResponseFormat(CreateOrderResponseDto), 201)
+  @ApiResponse(
+    CreateOrderResponseDto,
+    201,
+    false,
+    {
+      message: 'Order created successfully.',
+      data: {
+        id: 1,
+        aliasId: 'ORD-123',
+        userId: 1,
+        status: 'created',
+        total: 100.0,
+        createdAt: '2025-05-31T12:00:00.000Z',
+        updatedAt: '2025-05-31T12:00:00.000Z',
+        // ...add other fields as needed
+      },
+      status: 'success'
+    }
+  )
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
   @ApiBody({ type: OrderRequestDto })
@@ -85,7 +102,25 @@ export class OrderController {
   }
 
   @Get(':aliasId')
-  @ApiResponse(ApiResponseFormat(OrderResponseDto), 200)
+  @ApiResponse(
+    OrderResponseDto,
+    200,
+    false,
+    {
+      message: 'Order fetched successfully.',
+      data: {
+        id: 1,
+        aliasId: 'ORD-123',
+        userId: 1,
+        status: 'created',
+        total: 100.0,
+        createdAt: '2025-05-31T12:00:00.000Z',
+        updatedAt: '2025-05-31T12:00:00.000Z',
+        // ...add other fields as needed
+      },
+      status: 'success'
+    }
+  )
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
   @ApiParam({ name: 'aliasId', required: true })
@@ -100,7 +135,25 @@ export class OrderController {
   }
 
   @Get(':aliasId/orderItems')
-  @ApiResponse(ApiResponseFormat(OrderItemsResponseDto), 200)
+  @ApiResponse(
+    OrderItemsResponseDto,
+    200,
+    true,
+    {
+      message: 'Order items fetched successfully.',
+      data: [
+        {
+          id: 1,
+          orderId: 1,
+          productId: 1,
+          quantity: 2,
+          price: 50.0,
+          // ...add other fields as needed
+        }
+      ],
+      status: 'success'
+    }
+  )
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
   @ApiParam({ name: 'aliasId', required: true })
@@ -121,7 +174,25 @@ export class OrderController {
 
   @Put(':aliasId')
   @ApiParam({ name: 'aliasId', required: true })
-  @ApiResponse(ApiResponseFormat(CreateOrderResponseDto), 200)
+  @ApiResponse(
+    CreateOrderResponseDto,
+    200,
+    false,
+    {
+      message: 'Order updated successfully.',
+      data: {
+        id: 1,
+        aliasId: 'ORD-123',
+        userId: 1,
+        status: 'updated',
+        total: 120.0,
+        createdAt: '2025-05-31T12:00:00.000Z',
+        updatedAt: '2025-05-31T12:10:00.000Z',
+        // ...add other fields as needed
+      },
+      status: 'success'
+    }
+  )
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
   @ApiBody({ type: UpdateOrderDto })

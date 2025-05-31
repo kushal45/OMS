@@ -99,6 +99,10 @@ export class AuthService {
     )) as unknown as CreateAddrDataResponseDto;
   }
 
+  async getAddresses(userId: number): Promise<CreateAddrDataResponseDto[]> {
+    return (await this.addressService.fetchUserAddress(userId)) as unknown as CreateAddrDataResponseDto[];
+  }
+
   async updateAddress(
     userId: number,
     addressId: number,

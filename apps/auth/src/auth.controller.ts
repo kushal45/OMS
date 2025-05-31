@@ -11,7 +11,7 @@ import { RegisterCustomerResponseDto } from './dto/register-customer-response.dt
 import { LoginResponseDataDto } from './dto/login-response.dto';
 import { ValidateTokenResponseDto } from './dto/validate-token-response.dto';
 import { CreateAddressDto } from './dto/create-address.dto';
-import { ApiResponseFormat,ResponseFormatDto } from '../../utils/dto/response-format.dto';
+import { ResponseFormatDto } from '../../utils/dto/response-format.dto';
 import { ResponseErrDto } from '../../utils/dto/response-err.dto';
 import { CreateAddrDataResponseDto } from './dto/create-addr-response.dto';
 
@@ -39,7 +39,7 @@ export class AuthController {
 
   @Post('login')
   @ApiOperation({ summary: 'Customer login' })
-  @ApiResponse(ApiResponseFormat(LoginResponseDataDto),200)
+  @ApiResponse(LoginResponseDataDto,200)
   @ApiResponse(ResponseErrDto,500)
   @ApiBody({ type: LoginCustomerDto })  // This tells Swagger to expect a LoginCustomerDto in the body
   async login(@Request() req,@Body() loginDto: LoginCustomerDto, @Res() response) {
@@ -89,9 +89,22 @@ export class AuthController {
   @ApiBody({ type: CreateAddressDto })
   @ApiBearerAuth()  // JWT authentication
   @UseGuards(JwtAuthGuard)
-  @ApiResponse(ApiResponseFormat(CreateAddrDataResponseDto),201)
-  // This tells Swagger to expect a CreateAddressDto in the body
-
+  @ApiResponse(
+    CreateAddrDataResponseDto,
+    201,
+    false,
+    {
+      message: 'Address created successfully',
+      data: {
+        street: '123 Main St',
+        city: 'Test City',
+        state: 'Test State',
+        country: 'Test Country',
+        pincode: '12345'
+      },
+      status: 'success'
+    }
+  )
   async createAddress(@Req() req: any, @Res() response, @Body() addressData: CreateAddressDto) {
     try {
       const addressCreated= await this.authService.createAddress(req.user.userId, addressData);
@@ -104,16 +117,52 @@ export class AuthController {
     } catch (error) {
       console.error("Error in createAddress:", error);
       throw new NotAcceptableException('Address could not be created');
-      
     }
-     
+  }
+
+  @Get('addresses')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get customer addresses' })
+  @ApiBearerAuth()  // JWT authentication
+  @ApiResponse(
+    CreateAddrDataResponseDto,
+    200,
+    true,
+    {
+      message: 'Addresses retrieved successfully',
+      data: [
+        {
+          street: '123 Main St',
+          city: 'Test City',
+          state: 'Test State',
+          country: 'Test Country',
+          pincode: '12345'
+        }
+      ],
+      status: 'success'
+    }
+  )
+  async getAddresses(@Req() req: any, @Res() response) {
+    try {
+      const addresses = await this.authService.getAddresses(req.user.userId);
+      ResponseUtil.success({
+        response,
+        message: 'Addresses retrieved successfully',
+        data: addresses,
+        statusCode:HttpStatus.OK
+      });
+    } catch (error) {
+      console.error("Error in getAddresses:", error);
+      throw new NotAcceptableException('Addresses could not be retrieved');
+    }
   }
 
   @Put('addresses/:addressId')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Update customer address' })
   @ApiBearerAuth()  // JWT authentication
-  @ApiResponse(ApiResponseFormat(CreateAddrDataResponseDto))
+  @ApiResponse(CreateAddrDataResponseDto, 200, true)
+  @ApiResponse(ResponseErrDto,500)
   @ApiBody({ type: CreateAddressDto })  // This tells Swagger to expect a CreateAddressDto in the body
   @ApiParam({ name: 'addressId', type: 'number' })  // This tells Swagger to expect a number in the URL parameter
   async updateAddress(@Req() req: any, @Res() response, @Body() addressData: CreateAddressDto) {
