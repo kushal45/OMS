@@ -30,7 +30,6 @@ message ValidateInventoryRes {
 }
 
 message ReserveInventoryReq {
-  string orderId = 1; // To associate reservation with an order, for idempotency
   string userId = 2; // For logging or idempotency
   repeated OrderItem itemsToReserve = 3;
 }
@@ -44,7 +43,6 @@ message ReservationStatus {
 
 message ReserveInventoryRes {
   bool overallSuccess = 1;
-  string orderId = 2;
   repeated ReservationStatus reservationDetails = 3;
 }
 

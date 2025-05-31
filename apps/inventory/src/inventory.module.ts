@@ -15,6 +15,8 @@ import { APP_INTERCEPTOR, ModuleRef } from '@nestjs/core';
 import { TransactionService } from '@app/utils/transaction.service';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
 import { InventoryUpdateHandler } from './kafka-handlers/inventory-update.handler'; // Import the new handler
+import { InventoryKafkaMetricsService } from './monitoring/inventory-kafka-metrics.service';
+import { InventoryMonitoringController } from './monitoring/inventory-monitoring.controller';
 
 @Module({
   imports: [
@@ -33,12 +35,12 @@ import { InventoryUpdateHandler } from './kafka-handlers/inventory-update.handle
       inject: [ConfigService],
     })
   ],
-  controllers: [InventoryController],
+  controllers: [InventoryController, InventoryMonitoringController],
   providers: [
     InventoryService,
     InventoryRepository,
-    ConfigService,
     InventoryUpdateHandler, // Add InventoryUpdateHandler to providers
+    InventoryKafkaMetricsService,
     {
       provide: APP_INTERCEPTOR,
       useExisting: 'LoggerErrorInterceptor', // Use the exported interceptor

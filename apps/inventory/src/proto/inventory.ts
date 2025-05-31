@@ -22,9 +22,7 @@ import {
 export const protobufPackage = "INVENTORY_PACKAGE";
 
 export interface OrderItem {
-  /** Changed from int32 */
   productId: string;
-  /** Price might be optional here if inventory service doesn't care */
   price: number;
   quantity: number;
 }
@@ -34,10 +32,7 @@ export interface ValidateInventoryReq {
 }
 
 export interface InvalidOrderItemWithReason {
-  orderItem:
-    | OrderItem
-    | undefined;
-  /** e.g., "INSUFFICIENT_STOCK", "PRODUCT_NOT_FOUND" */
+  orderItem: OrderItem | undefined;
   reasons: string[];
 }
 
@@ -47,9 +42,6 @@ export interface ValidateInventoryRes {
 }
 
 export interface ReserveInventoryReq {
-  /** To associate reservation with an order, for idempotency */
-  orderId: string;
-  /** For logging or idempotency */
   userId: string;
   itemsToReserve: OrderItem[];
 }
@@ -57,37 +49,29 @@ export interface ReserveInventoryReq {
 export interface ReservationStatus {
   productId: string;
   reserved: boolean;
-  /** e.g., "INSUFFICIENT_STOCK" if not reserved */
   reason: string;
-  /** Optional: current stock after attempt */
   currentStock: number;
 }
 
 export interface ReserveInventoryRes {
   overallSuccess: boolean;
-  orderId: string;
   reservationDetails: ReservationStatus[];
 }
 
 export interface ReleaseInventoryReq {
-  /** To identify which reservation to release */
-  orderId: string;
-  /** Specify items and quantities to release */
+  userId: string;
   itemsToRelease: OrderItem[];
 }
 
 export interface ReleaseStatus {
   productId: string;
   released: boolean;
-  /** e.g., "RESERVATION_NOT_FOUND" */
   reason: string;
-  /** Optional: current stock after attempt */
   currentStock: number;
 }
 
 export interface ReleaseInventoryRes {
   overallSuccess: boolean;
-  orderId: string;
   releaseDetails: ReleaseStatus[];
 }
 
@@ -402,19 +386,16 @@ export const ValidateInventoryRes: MessageFns<ValidateInventoryRes> = {
 };
 
 function createBaseReserveInventoryReq(): ReserveInventoryReq {
-  return { orderId: "", userId: "", itemsToReserve: [] };
+  return { userId: "", itemsToReserve: [] };
 }
 
 export const ReserveInventoryReq: MessageFns<ReserveInventoryReq> = {
   encode(message: ReserveInventoryReq, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.orderId !== "") {
-      writer.uint32(10).string(message.orderId);
-    }
     if (message.userId !== "") {
-      writer.uint32(18).string(message.userId);
+      writer.uint32(10).string(message.userId);
     }
     for (const v of message.itemsToReserve) {
-      OrderItem.encode(v!, writer.uint32(26).fork()).join();
+      OrderItem.encode(v!, writer.uint32(18).fork()).join();
     }
     return writer;
   },
@@ -431,19 +412,11 @@ export const ReserveInventoryReq: MessageFns<ReserveInventoryReq> = {
             break;
           }
 
-          message.orderId = reader.string();
+          message.userId = reader.string();
           continue;
         }
         case 2: {
           if (tag !== 18) {
-            break;
-          }
-
-          message.userId = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
             break;
           }
 
@@ -461,7 +434,6 @@ export const ReserveInventoryReq: MessageFns<ReserveInventoryReq> = {
 
   fromJSON(object: any): ReserveInventoryReq {
     return {
-      orderId: isSet(object.orderId) ? globalThis.String(object.orderId) : "",
       userId: isSet(object.userId) ? globalThis.String(object.userId) : "",
       itemsToReserve: globalThis.Array.isArray(object?.itemsToReserve)
         ? object.itemsToReserve.map((e: any) => OrderItem.fromJSON(e))
@@ -471,9 +443,6 @@ export const ReserveInventoryReq: MessageFns<ReserveInventoryReq> = {
 
   toJSON(message: ReserveInventoryReq): unknown {
     const obj: any = {};
-    if (message.orderId !== "") {
-      obj.orderId = message.orderId;
-    }
     if (message.userId !== "") {
       obj.userId = message.userId;
     }
@@ -488,7 +457,6 @@ export const ReserveInventoryReq: MessageFns<ReserveInventoryReq> = {
   },
   fromPartial<I extends Exact<DeepPartial<ReserveInventoryReq>, I>>(object: I): ReserveInventoryReq {
     const message = createBaseReserveInventoryReq();
-    message.orderId = object.orderId ?? "";
     message.userId = object.userId ?? "";
     message.itemsToReserve = object.itemsToReserve?.map((e) => OrderItem.fromPartial(e)) || [];
     return message;
@@ -604,7 +572,7 @@ export const ReservationStatus: MessageFns<ReservationStatus> = {
 };
 
 function createBaseReserveInventoryRes(): ReserveInventoryRes {
-  return { overallSuccess: false, orderId: "", reservationDetails: [] };
+  return { overallSuccess: false, reservationDetails: [] };
 }
 
 export const ReserveInventoryRes: MessageFns<ReserveInventoryRes> = {
@@ -612,11 +580,8 @@ export const ReserveInventoryRes: MessageFns<ReserveInventoryRes> = {
     if (message.overallSuccess !== false) {
       writer.uint32(8).bool(message.overallSuccess);
     }
-    if (message.orderId !== "") {
-      writer.uint32(18).string(message.orderId);
-    }
     for (const v of message.reservationDetails) {
-      ReservationStatus.encode(v!, writer.uint32(26).fork()).join();
+      ReservationStatus.encode(v!, writer.uint32(18).fork()).join();
     }
     return writer;
   },
@@ -641,14 +606,6 @@ export const ReserveInventoryRes: MessageFns<ReserveInventoryRes> = {
             break;
           }
 
-          message.orderId = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
           message.reservationDetails.push(ReservationStatus.decode(reader, reader.uint32()));
           continue;
         }
@@ -664,7 +621,6 @@ export const ReserveInventoryRes: MessageFns<ReserveInventoryRes> = {
   fromJSON(object: any): ReserveInventoryRes {
     return {
       overallSuccess: isSet(object.overallSuccess) ? globalThis.Boolean(object.overallSuccess) : false,
-      orderId: isSet(object.orderId) ? globalThis.String(object.orderId) : "",
       reservationDetails: globalThis.Array.isArray(object?.reservationDetails)
         ? object.reservationDetails.map((e: any) => ReservationStatus.fromJSON(e))
         : [],
@@ -675,9 +631,6 @@ export const ReserveInventoryRes: MessageFns<ReserveInventoryRes> = {
     const obj: any = {};
     if (message.overallSuccess !== false) {
       obj.overallSuccess = message.overallSuccess;
-    }
-    if (message.orderId !== "") {
-      obj.orderId = message.orderId;
     }
     if (message.reservationDetails?.length) {
       obj.reservationDetails = message.reservationDetails.map((e) => ReservationStatus.toJSON(e));
@@ -691,20 +644,19 @@ export const ReserveInventoryRes: MessageFns<ReserveInventoryRes> = {
   fromPartial<I extends Exact<DeepPartial<ReserveInventoryRes>, I>>(object: I): ReserveInventoryRes {
     const message = createBaseReserveInventoryRes();
     message.overallSuccess = object.overallSuccess ?? false;
-    message.orderId = object.orderId ?? "";
     message.reservationDetails = object.reservationDetails?.map((e) => ReservationStatus.fromPartial(e)) || [];
     return message;
   },
 };
 
 function createBaseReleaseInventoryReq(): ReleaseInventoryReq {
-  return { orderId: "", itemsToRelease: [] };
+  return { userId: "", itemsToRelease: [] };
 }
 
 export const ReleaseInventoryReq: MessageFns<ReleaseInventoryReq> = {
   encode(message: ReleaseInventoryReq, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.orderId !== "") {
-      writer.uint32(10).string(message.orderId);
+    if (message.userId !== "") {
+      writer.uint32(10).string(message.userId);
     }
     for (const v of message.itemsToRelease) {
       OrderItem.encode(v!, writer.uint32(18).fork()).join();
@@ -724,7 +676,7 @@ export const ReleaseInventoryReq: MessageFns<ReleaseInventoryReq> = {
             break;
           }
 
-          message.orderId = reader.string();
+          message.userId = reader.string();
           continue;
         }
         case 2: {
@@ -746,7 +698,7 @@ export const ReleaseInventoryReq: MessageFns<ReleaseInventoryReq> = {
 
   fromJSON(object: any): ReleaseInventoryReq {
     return {
-      orderId: isSet(object.orderId) ? globalThis.String(object.orderId) : "",
+      userId: isSet(object.userId) ? globalThis.String(object.userId) : "",
       itemsToRelease: globalThis.Array.isArray(object?.itemsToRelease)
         ? object.itemsToRelease.map((e: any) => OrderItem.fromJSON(e))
         : [],
@@ -755,8 +707,8 @@ export const ReleaseInventoryReq: MessageFns<ReleaseInventoryReq> = {
 
   toJSON(message: ReleaseInventoryReq): unknown {
     const obj: any = {};
-    if (message.orderId !== "") {
-      obj.orderId = message.orderId;
+    if (message.userId !== "") {
+      obj.userId = message.userId;
     }
     if (message.itemsToRelease?.length) {
       obj.itemsToRelease = message.itemsToRelease.map((e) => OrderItem.toJSON(e));
@@ -769,7 +721,7 @@ export const ReleaseInventoryReq: MessageFns<ReleaseInventoryReq> = {
   },
   fromPartial<I extends Exact<DeepPartial<ReleaseInventoryReq>, I>>(object: I): ReleaseInventoryReq {
     const message = createBaseReleaseInventoryReq();
-    message.orderId = object.orderId ?? "";
+    message.userId = object.userId ?? "";
     message.itemsToRelease = object.itemsToRelease?.map((e) => OrderItem.fromPartial(e)) || [];
     return message;
   },
@@ -884,16 +836,13 @@ export const ReleaseStatus: MessageFns<ReleaseStatus> = {
 };
 
 function createBaseReleaseInventoryRes(): ReleaseInventoryRes {
-  return { overallSuccess: false, orderId: "", releaseDetails: [] };
+  return { overallSuccess: false, releaseDetails: [] };
 }
 
 export const ReleaseInventoryRes: MessageFns<ReleaseInventoryRes> = {
   encode(message: ReleaseInventoryRes, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.overallSuccess !== false) {
       writer.uint32(8).bool(message.overallSuccess);
-    }
-    if (message.orderId !== "") {
-      writer.uint32(18).string(message.orderId);
     }
     for (const v of message.releaseDetails) {
       ReleaseStatus.encode(v!, writer.uint32(26).fork()).join();
@@ -917,14 +866,6 @@ export const ReleaseInventoryRes: MessageFns<ReleaseInventoryRes> = {
           continue;
         }
         case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.orderId = reader.string();
-          continue;
-        }
-        case 3: {
           if (tag !== 26) {
             break;
           }
@@ -944,7 +885,6 @@ export const ReleaseInventoryRes: MessageFns<ReleaseInventoryRes> = {
   fromJSON(object: any): ReleaseInventoryRes {
     return {
       overallSuccess: isSet(object.overallSuccess) ? globalThis.Boolean(object.overallSuccess) : false,
-      orderId: isSet(object.orderId) ? globalThis.String(object.orderId) : "",
       releaseDetails: globalThis.Array.isArray(object?.releaseDetails)
         ? object.releaseDetails.map((e: any) => ReleaseStatus.fromJSON(e))
         : [],
@@ -955,9 +895,6 @@ export const ReleaseInventoryRes: MessageFns<ReleaseInventoryRes> = {
     const obj: any = {};
     if (message.overallSuccess !== false) {
       obj.overallSuccess = message.overallSuccess;
-    }
-    if (message.orderId !== "") {
-      obj.orderId = message.orderId;
     }
     if (message.releaseDetails?.length) {
       obj.releaseDetails = message.releaseDetails.map((e) => ReleaseStatus.toJSON(e));
@@ -971,7 +908,6 @@ export const ReleaseInventoryRes: MessageFns<ReleaseInventoryRes> = {
   fromPartial<I extends Exact<DeepPartial<ReleaseInventoryRes>, I>>(object: I): ReleaseInventoryRes {
     const message = createBaseReleaseInventoryRes();
     message.overallSuccess = object.overallSuccess ?? false;
-    message.orderId = object.orderId ?? "";
     message.releaseDetails = object.releaseDetails?.map((e) => ReleaseStatus.fromPartial(e)) || [];
     return message;
   },

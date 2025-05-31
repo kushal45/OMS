@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, OnModuleInit, Inject } from '@nestjs/common';
 import { InventoryRepository } from './repository/inventory.repository';
 import { Inventory } from './entity/inventory.entity';
 // ValidateOrderItemsReqDto and ValidateOrderItemsResponseDto are no longer used directly by the service's public validate method.
@@ -24,17 +24,76 @@ import {
 import { EntityManager } from 'typeorm';
 import { LoggerService } from '@lib/logger/src';
 import { InventoryUpdateHandler } from './kafka-handlers/inventory-update.handler'; // Import the handler
+import { InventoryKafkaMetricsService } from './monitoring/inventory-kafka-metrics.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class InventoryService {
+export class InventoryService implements OnModuleInit {
   private readonly loggerContext = InventoryService.name;
 
   constructor(
     private readonly inventoryRepository: InventoryRepository,
     private readonly transactionService: TransactionService,
     private readonly logger: LoggerService,
+    @Inject('KafkaConsumerInstance') private readonly kafkaConsumer: KafkaConsumer,
     private readonly inventoryUpdateHandler: InventoryUpdateHandler, // Inject the handler
+    private readonly inventoryKafkaMetrics: InventoryKafkaMetricsService,
+    private readonly configService: ConfigService, // Add ConfigService injection
   ) {}
+
+  async onModuleInit() {
+    const inventoryUpdateTopic = this.configService.get('INVENTORY_UPDATE_TOPIC');
+    // Subscribe to both topics only once
+    if (!(this.kafkaConsumer as any)._subscribedTopics) {
+      await this.kafkaConsumer.subscribe('reserveInventory');
+      await this.kafkaConsumer.subscribe(inventoryUpdateTopic);
+      (this.kafkaConsumer as any)._subscribedTopics = true;
+    }
+    await this.kafkaConsumer.postSubscribeCallback({
+      handleMessage: async (topic, partition, message, headers) => {
+        if (topic === 'reserveInventory') {
+          // ...existing reserveInventory Kafka logic...
+          const events = Array.isArray(message) ? message : [message];
+          for (const event of events) {
+            const productId = event.productId;
+            const quantity = Number(event.quantity);
+            const endTimer = this.inventoryKafkaMetrics.kafkaReserveEventsDuration.startTimer();
+            if (!productId || isNaN(quantity)) {
+              this.logger.error(`Invalid reserveInventory event: ${JSON.stringify(event)}`, this.loggerContext);
+              this.inventoryKafkaMetrics.kafkaReserveEventsFailed.inc({ reason: 'invalid_event' });
+              this.inventoryKafkaMetrics.kafkaReserveEventsTotal.inc({ result: 'failed' });
+              endTimer({ result: 'failed' });
+              continue;
+            }
+            try {
+              const reserveReq = {
+                userId: event.userId || 'kafka',
+                itemsToReserve: [{ productId, quantity, price: event.price ?? 0 }],
+              };
+              const result = await this.reserveInventory(reserveReq);
+              if (!result.overallSuccess) {
+                this.logger.error(`Failed to reserve inventory for product ${productId} from Kafka event: ${JSON.stringify(result.reservationDetails)}`, this.loggerContext);
+                this.inventoryKafkaMetrics.kafkaReserveEventsFailed.inc({ reason: 'reserveInventory_failed' });
+                this.inventoryKafkaMetrics.kafkaReserveEventsTotal.inc({ result: 'failed' });
+                endTimer({ result: 'failed' });
+              } else {
+                this.inventoryKafkaMetrics.kafkaReserveEventsTotal.inc({ result: 'success' });
+                endTimer({ result: 'success' });
+              }
+            } catch (err) {
+              this.logger.error(`Error reserving inventory for product ${productId} from Kafka event: ${err.message}`, err.stack, this.loggerContext);
+              this.inventoryKafkaMetrics.kafkaReserveEventsFailed.inc({ reason: 'exception' });
+              this.inventoryKafkaMetrics.kafkaReserveEventsTotal.inc({ result: 'failed' });
+              endTimer({ result: 'failed' });
+            }
+          }
+        } else if (topic === inventoryUpdateTopic) {
+          // ...existing inventory update Kafka logic...
+          await this.inventoryUpdateHandler.handleMessage(topic, partition, message, headers);
+        }
+      }
+    });
+  }
 
   async createInventory(inventory: Partial<Inventory>): Promise<Inventory> {
     return this.inventoryRepository.create(inventory);
@@ -136,53 +195,11 @@ export class InventoryService {
     return inventory;
   }
 
-  private async _updateInventoryInTransaction(
-    productId: string,
-    quantityChange: number, // negative to decrease stock, positive to increase
-    reservedChange: number, // positive to increase reserved, negative to decrease
-    entityManager: EntityManager,
-  ): Promise<Inventory> {
-    // Get the InventoryRepository instance that uses the transactional EntityManager
-    const transactionalInventoryRepo = this.inventoryRepository.getRepository(entityManager);
-    let inventory = await transactionalInventoryRepo.findByProductId(productId);
-
-    if (!inventory) {
-      if (quantityChange > 0 && reservedChange === 0) { // Adding new stock for a new product
-        this.logger.info(`Creating new inventory for product ${productId} with quantity ${quantityChange}`, this.loggerContext);
-        // Use the create method of the transactional repository instance
-        inventory = await transactionalInventoryRepo.create({
-          productId,
-          quantity: quantityChange,
-          reservedQuantity: 0,
-          status: QueryInput.InventoryStatus.IN_STOCK,
-          location: 'default', // Consider making location configurable or from event
-        });
-        // The create method in repository should handle the save. If not, an explicit save on the TypeORM repo is needed.
-        // Assuming transactionalInventoryRepo.create also saves. If it just creates the entity, then:
-        // inventory = await transactionalInventoryRepo.repository.save(inventoryEntity);
-      } else {
-        throw new NotFoundException(`Inventory for product ${productId} not found for the operation.`);
-      }
-    } else {
-      inventory.quantity = (inventory.quantity || 0) + quantityChange;
-      inventory.reservedQuantity = (inventory.reservedQuantity || 0) + reservedChange;
-    }
-
-    if (inventory.quantity < 0) {
-      throw new BadRequestException(`Insufficient stock for product ${productId}. Available: ${inventory.quantity - quantityChange}, Requested change: ${quantityChange}`);
-    }
-    if (inventory.reservedQuantity < 0) {
-      throw new BadRequestException(`Cannot release more stock than reserved for product ${productId}. Reserved: ${inventory.reservedQuantity + reservedChange}, Requested release: ${-reservedChange}`);
-    }
-
-    inventory.status = inventory.quantity > 0 ? QueryInput.InventoryStatus.IN_STOCK : QueryInput.InventoryStatus.OUT_OF_STOCK;
-    // Use the update method of the transactional repository instance
-    return transactionalInventoryRepo.update(inventory.id, inventory);
-  }
+ 
 
 
   async reserveInventory(req: ReserveInventoryReq): Promise<ReserveInventoryRes> {
-    this.logger.info(`Attempting to reserve inventory for order ${req.orderId}, user ${req.userId}`, this.loggerContext);
+    this.logger.info(`Attempting to reserve inventory, user ${req.userId}`, this.loggerContext);
     const reservationDetails: ReservationStatus[] = [];
     let overallSuccess = true;
 
@@ -209,7 +226,7 @@ export class InventoryService {
               currentStatus.currentStock = inventory.quantity;
             }
           } catch (e) {
-            this.logger.error(`Error reserving item ${item.productId} for order ${req.orderId}: ${e.message}`, e.stack, this.loggerContext);
+            this.logger.error(`Error reserving item ${item.productId}: ${e.message}`, e.stack, this.loggerContext);
             currentStatus.reason = e.message || 'RESERVATION_FAILED';
             overallSuccess = false;
           }
@@ -220,7 +237,7 @@ export class InventoryService {
         }
       });
     } catch (error) { // Catch error from transactionService or the explicit throw
-      this.logger.error(`Inventory reservation failed for order ${req.orderId}: ${error.message}`, error.stack, this.loggerContext);
+      this.logger.error(`Inventory reservation failed : ${error.message}`, error.stack, this.loggerContext);
       overallSuccess = false; // Ensure this is set if an error bubbles up
       // For items that might have been processed before the error that caused rollback,
       // their status in reservationDetails might be true, but they are not persisted.
@@ -228,11 +245,11 @@ export class InventoryService {
       // To be more precise, one might re-evaluate statuses here if needed, but gRPC error is primary.
       reservationDetails.forEach(detail => { if(overallSuccess === false) detail.reserved = false; });
     }
-    return { overallSuccess, orderId: req.orderId, reservationDetails };
+    return { overallSuccess, reservationDetails };
   }
 
   async releaseInventory(req: ReleaseInventoryReq): Promise<ReleaseInventoryRes> {
-    this.logger.info(`Attempting to release inventory for order ${req.orderId}`, this.loggerContext);
+    this.logger.info(`Attempting to release inventory`, this.loggerContext);
     const releaseDetails: ReleaseStatus[] = [];
     let overallSuccess = true;
 
@@ -259,7 +276,7 @@ export class InventoryService {
               currentStatus.currentStock = inventory.quantity;
             }
           } catch (e) {
-            this.logger.error(`Error releasing item ${item.productId} for order ${req.orderId}: ${e.message}`, e.stack, this.loggerContext);
+            this.logger.error(`Error releasing item ${item.productId}: ${e.message}`, e.stack, this.loggerContext);
             currentStatus.reason = e.message || 'RELEASE_FAILED';
             overallSuccess = false;
           }
@@ -270,11 +287,11 @@ export class InventoryService {
         }
       });
     } catch (error) {
-      this.logger.error(`Inventory release failed for order ${req.orderId}: ${error.message}`, error.stack, this.loggerContext);
+      this.logger.error(`Inventory release failed: ${error.message}`, error.stack, this.loggerContext);
       overallSuccess = false;
       releaseDetails.forEach(detail => { if(overallSuccess === false) detail.released = false; });
     }
-    return { overallSuccess, orderId: req.orderId, releaseDetails };
+    return { overallSuccess, releaseDetails };
   }
 
   async eventBasedUpdate(kafkaConsumer: KafkaConsumer) {
