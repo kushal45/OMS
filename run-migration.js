@@ -102,8 +102,8 @@ async function runTargetMigrationProgrammatically(dataSource, MigrationClass, mC
   logStep(`Programmatically processing target migration: ${mClassName}`);
   const queryRunner = dataSource.createQueryRunner();
   await queryRunner.connect();
-  logStep(`Connected QueryRunner for ${mClassName}.`);
 
+  // Check for both class name and file name
   const checkQuery = `SELECT * FROM "migrations" WHERE "name" = $1 OR "name" = $2`;
   const existingRecords = await queryRunner.query(checkQuery, [mClassName, mFileName]);
 
@@ -122,11 +122,18 @@ async function runTargetMigrationProgrammatically(dataSource, MigrationClass, mC
     const migrationInstance = new MigrationClass();
     await migrationInstance.up(queryRunner);
     logStep(`up() method for ${mClassName} completed.`);
-    logStep(`Recording ${mClassName} (class name) in migrations table...`);
+    // Only mark as run if migration succeeded
+    logStep(`Recording ${mClassName} (class name) and file name in migrations table...`);
     await queryRunner.query(
       `INSERT INTO "migrations" ("timestamp", "name") VALUES ($1, $2)`,
       [BigInt(mTimestamp), mClassName]
     );
+    if (mClassName !== mFileName) {
+      await queryRunner.query(
+        `INSERT INTO "migrations" ("timestamp", "name") VALUES ($1, $2)`,
+        [BigInt(mTimestamp), mFileName]
+      );
+    }
     logStep(`Committing transaction for ${mClassName}.`);
     await queryRunner.commitTransaction();
     console.log(` -> Successfully ran and recorded ${mClassName}.`);
