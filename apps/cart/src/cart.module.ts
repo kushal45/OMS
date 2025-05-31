@@ -15,6 +15,10 @@ import { CartItem } from './entity/cart-item.entity';
 import { CartRepository } from './repository/cart.repository';
 import { CartItemRepository } from './repository/cart-item.repository';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
+import { OutboxEvent } from './entity/outbox-event.entity';
+import { OutboxWorkerService } from './outbox/outbox-worker.service';
+import { OutboxAdminService } from './outbox/outbox-admin.service';
+import { OutboxAdminController } from './outbox/outbox-admin.controller';
 
 @Module({
   imports: [
@@ -51,7 +55,7 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
       },
     ]),
     LoggerModule,
-    TypeOrmModule.forFeature([Cart, CartItem]),
+    TypeOrmModule.forFeature([Cart, CartItem, OutboxEvent]),
     ElasticsearchModule.registerAsync({ // Add if needed later
       useFactory: (configService: ConfigService) => ({
         node: configService.get<string>('ELASTICSEARCH_NODE', 'http://localhost:9200')
@@ -59,12 +63,14 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
       inject: [ConfigService],
     }),
   ],
-  controllers: [CartController],
+  controllers: [CartController, OutboxAdminController],
   providers: [
     CartService,
     CartRepository,
     CartItemRepository,
     TransactionService,
+    OutboxWorkerService,
+    OutboxAdminService,
     {
       provide: APP_INTERCEPTOR,
       useExisting: 'LoggerErrorInterceptor',

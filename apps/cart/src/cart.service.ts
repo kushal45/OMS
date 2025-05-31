@@ -21,6 +21,7 @@ import {
 import { CartResponseDto } from './dto/cart-response.dto';
 import { EntityManager } from 'typeorm';
 import { TransactionService } from '@app/utils/transaction.service';
+import { OutboxEvent, OutboxEventStatus } from './entity/outbox-event.entity';
 
 // Interface for Inventory Service (similar to order service)
 interface InventoryService {
@@ -139,24 +140,24 @@ export class CartService {
       this.context,
     );
 
-    // TODO: Fetch product price from Product/Inventory service instead of relying on client or hardcoding
+    // Fetch product price from Product/Inventory service
     const productPrice = await this.fetchProductPrice(
       itemData.productId,
       traceId,
     );
-    // fetchProductPrice now throws BadRequestException directly for errors, or returns null for not found.
     if (productPrice === null) {
       throw new BadRequestException(
         `Price for product ID ${itemData.productId} could not be fetched or product not found.`,
       );
     }
 
-    // Assuming productId in AddItemToCartDto is a string that can be parsed to number for inventory validation
+    // Validate with Inventory Service (synchronous check)
     await this.validateCartItems(
       [{ productId: itemData.productId, quantity: itemData.quantity }],
       traceId,
     );
 
+    // Transactional DB update + outbox event
     return this.transactionService.executeInTransaction(
       async (entityManager: EntityManager) => {
         const updatedCart = await this.persistCartAnditsItem({
@@ -168,6 +169,21 @@ export class CartService {
           userId,
           traceId,
         });
+        // Write outbox event in the same transaction
+        const outboxRepo = entityManager.getRepository(OutboxEvent);
+        const outboxEvent = outboxRepo.create({
+          eventType: 'RESERVE_INVENTORY',
+          payload: {
+            userId,
+            productId: itemData.productId,
+            quantity: itemData.quantity,
+            traceId,
+            eventType: 'RESERVE_INVENTORY',
+            timestamp: new Date().toISOString(),
+          },
+          status: OutboxEventStatus.PENDING,
+        });
+        await outboxRepo.save(outboxEvent);
         return this.mapCartToResponseDto(updatedCart);
       },
     );
