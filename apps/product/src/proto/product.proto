@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package product;
+
+// Message representing a Product
+message ProductMessage {
+  int32 id = 1;
+  string name = 2;
+  string description = 3;
+  string sku = 4;
+  float price = 5;
+  string attributes = 6; // Assuming attributes is a JSON string or simple string
+}
+
+// Request message for GetProductById
+message GetProductByIdRequest {
+  int32 productId = 1;
+}
+
+// The Product service definition
+service ProductService {
+  // Retrieves a product by its ID
+  rpc GetProductById (GetProductByIdRequest) returns (ProductMessage) {}
+  // We can add more RPC methods here later, e.g., for listing products, etc.
+}

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common'; // Import NotFoundException
 import { ProductRepository } from './repository/product.repository';
 import { Product } from './entity/product.entity';
 
@@ -15,14 +15,28 @@ export class ProductService {
   }
 
   async getProductById(id: number): Promise<Product> {
-    return this.productRepository.findOne(id);
+    const product = await this.productRepository.findOne(id);
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+    return product;
   }
 
   async updateProduct(id: number, product: Partial<Product>): Promise<Product> {
+    // It's good practice to check if product exists before update too
+    const existingProduct = await this.productRepository.findOne(id);
+    if (!existingProduct) {
+      throw new NotFoundException(`Product with ID ${id} not found, cannot update.`);
+    }
     return this.productRepository.update(id, product);
   }
 
   async deleteProduct(id: number): Promise<boolean> {
+    // It's good practice to check if product exists before delete too
+    const existingProduct = await this.productRepository.findOne(id);
+    if (!existingProduct) {
+      throw new NotFoundException(`Product with ID ${id} not found, cannot delete.`);
+    }
     return this.productRepository.delete(id);
   }
 }

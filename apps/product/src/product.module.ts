@@ -7,6 +7,7 @@ import { typeOrmAsyncConfig } from '../../config/typeorm.config';
 import { Product } from './entity/product.entity';
 import { ConfigModule } from '@nestjs/config';
 import * as path from 'path';
+import { LoggerModule } from '@lib/logger/src'; // Added LoggerModule
 
 @Module({
   imports: [
@@ -16,8 +17,9 @@ import * as path from 'path';
     }),
     TypeOrmModule.forRootAsync(typeOrmAsyncConfig),
     TypeOrmModule.forFeature([Product]),
+    LoggerModule, // Added LoggerModule to imports
   ],
   controllers: [ProductController],
-  providers: [ProductService,ProductRepository],
+  providers: [ProductService,ProductRepository], // LoggerService is typically provided by LoggerModule
 })
 export class ProductModule {}

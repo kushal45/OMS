@@ -17,7 +17,6 @@ import { ApiResponse } from '@app/utils/response.decorator';
 import { AddItemToCartDto, UpdateCartItemDto } from './dto/cart-item.dto';
 import { CartResponseDto } from './dto/cart-response.dto';
 import { ResponseErrDto } from '@app/utils/dto/response-err.dto';
-import { ApiResponseFormat } from '@app/utils/dto/response-format.dto';
 import { ResponseUtil } from '@app/utils/response.util';
 import { ModuleRef } from '@nestjs/core';
 import { registerSchema } from '@app/utils/SchemaRegistry';
@@ -37,7 +36,26 @@ export class CartController {
 
   // Placeholder for Get Cart by User ID
   @ApiOperation({ summary: 'Get cart by user ID' })
-  @ApiResponse(ApiResponseFormat(CartResponseDto), 200)
+  @ApiResponse(
+    CartResponseDto,
+    200,
+    false,
+    {
+      message: 'Cart fetched successfully.',
+      data: {
+        userId: 'user-123',
+        items: [
+          {
+            productId: 'prod-1',
+            quantity: 2,
+            price: 10.0
+          }
+        ],
+        total: 20.0
+      },
+      status: 'success'
+    }
+  )
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
   @Get('user/:userId')
@@ -55,7 +73,26 @@ export class CartController {
   // Placeholder for Add Item to Cart
   @ApiOperation({ summary: 'Add item to cart' })
   @ApiBody({ type: AddItemToCartDto })
-  @ApiResponse(ApiResponseFormat(CartResponseDto), 201)
+  @ApiResponse(
+    CartResponseDto,
+    201,
+    false,
+    {
+      message: 'Item added to cart successfully.',
+      data: {
+        userId: 'user-123',
+        items: [
+          {
+            productId: 'prod-1',
+            quantity: 3,
+            price: 10.0
+          }
+        ],
+        total: 30.0
+      },
+      status: 'success'
+    }
+  )
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
   @Post('user/:userId/item')
@@ -78,7 +115,26 @@ export class CartController {
   // Placeholder for Update Cart Item
   @ApiOperation({ summary: 'Update cart item quantity' })
   @ApiBody({ type: UpdateCartItemDto })
-  @ApiResponse(ApiResponseFormat(CartResponseDto), 200)
+  @ApiResponse(
+    CartResponseDto,
+    200,
+    false,
+    {
+      message: 'Cart item updated successfully.',
+      data: {
+        userId: 'user-123',
+        items: [
+          {
+            productId: 'prod-1',
+            quantity: 5,
+            price: 10.0
+          }
+        ],
+        total: 50.0
+      },
+      status: 'success'
+    }
+  )
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
   @Put('user/:userId/item/:itemId')
@@ -101,7 +157,20 @@ export class CartController {
 
   // Placeholder for Remove Item from Cart
   @ApiOperation({ summary: 'Remove item from cart' })
-  @ApiResponse(ApiResponseFormat(CartResponseDto), 200) // Assuming it returns the updated cart
+  @ApiResponse(
+    CartResponseDto,
+    200,
+    false,
+    {
+      message: 'Item removed from cart successfully.',
+      data: {
+        userId: 'user-123',
+        items: [],
+        total: 0.0
+      },
+      status: 'success'
+    }
+  )
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
   @Delete('user/:userId/item/:itemId')

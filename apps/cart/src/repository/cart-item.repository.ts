@@ -23,8 +23,8 @@ export class CartItemRepository {
     private readonly cartItemRepo: Repository<CartItem>,
   ) {}
 
-  public getRepository(entityManager: EntityManager): Repository<CartItem> {
-    return entityManager.getRepository(CartItem);
+  public getRepository(entityManager: EntityManager): CartItemRepository {
+    return new CartItemRepository(entityManager.getRepository(CartItem));
   }
 
   async findById(id: string, entityManager?: EntityManager): Promise<CartItem | null> {
@@ -101,5 +101,13 @@ export class CartItemRepository {
     const repository = entityManager ? entityManager.getRepository(CartItem) : this.cartItemRepo;
     const result = await repository.delete({ cartId, productId });
     return result.affected > 0;
+  }
+
+  /**
+   * Find a single cart item by arbitrary fields (e.g. id, cartId+productId, etc.)
+   * @param where - Partial fields to match (e.g. { id }, { cartId, productId })
+   */
+  async findOne(where: Partial<CartItem>): Promise<CartItem | null> {
+    return this.cartItemRepo.findOne({ where });
   }
 }

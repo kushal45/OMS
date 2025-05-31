@@ -1,15 +1,53 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, HttpStatus, Res } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, HttpStatus, Res, NotFoundException } from '@nestjs/common';
+import { GrpcMethod } from '@nestjs/microservices'; // Import GrpcMethod
 import { ProductService } from './product.service';
 import { Product } from './entity/product.entity';
 import { ResponseUtil } from '@app/utils/response.util';
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { Metadata, ServerUnaryCall } from '@grpc/grpc-js'; // For gRPC types if needed
 
-@Controller('products')
+// Define the expected request structure for GetProductById gRPC call
+interface GetProductByIdRequest {
+  productId: number;
+}
+
+// Define the structure for ProductMessage (matches product.proto)
+// This can be auto-generated from proto in a more advanced setup
+interface ProductMessage {
+  id: number;
+  name: string;
+  description: string;
+  sku: string;
+  price: number;
+  attributes: string;
+}
+
+@Controller('products') // Keep HTTP controller for existing REST API
 @ApiTags('products')
 @ApiSecurity('api-key')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
+  // gRPC Method Handler
+  @GrpcMethod('ProductService', 'GetProductById')
+  async getProductByIdGrpc(data: GetProductByIdRequest, metadata?: Metadata, call?: ServerUnaryCall<any, any>): Promise<ProductMessage> {
+    const productId = data.productId;
+    const productEntity = await this.productService.getProductById(productId); // Assumes this method throws if not found
+
+    if (!productEntity) {
+      // This will be converted to a gRPC NOT_FOUND error by NestJS
+      throw new NotFoundException(`Product with ID ${productId} not found.`);
+    }
+    // Map entity to ProductMessage
+    return {
+      id: productEntity.id,
+      name: productEntity.name,
+      description: productEntity.description,
+      sku: productEntity.sku,
+      price: productEntity.price,
+      attributes: productEntity.attributes,
+    };
+  }
   
   @Post()
   async createProduct(@Body() product: Partial<Product>,@Res() response) {
@@ -32,8 +70,10 @@ export class ProductController {
     })
   }
 
+  // HTTP GET /products/:id - This can coexist with the gRPC method
   @Get(':id')
-  async getProductById(@Param('id') id: number,@Res() response) {
+  async getProductByIdHttp(@Param('id') id: number,@Res() response) {
+    // Note: productService.getProductById might throw NotFoundException which is fine for HTTP
     ResponseUtil.success({
       response,
       message: 'Successfully fetched product',
