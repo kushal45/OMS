@@ -22,7 +22,10 @@
     "migration:generate": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate ./apps/database/migrations/$npm_config_name",
     "migration:create": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js  migration:create ./apps/database/migrations/$npm_config_name",
     "migration:revert": "ts-node node_modules/typeorm/cli.js migration:revert -d  ./apps/config/dataSource.ts",
-    "seed": "dotenv -e .env.db -- ts-node apps/database/seeders/seed.ts"
+    "seed": "dotenv -e .env.db -- ts-node apps/database/seeders/seed.ts",
+    "prepare:migrations": "ts-node --project tsconfig.json create-migrations-table.ts",
+    "run:migrations:custom": "dotenv -e .env.db -- ts-node run-migration.js",
+    "deep-clean-migrations": "dotenv -e .env.db -- node deep-clean-migrations.js"
   },
   "dependencies": {
     "-": "^0.0.1",
