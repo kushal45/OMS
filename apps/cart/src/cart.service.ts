@@ -420,6 +420,23 @@ export class CartService {
           );
         }
 
+        // Add outbox event for releaseInventory
+        const outboxRepo = entityManager.getRepository(OutboxEvent);
+        const outboxEvent = outboxRepo.create({
+          eventType: 'releaseInventory',
+          payload: {
+            userId,
+            cartItemId,
+            productId: cartItem.productId,
+            quantity: cartItem.quantity,
+            traceId,
+            processType: 'REMOVE_ITEM_FROM_CART',
+            timestamp: new Date().toISOString(),
+          },
+          status: OutboxEventStatus.PENDING,
+        });
+        await outboxRepo.save(outboxEvent);
+
         await this.recalculateCartTotals(cart, entityManager);
         const updatedCart = await cartRepo.findById(cart.id);
         return this.mapCartToResponseDto(updatedCart);

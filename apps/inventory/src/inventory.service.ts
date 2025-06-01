@@ -25,8 +25,8 @@ import { EntityManager } from 'typeorm';
 import { LoggerService } from '@lib/logger/src';
 import { RemoveInventoryHandler } from './kafka-handlers/remove-inventory.handler'; // Renamed handler import
 import { ReserveInventoryHandler } from './kafka-handlers/reserve-inventory.handler';
-import { InventoryKafkaMetricsService } from './monitoring/inventory-kafka-metrics.service';
 import { ConfigService } from '@nestjs/config';
+import { ReleaseInventoryHandler } from './kafka-handlers/release-inventory.handler';
 
 @Injectable()
 export class InventoryService implements OnModuleInit {
@@ -37,26 +37,28 @@ export class InventoryService implements OnModuleInit {
     private readonly transactionService: TransactionService,
     private readonly logger: LoggerService,
     @Inject('KafkaConsumerInstance') private readonly kafkaConsumer: KafkaConsumer,
-    private readonly removeInventoryHandler: RemoveInventoryHandler, // Use new handler
-    private readonly reserveInventoryHandler: ReserveInventoryHandler,
-    private readonly inventoryKafkaMetrics: InventoryKafkaMetricsService,
+    private readonly moduleRef: ModuleRef, // Keep if used for dynamic resolution of handlers
     private readonly configService: ConfigService,
   ) {}
 
   async onModuleInit() {
     const removeInventoryTopic = this.configService.get('REMOVE_INVENTORY_TOPIC');
     const reserveInventoryTopic = this.configService.get('RESERVE_INVENTORY_TOPIC');
+    const releaseInventoryTopic = this.configService.get('RELEASE_INVENTORY_TOPIC');
     if (!(this.kafkaConsumer as any)._subscribedTopics) {
       await this.kafkaConsumer.subscribe(reserveInventoryTopic);
       await this.kafkaConsumer.subscribe(removeInventoryTopic);
+      await this.kafkaConsumer.subscribe(releaseInventoryTopic);
       (this.kafkaConsumer as any)._subscribedTopics = true;
     }
     await this.kafkaConsumer.postSubscribeCallback({
       handleMessage: async (topic, partition, message, headers) => {
         if (topic === reserveInventoryTopic) {
-          await this.reserveInventoryHandler.handleMessage(topic, partition, message, headers);
+          await this.moduleRef.get(ReserveInventoryHandler, { strict: false }).handleMessage(topic, partition, message, headers);
         } else if (topic === removeInventoryTopic) {
-          await this.removeInventoryHandler.handleMessage(topic, partition, message, headers);
+          await this.moduleRef.get(RemoveInventoryHandler, { strict: false }).handleMessage(topic, partition, message, headers);
+        } else if (topic === releaseInventoryTopic) {
+          await this.moduleRef.get(ReleaseInventoryHandler, { strict: false }).handleMessage(topic, partition, message, headers);
         }
       }
     });
@@ -252,6 +254,7 @@ export class InventoryService implements OnModuleInit {
         if (!overallSuccess) {
           throw new Error('One or more items could not be released.'); // Trigger rollback
         }
+        return true; // Commit transaction if all successful
       });
     } catch (error) {
       this.logger.error(`Inventory release failed: ${error.message}`, error.stack, this.loggerContext);
@@ -259,16 +262,6 @@ export class InventoryService implements OnModuleInit {
       releaseDetails.forEach(detail => { if(overallSuccess === false) detail.released = false; });
     }
     return { overallSuccess, releaseDetails };
-  }
-
-  async eventBasedUpdate(kafkaConsumer: KafkaConsumer) {
-    // This method needs to be carefully designed based on the exact nature of events.
-    // Assuming events are for confirmed sales that need to finalize stock deduction from reserved.
-    // Or direct stock adjustments (e.g. new shipment, damage write-off).
-    // For now, let's assume a simple event: { productId: string, quantitySoldAndShipped: number }
-    // This means this quantity should be removed from reserved and effectively from total.
-    // Pass the injected handler instance to postSubscribeCallback
-    await kafkaConsumer.postSubscribeCallback(this.removeInventoryHandler);
   }
 
   async delete(productId: string): Promise<boolean> { // productId is now string
