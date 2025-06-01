@@ -6,7 +6,7 @@ export enum OutboxEventStatus {
   FAILED = 'FAILED',
 }
 
-@Entity({ name: 'outbox_events' })
+@Entity('outbox_events') // Explicitly naming the table
 export class OutboxEvent {
   @PrimaryGeneratedColumn()
   id: number;

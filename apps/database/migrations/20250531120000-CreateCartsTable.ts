@@ -17,12 +17,12 @@ export class CreateCartsTable20250531120000 implements MigrationInterface {
             isNullable: false,
           },
           {
-            name: "created_at",
+            name: "createdAt",
             type: "timestamp",
             default: "now()",
           },
           {
-            name: "updated_at",
+            name: "updatedAt",
             type: "timestamp",
             default: "now()",
           },

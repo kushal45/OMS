@@ -11,8 +11,8 @@ services:
       timeout: 10s
       retries: 3
     depends_on:
-      migrations:
-        condition: service_completed_successfully
+      # migrations:
+      #   condition: service_completed_successfully
       auth:
         condition: service_healthy
       order:
@@ -45,8 +45,8 @@ services:
       - "3001:3001"
       - "9230:9229" # Debug port for auth (host:container)
     depends_on:
-      migrations:
-        condition: service_completed_successfully
+      # migrations:
+      #   condition: service_completed_successfully
       postgres: # Still need postgres for the service itself, but migrations ensure schema is ready
         condition: service_healthy
       es01:
@@ -70,8 +70,8 @@ services:
       - "3002:3002"
       - "9231:9229" # Debug port for order (host:container)
     depends_on:
-      migrations:
-        condition: service_completed_successfully
+      # migrations:
+      #   condition: service_completed_successfully
       postgres: # Still need postgres for the service itself
         condition: service_healthy
       es01:
@@ -109,8 +109,8 @@ services:
       - "5002:5002" # gRPC port
       - "9232:9229" # Debug port for inventory (host:container)
     depends_on:
-      migrations:
-        condition: service_completed_successfully
+      # migrations:
+      #   condition: service_completed_successfully
       postgres: # Still need postgres for the service itself
         condition: service_healthy
       es01:
@@ -143,8 +143,8 @@ services:
       - DATABASE_NAME=oms
       - PORT=3004
     depends_on:
-      migrations:
-        condition: service_completed_successfully
+      # migrations:
+      #   condition: service_completed_successfully
       postgres: # Still need postgres for the service itself
         condition: service_healthy
     # IMPORTANT: Ensure this script starts Node with '--inspect=0.0.0.0:9229'
@@ -154,24 +154,24 @@ services:
       - oms
     volumes:
       - ./:/app
-  migrations:
-    build:
-      context: .
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      - NODE_ENV=development
-      - DATABASE_HOST=postgres
-      - DATABASE_PORT=5432
-      - DATABASE_USER=${POSTGRES_USER:-postgres} # Use from .env or default
-      - DATABASE_PASSWORD=${POSTGRES_PASSWORD:-postgres} # Use from .env or default
-      - DATABASE_NAME=${POSTGRES_DB:-oms} # Use from .env or default
-    command: node run-migration.js
-    networks:
-      - oms
-    volumes:
-      - ./:/app # Mount the current directory to access run-migration.js and package.json
+  # migrations:
+  #   build:
+  #     context: .
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     - NODE_ENV=development
+  #     - DATABASE_HOST=postgres
+  #     - DATABASE_PORT=5432
+  #     - DATABASE_USER=${POSTGRES_USER:-postgres} # Use from .env or default
+  #     - DATABASE_PASSWORD=${POSTGRES_PASSWORD:-postgres} # Use from .env or default
+  #     - DATABASE_NAME=${POSTGRES_DB:-oms} # Use from .env or default
+  #   command: npm run run:migrations:custom
+  #   networks:
+  #     - oms
+  #   volumes:
+  #     - ./:/app # Mount the current directory to access run-migration.js and package.json
 
   postgres:
     image: postgres:14-alpine
@@ -432,9 +432,14 @@ services:
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=oms
       - PORT=3005
+      - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200,http://es03:9200
+      - SERVICE_NAME=cart
+      - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
+      - INVENTORY_RESERVE_TOPIC=reserveInventory
+      - INVENTORY_RELEASE_TOPIC=releaseInventory
     depends_on:
-      migrations:
-        condition: service_completed_successfully
+      # migrations:
+      #   condition: service_completed_successfully
       postgres:
         condition: service_healthy
       es01:

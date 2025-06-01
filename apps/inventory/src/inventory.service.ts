@@ -23,7 +23,8 @@ import {
 } from './proto/inventory'; // Import gRPC request/response types
 import { EntityManager } from 'typeorm';
 import { LoggerService } from '@lib/logger/src';
-import { InventoryUpdateHandler } from './kafka-handlers/inventory-update.handler'; // Import the handler
+import { RemoveInventoryHandler } from './kafka-handlers/remove-inventory.handler'; // Renamed handler import
+import { ReserveInventoryHandler } from './kafka-handlers/reserve-inventory.handler';
 import { InventoryKafkaMetricsService } from './monitoring/inventory-kafka-metrics.service';
 import { ConfigService } from '@nestjs/config';
 
@@ -36,60 +37,26 @@ export class InventoryService implements OnModuleInit {
     private readonly transactionService: TransactionService,
     private readonly logger: LoggerService,
     @Inject('KafkaConsumerInstance') private readonly kafkaConsumer: KafkaConsumer,
-    private readonly inventoryUpdateHandler: InventoryUpdateHandler, // Inject the handler
+    private readonly removeInventoryHandler: RemoveInventoryHandler, // Use new handler
+    private readonly reserveInventoryHandler: ReserveInventoryHandler,
     private readonly inventoryKafkaMetrics: InventoryKafkaMetricsService,
-    private readonly configService: ConfigService, // Add ConfigService injection
+    private readonly configService: ConfigService,
   ) {}
 
   async onModuleInit() {
-    const inventoryUpdateTopic = this.configService.get('INVENTORY_UPDATE_TOPIC');
-    // Subscribe to both topics only once
+    const removeInventoryTopic = this.configService.get('REMOVE_INVENTORY_TOPIC');
+    const reserveInventoryTopic = this.configService.get('RESERVE_INVENTORY_TOPIC');
     if (!(this.kafkaConsumer as any)._subscribedTopics) {
-      await this.kafkaConsumer.subscribe('reserveInventory');
-      await this.kafkaConsumer.subscribe(inventoryUpdateTopic);
+      await this.kafkaConsumer.subscribe(reserveInventoryTopic);
+      await this.kafkaConsumer.subscribe(removeInventoryTopic);
       (this.kafkaConsumer as any)._subscribedTopics = true;
     }
     await this.kafkaConsumer.postSubscribeCallback({
       handleMessage: async (topic, partition, message, headers) => {
-        if (topic === 'reserveInventory') {
-          // ...existing reserveInventory Kafka logic...
-          const events = Array.isArray(message) ? message : [message];
-          for (const event of events) {
-            const productId = event.productId;
-            const quantity = Number(event.quantity);
-            const endTimer = this.inventoryKafkaMetrics.kafkaReserveEventsDuration.startTimer();
-            if (!productId || isNaN(quantity)) {
-              this.logger.error(`Invalid reserveInventory event: ${JSON.stringify(event)}`, this.loggerContext);
-              this.inventoryKafkaMetrics.kafkaReserveEventsFailed.inc({ reason: 'invalid_event' });
-              this.inventoryKafkaMetrics.kafkaReserveEventsTotal.inc({ result: 'failed' });
-              endTimer({ result: 'failed' });
-              continue;
-            }
-            try {
-              const reserveReq = {
-                userId: event.userId || 'kafka',
-                itemsToReserve: [{ productId, quantity, price: event.price ?? 0 }],
-              };
-              const result = await this.reserveInventory(reserveReq);
-              if (!result.overallSuccess) {
-                this.logger.error(`Failed to reserve inventory for product ${productId} from Kafka event: ${JSON.stringify(result.reservationDetails)}`, this.loggerContext);
-                this.inventoryKafkaMetrics.kafkaReserveEventsFailed.inc({ reason: 'reserveInventory_failed' });
-                this.inventoryKafkaMetrics.kafkaReserveEventsTotal.inc({ result: 'failed' });
-                endTimer({ result: 'failed' });
-              } else {
-                this.inventoryKafkaMetrics.kafkaReserveEventsTotal.inc({ result: 'success' });
-                endTimer({ result: 'success' });
-              }
-            } catch (err) {
-              this.logger.error(`Error reserving inventory for product ${productId} from Kafka event: ${err.message}`, err.stack, this.loggerContext);
-              this.inventoryKafkaMetrics.kafkaReserveEventsFailed.inc({ reason: 'exception' });
-              this.inventoryKafkaMetrics.kafkaReserveEventsTotal.inc({ result: 'failed' });
-              endTimer({ result: 'failed' });
-            }
-          }
-        } else if (topic === inventoryUpdateTopic) {
-          // ...existing inventory update Kafka logic...
-          await this.inventoryUpdateHandler.handleMessage(topic, partition, message, headers);
+        if (topic === reserveInventoryTopic) {
+          await this.reserveInventoryHandler.handleMessage(topic, partition, message, headers);
+        } else if (topic === removeInventoryTopic) {
+          await this.removeInventoryHandler.handleMessage(topic, partition, message, headers);
         }
       }
     });
@@ -301,7 +268,7 @@ export class InventoryService implements OnModuleInit {
     // For now, let's assume a simple event: { productId: string, quantitySoldAndShipped: number }
     // This means this quantity should be removed from reserved and effectively from total.
     // Pass the injected handler instance to postSubscribeCallback
-    await kafkaConsumer.postSubscribeCallback(this.inventoryUpdateHandler);
+    await kafkaConsumer.postSubscribeCallback(this.removeInventoryHandler);
   }
 
   async delete(productId: string): Promise<boolean> { // productId is now string

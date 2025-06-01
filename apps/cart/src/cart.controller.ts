@@ -12,16 +12,18 @@ import {
   Inject,
 } from '@nestjs/common';
 import { CartService } from './cart.service';
-import { ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { ApiResponse } from '@app/utils/response.decorator';
 import { AddItemToCartDto, UpdateCartItemDto } from './dto/cart-item.dto';
 import { CartResponseDto } from './dto/cart-response.dto';
 import { ResponseErrDto } from '@app/utils/dto/response-err.dto';
 import { ResponseUtil } from '@app/utils/response.util';
 import { ModuleRef } from '@nestjs/core';
-import { registerSchema } from '@app/utils/SchemaRegistry';
+import { registerSchema,deleteSchema} from '@app/utils/SchemaRegistry';
+import { ConfigService } from '@nestjs/config';
 
 @ApiTags('cart')
+@ApiSecurity('api-key')
 @Controller('cart')
 export class CartController {
   constructor(
@@ -95,9 +97,9 @@ export class CartController {
   )
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
-  @Post('user/:userId/item')
+  @Post('user/:user_id/item')
   async addItemToCart(
-    @Param('userId') userId: string,
+    @Param('user_id') userId: string,
     @Body() item: AddItemToCartDto,
     @Res() response,
     @Req() req,
@@ -206,6 +208,27 @@ export class CartController {
   }
 
   async onModuleInit() {
-    await registerSchema(this.moduleRef);
+    const configService = this.moduleRef.get<ConfigService>(ConfigService, { strict: false });
+    const topic = configService.get<string>('INVENTORY_RESERVE_TOPIC');
+    console.log(`Registering schema for topic: ${topic}`);
+    await deleteSchema(this.moduleRef, topic);
+    const schemaJsonString = configService.get<string>('INVENTORY_RESERVE_SCHEMA_JSON');
+    if (!schemaJsonString) {
+      console.error(`Schema JSON string not found in config for topic: ${topic}. Ensure INVENTORY_RESERVE_SCHEMA_JSON is set in the .env file.`);
+      // Potentially throw an error or handle as appropriate for your application
+      return;
+    }
+
+    let parsedSchema;
+    try {
+      parsedSchema = JSON.parse(schemaJsonString);
+    } catch (error) {
+      console.error(`Error parsing schema JSON string for topic ${topic}:`, error, `Schema string: ${schemaJsonString}`);
+      // Potentially throw an error or handle as appropriate
+      return;
+    }
+    
+    console.log(`Schema definition for topic ${topic}: ${JSON.stringify(parsedSchema)}`);
+    await registerSchema(this.moduleRef, topic, parsedSchema);
   }
 }

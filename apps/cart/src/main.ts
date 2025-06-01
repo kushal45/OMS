@@ -10,7 +10,7 @@ async function bootstrap() {
   app.flushLogs();
   setupSwagger(app,"cart/docs");
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('PORT') || 3004; // Defaulting to 3004 for cart service
+  const port = configService.get<number>('PORT') || 3005; // Defaulting to 3005 for cart service
   console.log(`Cart service listening on port ${port}`);
   await app.listen(port);
 }

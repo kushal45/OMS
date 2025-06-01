@@ -16,7 +16,7 @@ export interface UpdateCartItemInput {
   // Potentially other fields like metadata if added to entity
 }
 
-@Injectable()
+
 export class CartItemRepository {
   constructor(
     @InjectRepository(CartItem)

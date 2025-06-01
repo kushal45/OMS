@@ -24,7 +24,30 @@ export class KafkaProducer {
     });
     this.schemaRegistry = new SchemaRegistry({
       host: schemaRegistryUrl,
-      retry: { retries: 5 },
+      retry: { retries: 5 }, // Retries for schema registry operations
+    });
+
+    this.producer.on('producer.connect', (data) => {
+      console.info(`Kafka Producer connected with data: ${JSON.stringify(data)}`);
+      this.logger.info('Kafka Producer connected', this.context);
+    });
+    this.producer.on('producer.disconnect', () => {
+      this.logger.info('Kafka Producer disconnected', this.context);
+    });
+    this.producer.on('producer.network.request_timeout', (event) => {
+      this.logger.error(
+        JSON.stringify({
+          message: `Kafka Producer: Request Timeout`,
+          errorDetails: event.payload, // Log the entire payload for context
+        }),
+        this.context,
+      );
+    });
+    // Connect the producer when the KafkaProducer instance is created
+    this.producer.connect().catch(err => {
+      this.logger.error(`Kafka Producer: Failed to connect - ${err.message}`, this.context);
+      // Depending on the application, you might want to throw this error
+      // or implement a retry mechanism for the initial connection.
     });
   }
 
@@ -35,50 +58,56 @@ export class KafkaProducer {
       value: unknown[];
     },
   ): Promise<RecordMetadata[]> {
-    this.producer.connect();
     this.logger.info(`Sending message to topic: ${topic}`, this.context);
     const kafkaAdminClient = this.moduleRef.get<KafkaAdminClient>(
       'KafkaAdminInstance',
       { strict: false },
     );
     const numPartitions = await kafkaAdminClient.getNumberOfPartitions(topic);
-    const assignedPartition = numPartitions % 2;
-    const schemaId = await this.schemaRegistry.getLatestSchemaId(
-        topic
+    const listPartitions = await kafkaAdminClient.listPartitions(topic);
+    kafkaAdminClient.close();
+    this.logger.debug(
+      `Number of partitions for topic ${topic}: ${numPartitions}, Partitions: ${JSON.stringify(listPartitions)}`,
+      this.context,
     );
+    if (numPartitions < 1) {
+      throw new Error(`Topic ${topic} does not exist or has no partitions`);
+    }
+    // Always use partition 0 for robust delivery, or let Kafka assign if you want round-robin
+    const assignedPartition = listPartitions[0];
+    const schemaId = await this.schemaRegistry.getLatestSchemaId(topic);
     this.logger.debug(`SchemaId returned ${schemaId}`, this.context);
     const schemaFetched = await this.schemaRegistry.getSchema(schemaId);
     console.info(`Schema returned: ${JSON.stringify(schemaFetched)}`);
     const encodedMessages = await Promise.all(
-        messageObj.value.map(async (msg) => {
-          const validMessage = this.validateMessage(schemaFetched, msg);
-          return this.schemaRegistry.encode(schemaId, validMessage);
-        })
-      );
-   // console.log(`encoded message:`,encodedMessages);
-  
-    const recordMetaData = await this.producer.send({
+      messageObj.value.map(async (msg) => {
+        const validMessage = this.validateMessage(schemaFetched, msg);
+        return this.schemaRegistry.encode(schemaId, validMessage);
+      })
+    );
+    try {
+      const recordMetaData = await this.producer.send({
         topic,
+        acks: -1, // Wait for all in-sync replicas to acknowledge
         messages: encodedMessages.map((encodedMessage, index) => ({
           key: `${messageObj.key}-${index}`,
           value: encodedMessage,
-          partition: assignedPartition,
-          headers: {"messageCount":messageObj.value.length.toString()},
+          partition: assignedPartition, // Always valid partition
+          headers: { "messageCount": messageObj.value.length.toString() },
         })),
       });
-     this.producer.on('producer.network.request_timeout', (event) => {
-        this.logger.error(
-            JSON.stringify({
-                message: `Failed to send message to topic: ${topic}`,
-                error: JSON.stringify(event.payload),
-            }),
-            
-            this.context,
-        );
-    });
-    await this.producer.disconnect();
-    return recordMetaData;
-   
+      return recordMetaData;
+    } catch (error) {
+      this.logger.error(
+        JSON.stringify({
+          message: `Failed to send message to topic: ${topic} after retries`,
+          error: error.message,
+          stack: error.stack,
+        }),
+        this.context,
+      );
+      throw error;
+    }
   }
 
   private validateMessage(schema: any, message: any): any {

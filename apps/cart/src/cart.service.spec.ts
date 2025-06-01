@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CartService } from './cart.service';
-import { CartRepository } from './repository/cart.repository';
+import { CartDataService } from './repository/cart-data.repository';
 import { CartItemRepository } from './repository/cart-item.repository';
 import { ConfigService } from '@nestjs/config';
 import { LoggerService } from '@lib/logger/src';
@@ -88,7 +88,7 @@ describe('CartService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CartService,
-        { provide: CartRepository, useValue: mockCartRepository },
+        { provide: CartDataService, useValue: mockCartRepository },
         { provide: CartItemRepository, useValue: mockCartItemRepository },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: LoggerService, useValue: mockLoggerService },

@@ -5,6 +5,9 @@ import { OrderItems } from '@app/order/src/entity/orderItems.entity';
 import { Product } from '@app/product/src/entity/product.entity';
 import { Address } from '@lib/address/src/entity/address.entity';
 import { CustomerAddress } from '@lib/address/src/entity/customerAdress.entity';
+import { Cart } from '@app/cart/src/entity/cart.entity';
+import { CartItem } from '@app/cart/src/entity/cart-item.entity';
+import { OutboxEvent } from '@app/cart/src/entity/outbox-event.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import {
   TypeOrmModuleAsyncOptions,
@@ -27,7 +30,18 @@ export const typeOrmAsyncConfig: TypeOrmModuleAsyncOptions = {
       username: configService.get<string>('DB_USERNAME'),
       password: configService.get<string>('DB_PASSWORD'),
       database: configService.get<string>('DB_NAME'),
-      entities: [Customer,Address,CustomerAddress,Order,OrderItems,Product,Inventory],
+      entities: [
+        Customer,
+        Address,
+        CustomerAddress,
+        Order,
+        OrderItems,
+        Product,
+        Inventory,
+        Cart,
+        CartItem,
+        OutboxEvent,
+      ],
       migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
       extra: {
         charset: 'utf8mb4_unicode_ci',

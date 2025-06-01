@@ -1,65 +1,84 @@
-import { SchemaRegistry, SchemaType } from '@kafkajs/confluent-schema-registry';
+import { SchemaRegistry, SchemaType, COMPATIBILITY } from '@kafkajs/confluent-schema-registry';
+import { LoggerService } from '@lib/logger/src';
 import { ConfigService } from '@nestjs/config';
 import { ModuleRef } from '@nestjs/core';
 import axios from 'axios';
 
-export async function registerSchema(moduleRef: ModuleRef) {
+export async function registerSchema(
+  moduleRef: ModuleRef,
+  topic: string,
+  schemaDefinition: any,
+) {
+  const logger = moduleRef.get(LoggerService, { strict: false });
+  logger.info(`Registering schema for topic: ${topic}`);
+  if (!topic) {
+    throw new Error('Topic is required for schema registration');
+  }
   const configService = moduleRef.get(ConfigService, { strict: false });
   const schemaRegistryUrl = configService.get<string>('SCHEMA_REGISTRY_URL');
   const schemaRegistry = new SchemaRegistry({ host: schemaRegistryUrl });
-  const topic = configService.get<string>('INVENTORY_UPDATE_TOPIC');
 
   try {
-    //deleteSchema(moduleRef)
-     // .then(async () => {
-      //  registerSchemaWithRegistry(schemaRegistry, topic)
-     // })
-     //.catch((error) => {
-        // console.error(
-        //   `Error deleting schema for topic ${topic}: ${error.message}`,
-        // );
-         registerSchemaWithRegistry(schemaRegistry, topic);
-     // });
+    // Set compatibility to NONE before attempting to register
+    const compatibilityUrl = `${schemaRegistryUrl}/config/${topic}`;
+    try {
+      logger.info(`Setting compatibility to NONE for subject: ${topic} at ${compatibilityUrl}`);
+      await axios.put(compatibilityUrl, { compatibility: 'NONE' }, {
+        headers: { 'Content-Type': 'application/vnd.schemaregistry.v1+json' }
+      });
+      logger.info(`Successfully set compatibility to NONE for subject: ${topic}`);
+    } catch (compatError) {
+      logger.info(`Could not set compatibility for subject ${topic}: ${compatError.message}. Proceeding with registration attempt.`);
+      if (compatError.response) {
+        logger.info(`Compatibility error response: ${JSON.stringify(compatError.response.data)}`);
+      }
+    }
+    
+    await registerSchemaWithRegistry(schemaRegistry, topic, schemaDefinition);
+
   } catch (error) {
-    console.error(`Failed to register schema: ${error.message}`);
-     registerSchemaWithRegistry(schemaRegistry, topic);
+    logger.error(`Error during schema registration process for topic ${topic}: ${error.message}`);
+    if (error.response) {
+        logger.error(`Schema registration error response: ${JSON.stringify(error.response.data)}`);
+    }
   }
 }
 
 async function registerSchemaWithRegistry(
   schemaRegistry: SchemaRegistry,
   topic: string,
+  schemaDefinition: any,
 ) {
-  console.log(`Registering schema for topic: ${topic}`);
-  const schema = {
-          type: 'record',
-          name: `${topic}`, // Ensure the schema name is the same as the existing schema
-          fields: [
-            { name: 'productId', type: 'int' },
-            { name: 'price', type: 'float' },
-            { name: 'quantity', type: 'int' },
-          ],
-        };
-        const response = await schemaRegistry.register(
-          {
-            type: SchemaType.AVRO,
-            schema: JSON.stringify(schema),
-          },
-          { subject: topic },
-        );
+  try {
+    console.log(`Registering schema for topic: ${topic}`);
+    if (!schemaDefinition) {
+      throw new Error('schemaDefinition is required for schema registration');
+    }
+    const response = await schemaRegistry.register(
+      {
+        type: SchemaType.AVRO,
+        schema: JSON.stringify(schemaDefinition),
+      },
+      { subject: topic, compatibility: COMPATIBILITY.NONE },
+    );
 
-        console.log(`Schema registered with id: ${response.id}`);
-        const schemaId = await schemaRegistry.getLatestSchemaId(topic);
-        console.log(`SchemaId returned: ${schemaId}`);
-        const schemaFetched = await schemaRegistry.getSchema(schemaId);
+    console.log(`Schema registered with id: ${response.id}`);
+    const schemaId = await schemaRegistry.getLatestSchemaId(topic);
+    console.log(`SchemaId returned: ${schemaId}`);
+    const schemaFetched = await schemaRegistry.getSchema(schemaId);
 
-        console.log(`Schema returned: ${JSON.stringify(schemaFetched)}`);
+    console.log(`Schema returned: ${JSON.stringify(schemaFetched)}`);
+  } catch (error) {
+    console.error(`Failed to register schema for topic ${topic}:`, error);
+  }
 }
 
-export async function deleteSchema(moduleRef: ModuleRef) {
+export async function deleteSchema(moduleRef: ModuleRef, topic: string) {
+  if (!topic) {
+    throw new Error('Topic is required for schema deletion');
+  }
   const configService = moduleRef.get(ConfigService, { strict: false });
   const schemaRegistryUrl = configService.get<string>('SCHEMA_REGISTRY_URL');
-  const topic = configService.get<string>('INVENTORY_UPDATE_TOPIC');
   console.log(`Deleting schema for topic: ${topic}`);
 
   const url = `${schemaRegistryUrl}/subjects/${topic}`;

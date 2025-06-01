@@ -1,6 +1,6 @@
 import { EntityManager, Repository } from 'typeorm';
-import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Injectable } from '@nestjs/common';
 import { Cart, CartStatus } from '../entity/cart.entity';
 
 // Define interfaces for input/output if they become complex
@@ -21,15 +21,14 @@ export interface UpdateCartInput {
 }
 
 @Injectable()
-export class CartRepository {
+export class CartDataService {
   constructor(
     @InjectRepository(Cart)
     private readonly cartRepo: Repository<Cart>,
   ) {}
 
-  // This method allows the repository to be used within a transaction
-  public getRepository(entityManager: EntityManager): CartRepository {
-    return new CartRepository(entityManager.getRepository(Cart));
+  public getRepository(entityManager: EntityManager): CartDataService {
+    return new CartDataService(entityManager.getRepository(Cart));
   }
 
   async findById(id: string, entityManager?: EntityManager): Promise<Cart | null> {

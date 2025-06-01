@@ -19,7 +19,7 @@ export class CreateCartItemsTable20250601000000 implements MigrationInterface {
           },
           {
             name: 'productId',
-            type: 'uuid',
+            type: 'int',
             isNullable: false,
           },
           {
@@ -29,14 +29,14 @@ export class CreateCartItemsTable20250601000000 implements MigrationInterface {
             default: 1,
           },
           {
-            name: 'unitPrice',
+            name: 'price',
             type: 'decimal',
             precision: 10,
             scale: 2,
             isNullable: false,
           },
           {
-            name: 'totalPrice',
+            name: 'lineTotal',
             type: 'decimal',
             precision: 10,
             scale: 2,

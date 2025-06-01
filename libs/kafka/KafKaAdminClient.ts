@@ -8,6 +8,7 @@ export class KafkaAdminClient {
   private static kafkaAdminClient: Admin;
   private context: string = 'KafkaAdminClient';
   private logger: LoggerService;
+  private isConnected: boolean = false;
   constructor(
     config: KafkaConfig,
     private readonly moduleRef: ModuleRef, // moduleRef might still be needed for other purposes or can be removed if not used elsewhere
@@ -108,16 +109,16 @@ export class KafkaAdminClient {
 
   async getNumberOfPartitions(topic: string): Promise<number> {
     try {
-
       const admin = KafkaAdminClient.kafkaAdminClient;
       await admin.connect();
+      this.isConnected = true; // Set isConnected to true after successful connection
       const metadata = await admin.fetchTopicMetadata({ topics: [topic] });
       const topicMetadata = metadata.topics.find((t) => t.name === topic);
 
       if (!topicMetadata) {
         throw new Error(`Topic "${topic}" not found`);
       }
-      await admin.disconnect();
+     // await admin.disconnect();
       return topicMetadata.partitions.length; // Number of partitions
     } catch (error) {
       this.logger.error(
@@ -127,6 +128,29 @@ export class KafkaAdminClient {
       );
       throw new Error(
         `Failed to get number of partitions for topic ${topic}: ${error.message}`,
+      );
+    }
+  }
+
+  async listPartitions(topic: string): Promise<number[]> {
+    try {
+      const admin = KafkaAdminClient.kafkaAdminClient;
+      if (!this.isConnected) {
+        await admin.connect();
+        this.isConnected = true; // Set isConnected to true after successful connection
+      }
+      const metadata = await admin.fetchTopicMetadata({ topics: [topic] });
+      const topicMeta = metadata.topics.find((t) => t.name === topic);
+      if (!topicMeta) throw new Error(`Topic ${topic} not found`);
+      return topicMeta.partitions.map((p) => p.partitionId);
+    } catch (error) {
+      this.logger.error(
+        `Failed to list partitions for topic ${topic}`,
+        this.context,
+        error, // Pass the full error object
+      );
+      throw new Error(
+        `Failed to list partitions for topic ${topic}: ${error.message}`,
       );
     }
   }

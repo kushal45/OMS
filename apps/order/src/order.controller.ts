@@ -31,6 +31,7 @@ import { OrderItemsResponseDto } from './dto/get-order-items-res';
 import { UpdateOrderDto } from './dto/update-order-req.dto';
 import { deleteSchema, registerSchema } from '@app/utils/SchemaRegistry';
 import { ModuleRef } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
 
 @ApiTags('order')
 @ApiSecurity('api-key')
@@ -227,7 +228,30 @@ export class OrderController {
   }
 
   async onModuleInit() {
-    await deleteSchema(this.moduleRef);
-    await registerSchema(this.moduleRef);
+    const configService = this.moduleRef.get(ConfigService, { strict: false });
+    const topic = configService.get<string>('REMOVE_INVENTORY_TOPIC'); // Corrected to use REMOVE_INVENTORY_TOPIC
+    const schemaJsonString = configService.get<string>('REMOVE_INVENTORY_SCHEMA_JSON');
+
+    if (!topic) {
+      console.error('REMOVE_INVENTORY_TOPIC not found in config.');
+      return;
+    }
+
+    if (!schemaJsonString) {
+      console.error(`Schema JSON string not found in config for topic: ${topic}. Ensure REMOVE_INVENTORY_SCHEMA_JSON is set in the .env file.`);
+      return;
+    }
+
+    let parsedSchema;
+    try {
+      parsedSchema = JSON.parse(schemaJsonString);
+    } catch (error) {
+      console.error(`Error parsing schema JSON string for topic ${topic}:`, error, `Schema string: ${schemaJsonString}`);
+      return;
+    }
+
+    console.log(`Registering schema for topic ${topic}: ${JSON.stringify(parsedSchema)}`);
+    await deleteSchema(this.moduleRef, topic);
+    await registerSchema(this.moduleRef, topic, parsedSchema);
   }
 }

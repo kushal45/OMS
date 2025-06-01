@@ -5,15 +5,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { OrderRepository } from './repository/order.repository';
 import { Order, OrderStatus } from './entity/order.entity';
 import { AddressService } from '@lib/address/src';
 import { OrderRequestDto } from './dto/create-order-req';
 import { getOrderInfo } from './util/calculateOrderInfo';
 import { PercentageDeliveryChargeStrategy } from './strategy/percentage-delivercharge.strategy';
 import { DefaultOrderConfigService } from './util/orderConfig.service';
-import { OrderItemsRepository } from './repository/orderItems.repository';
-import { TransactionService } from '@app/utils/transaction.service';
 import { CreateOrderResponseDto } from './dto/create-order-res';
 import { OrderItems } from './entity/orderItems.entity';
 import { UpdateOrderDto } from './dto/update-order-req.dto';
@@ -84,7 +81,7 @@ export class OrderService {
       const kafkaProducer = this.serviceLocator.getModuleRef().get<KafkaProducer>("KafkaProducerInstance",{strict:false});
       const configService = this.serviceLocator.getModuleRef().get(ConfigService,{strict:false});
       const recordMetaData=await kafkaProducer.send(
-        configService.get<string>('INVENTORY_UPDATE_TOPIC'),
+        configService.get<string>('REMOVE_INVENTORY_TOPIC'),
          {
           key: 'order',
           value: orderItems,

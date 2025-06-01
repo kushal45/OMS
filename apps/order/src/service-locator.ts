@@ -6,6 +6,7 @@ import { TransactionService } from '@app/utils/transaction.service';
 import { ClientGrpc } from '@nestjs/microservices';
 import { LoggerService } from '@lib/logger/src';
 import { ModuleRef } from '@nestjs/core';
+import { KafkaProducer } from '@lib/kafka/KafkaProducer';
 
 @Injectable()
 export class ServiceLocator {
@@ -43,7 +44,12 @@ export class ServiceLocator {
     return this.loggerService;
   }
 
+  getKafkaProducer(): KafkaProducer {
+    return this.moduleRef.get<KafkaProducer>("KafkaProducerInstance",{strict:false});
+  }
+
   getModuleRef(): ModuleRef {
     return this.moduleRef;
   }
+
 }

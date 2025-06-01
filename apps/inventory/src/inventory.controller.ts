@@ -34,8 +34,8 @@ export class InventoryController {
 
   async onModuleInit() {
     // Ensure topic exists (admin client)
-    await this.kafkaAdminClient.createTopic(this.configService.get<string>('INVENTORY_UPDATE_TOPIC'));
-    await this.kafkaAdminClient.createTopic(this.configService.get<string>('INVENTORY_RESERVE_TOPIC') || 'reserveInventory');
+    await this.kafkaAdminClient.createTopic(this.configService.get<string>('REMOVE_INVENTORY_TOPIC') || 'removeInventory');
+    await this.kafkaAdminClient.createTopic(this.configService.get<string>('RESERVE_INVENTORY_TOPIC') || 'reserveInventory');
     // Add delay to allow topic propagation across brokers
     await new Promise(resolve => setTimeout(resolve, 3000)); // 3 seconds delay
     // Do NOT subscribe here! All subscriptions are now handled in the service for idempotency.

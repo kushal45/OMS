@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import { LoggerModule, LoggerService } from '@lib/logger/src';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { typeOrmAsyncConfig } from '../../config/typeorm.config';
 import { APP_INTERCEPTOR, ModuleRef } from '@nestjs/core';
 import { KafkaProducer } from '@lib/kafka/KafkaProducer';
 import { ClientsModule, Transport } from '@nestjs/microservices';
@@ -12,13 +13,14 @@ import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
 import { TransactionService } from '@app/utils/transaction.service';
 import { Cart } from './entity/cart.entity';
 import { CartItem } from './entity/cart-item.entity';
-import { CartRepository } from './repository/cart.repository';
+import { CartDataService } from './repository/cart-data.repository';
 import { CartItemRepository } from './repository/cart-item.repository';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
 import { OutboxEvent } from './entity/outbox-event.entity';
 import { OutboxWorkerService } from './outbox/outbox-worker.service';
 import { OutboxAdminService } from './outbox/outbox-admin.service';
 import { OutboxAdminController } from './outbox/outbox-admin.controller';
+import { ServiceLocator } from './service.locator';
 
 @Module({
   imports: [
@@ -26,6 +28,13 @@ import { OutboxAdminController } from './outbox/outbox-admin.controller';
       envFilePath: path.resolve('apps/cart/.env'),
       isGlobal: true,
     }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) =>
+        typeOrmAsyncConfig.useFactory(configService),
+      inject: [ConfigService],
+    }),
+    TypeOrmModule.forFeature([Cart, CartItem, OutboxEvent]),
     ClientsModule.registerAsync([
       {
         name: 'INVENTORY_PACKAGE',
@@ -39,7 +48,7 @@ import { OutboxAdminController } from './outbox/outbox-admin.controller';
           },
         }),
         inject: [ConfigService],
-      },
+      },    
       { // Added Product Service Client
         name: 'PRODUCT_PACKAGE', // Injection token for Product Service
         imports: [ConfigModule],
@@ -55,22 +64,25 @@ import { OutboxAdminController } from './outbox/outbox-admin.controller';
       },
     ]),
     LoggerModule,
-    TypeOrmModule.forFeature([Cart, CartItem, OutboxEvent]),
-    ElasticsearchModule.registerAsync({ // Add if needed later
-      useFactory: (configService: ConfigService) => ({
-        node: configService.get<string>('ELASTICSEARCH_NODE', 'http://localhost:9200')
-      }),
+    ElasticsearchModule.registerAsync({
+      useFactory: (configService: ConfigService) => {
+        const nodeEnv = configService.get<string>('ELASTICSEARCH_NODE', 'http://localhost:9200');
+        const nodes = nodeEnv.includes(',') ? nodeEnv.split(',').map(url => url.trim()) : nodeEnv;
+        console.log('Elasticsearch nodes:', nodes);
+        return { node: nodes };
+      },
       inject: [ConfigService],
-    }),
+    })
   ],
   controllers: [CartController, OutboxAdminController],
   providers: [
     CartService,
-    CartRepository,
+    CartDataService,
     CartItemRepository,
     TransactionService,
     OutboxWorkerService,
     OutboxAdminService,
+    ServiceLocator,
     {
       provide: APP_INTERCEPTOR,
       useExisting: 'LoggerErrorInterceptor',
@@ -85,7 +97,7 @@ import { OutboxAdminController } from './outbox/outbox-admin.controller';
       ) => {
         const kafkaConfig = {
           clientId: configService.get<string>('CART_CLIENT_ID', 'cart-service'),
-          brokers: configService.get<string>('KAFKA_BROKERS', 'kafka:9092').split(','),
+          brokers: configService.get<string>('KAFKA_BROKERS').split(','),
         };
         return new KafkaProducer(kafkaConfig, moduleRef, logger);
       },
@@ -96,7 +108,7 @@ import { OutboxAdminController } from './outbox/outbox-admin.controller';
       useFactory: (moduleRef: ModuleRef, configService: ConfigService, logger: LoggerService) => {
         const kafkaConfig = {
           clientId: configService.get<string>('CART_CLIENT_ID', 'cart-service'),
-          brokers: configService.get<string>('KAFKA_BROKERS', 'kafka:9092').split(','),
+          brokers: configService.get<string>('KAFKA_BROKERS').split(','),
         };
         return new KafkaAdminClient(kafkaConfig, moduleRef, logger);
       },
