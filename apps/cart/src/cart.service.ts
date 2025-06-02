@@ -179,7 +179,7 @@ export class CartService {
             eventType: 'reserveInventory',
             payload: {
               userId,
-              productId: itemData.productId,
+              productId: parseInt(itemData.productId),
               quantity: itemData.quantity,
               traceId,
               processType: 'ADD_ITEM_TO_CART',
@@ -444,7 +444,8 @@ export class CartService {
   }
 
   async clearCart(userId: string, traceId: string): Promise<void> {
-    this.serviceLocator
+    try {
+       this.serviceLocator
       .getLoggerService()
       .info(`[${traceId}] Clearing cart for user ID: ${userId}`, this.context);
     await this.serviceLocator
@@ -459,6 +460,26 @@ export class CartService {
 
         const cart = await cartRepo.findByUserId(userId);
         if (cart) {
+          // Fetch all items before deletion
+          const items = await cartItemRepo.findByCartId(cart.id);
+          const outboxRepo = entityManager.getRepository(OutboxEvent);
+          // Create an outbox event for each item to be released
+          for (const item of items) {
+            const outboxEvent = outboxRepo.create({
+              eventType: 'releaseInventory',
+              payload: {
+                userId,
+                cartItemId: item.id,
+                productId: item.productId,
+                quantity: item.quantity,
+                traceId,
+                processType: 'CLEAR_CART',
+                timestamp: new Date().toISOString(),
+              },
+              status: OutboxEventStatus.PENDING,
+            });
+            await outboxRepo.save(outboxEvent);
+          }
           await cartItemRepo.deleteByCartId(cart.id);
           cart.subTotal = 0;
           cart.grandTotal = 0;
@@ -467,13 +488,23 @@ export class CartService {
           cart.taxTotal = 0;
           // Optionally change cart status to ABANDONED or delete it
           cart.status = CartStatus.ABANDONED;
-          await cartRepo.update(cart.id, cart);
+          // Only update scalar fields, do not include 'items' (one-to-many relation)
+          await cartRepo.update(cart.id, {
+            subTotal: cart.subTotal,
+            grandTotal: cart.grandTotal,
+            totalItems: cart.totalItems,
+            discountTotal: cart.discountTotal,
+            taxTotal: cart.taxTotal,
+            status: cart.status,
+            // Do NOT include: items: []
+          });
           this.serviceLocator
             .getLoggerService()
             .info(
               `[${traceId}] Cart cleared for user ID: ${userId}`,
               this.context,
             );
+          return true;
         } else {
           this.serviceLocator
             .getLoggerService()
@@ -481,8 +512,21 @@ export class CartService {
               `[${traceId}] No active cart to clear for user ID: ${userId}`,
               this.context,
             );
+          return false; // No cart to clear
         }
       });
+    } catch (error) {
+      this.serviceLocator
+        .getLoggerService()
+        .error(
+          `[${traceId}] Error clearing cart for user ID: ${userId}: ${error.message}`,
+          error.stack,
+          this.context,
+        );
+      throw new InternalServerErrorException(
+        `Failed to clear cart for user ID ${userId}: ${error.message}`,
+      );
+    }
   }
 
   private async fetchProductPrice(
