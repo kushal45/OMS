@@ -21,11 +21,12 @@ export class ReleaseInventoryHandler {
       // Build the ReleaseInventoryReq expected by releaseInventory
       const req = {
         userId: message.userId,
+        type: message.type || 'place-order',
         itemsToRelease: [
           {
             productId: message.productId,
             quantity: message.quantity,
-            price: message.price ?? 0, // Default to 0 if not present
+            price: message.price ?? 0,
           },
         ],
         traceId: message.traceId,

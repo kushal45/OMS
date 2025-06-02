@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package cart;
+
+service CartService {
+  rpc getActiveCartByUserId(GetActiveCartByUserIdRequest) returns (CartResponseDto);
+  rpc clearCartByUserId(ClearCartByUserIdRequest) returns (ClearCartByUserIdResponse);
+}
+
+message GetActiveCartByUserIdRequest {
+  string userId = 1;
+}
+
+message CartItemDto {
+  string id = 1;
+  string productId = 2;
+  int32 quantity = 3;
+  double price = 4;
+}
+
+message CartResponseDto {
+  string id = 1;
+  string userId = 2;
+  repeated CartItemDto items = 3;
+  double subTotal = 4;
+  int32 totalItems = 5;
+  double discount = 6;
+  double tax = 7;
+  double grandTotal = 8;
+  string updatedAt = 9;
+}
+
+message ClearCartByUserIdRequest {
+  string userId = 1;
+}
+
+message ClearCartByUserIdResponse {
+  bool success = 1;
+  string message = 2;
+}

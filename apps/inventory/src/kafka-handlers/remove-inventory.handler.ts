@@ -47,19 +47,28 @@ export class RemoveInventoryHandler implements IMessageHandler {
         const repo = this.inventoryRepository.getRepository(entityManager);
         const inventory = await repo.findByProductId(productId);
         if (!inventory) {
-          this.logger.error(`No inventory found for productId ${productId}`, this.loggerContext);
-          return;
+          const errorMessage = `No inventory found for productId ${productId}`;
+          this.logger.error(errorMessage, this.loggerContext);
+          throw new Error(errorMessage);
+        }
+        if(quantityToRemove <= 0) {
+          const errorMessage = `Invalid quantity to remove: ${quantityToRemove}. Must be greater than 0.`;
+          this.logger.error(errorMessage, this.loggerContext);
+          throw new Error(errorMessage);
         }
         if (inventory.quantity < quantityToRemove) {
-          this.logger.error(`Not enough inventory to remove for productId ${productId}. Requested: ${quantityToRemove}, Available: ${inventory.quantity}`, this.loggerContext);
-          return;
+          const errorMessage = `Not enough inventory to remove for productId ${productId}. Requested: ${quantityToRemove}, Available: ${inventory.quantity}`;
+          this.logger.error(errorMessage, this.loggerContext);
+          throw new Error(errorMessage);
         }
+      
         inventory.quantity -= quantityToRemove;
         await repo.update(inventory.id, inventory);
         this.logger.info(`Removed ${quantityToRemove} from inventory for productId ${productId}. New quantity: ${inventory.quantity}`, this.loggerContext);
       });
     } catch (err) {
       this.logger.error(`Error processing remove inventory Kafka event: ${err.message}`, err.stack, this.loggerContext);
+      throw err;
     }
   }
 }

@@ -25,15 +25,32 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
       envFilePath: path.resolve('apps/order/.env'), // Loads the .env file specific to this microservice
       isGlobal: true, // Makes the environment variables available globally
     }),
-    ClientsModule.register([
+    ClientsModule.registerAsync([
       {
         name: 'INVENTORY_PACKAGE',
-        transport: Transport.GRPC,
-        options: {
-          package: 'INVENTORY_PACKAGE',
-          protoPath: path.resolve('apps/inventory/src/proto/inventory.proto'),
-          url: `inventory:5002`,
-        },
+        imports: [ConfigModule],
+        useFactory: (configService: ConfigService) => ({
+          transport: Transport.GRPC,
+          options: {
+            package: 'INVENTORY_PACKAGE', // Matches package in inventory.proto
+            protoPath: path.resolve('apps/inventory/src/proto/inventory.proto'),
+            url: configService.get<string>('INVENTORY_SERVICE_GRPC_URL', 'inventory:5002'),
+          },
+        }),
+        inject: [ConfigService],
+      },
+      {
+        name: 'CART_PACKAGE',
+        imports: [ConfigModule], // Import ConfigModule to use ConfigService
+        useFactory: (configService: ConfigService) => ({
+          transport: Transport.GRPC,
+          options: {
+            package: 'cart', // Matches package in cart.proto
+            protoPath: path.resolve('apps/cart/src/proto/cart.proto'),
+            url: configService.get<string>('CART_SERVICE_GRPC_URL', 'cart:5005'), // Use env var, default to 5005
+          },
+        }),
+        inject: [ConfigService], // Inject ConfigService
       },
     ]),
     AddressModule,

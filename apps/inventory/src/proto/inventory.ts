@@ -60,6 +60,7 @@ export interface ReserveInventoryRes {
 
 export interface ReleaseInventoryReq {
   userId: string;
+  type:"place-order"| "clear-cart";
   itemsToRelease: OrderItem[];
 }
 
@@ -650,7 +651,7 @@ export const ReserveInventoryRes: MessageFns<ReserveInventoryRes> = {
 };
 
 function createBaseReleaseInventoryReq(): ReleaseInventoryReq {
-  return { userId: "", itemsToRelease: [] };
+  return { userId: "", type: "place-order", itemsToRelease: [] };
 }
 
 export const ReleaseInventoryReq: MessageFns<ReleaseInventoryReq> = {
@@ -658,8 +659,11 @@ export const ReleaseInventoryReq: MessageFns<ReleaseInventoryReq> = {
     if (message.userId !== "") {
       writer.uint32(10).string(message.userId);
     }
+    if (message.type !== "place-order") {
+      writer.uint32(18).string(message.type);
+    }
     for (const v of message.itemsToRelease) {
-      OrderItem.encode(v!, writer.uint32(18).fork()).join();
+      OrderItem.encode(v!, writer.uint32(26).fork()).join();
     }
     return writer;
   },
@@ -699,6 +703,7 @@ export const ReleaseInventoryReq: MessageFns<ReleaseInventoryReq> = {
   fromJSON(object: any): ReleaseInventoryReq {
     return {
       userId: isSet(object.userId) ? globalThis.String(object.userId) : "",
+      type: isSet(object.type) ? object.type : "place-order",
       itemsToRelease: globalThis.Array.isArray(object?.itemsToRelease)
         ? object.itemsToRelease.map((e: any) => OrderItem.fromJSON(e))
         : [],
@@ -709,6 +714,9 @@ export const ReleaseInventoryReq: MessageFns<ReleaseInventoryReq> = {
     const obj: any = {};
     if (message.userId !== "") {
       obj.userId = message.userId;
+    }
+    if (message.type !== "place-order") {
+      obj.type = message.type;
     }
     if (message.itemsToRelease?.length) {
       obj.itemsToRelease = message.itemsToRelease.map((e) => OrderItem.toJSON(e));

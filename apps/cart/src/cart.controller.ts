@@ -27,6 +27,7 @@ import { ResponseUtil } from '@app/utils/response.util';
 import { ModuleRef } from '@nestjs/core';
 import { registerSchema, deleteSchema } from '@app/utils/SchemaRegistry';
 import { ConfigService } from '@nestjs/config';
+import { GrpcMethod } from '@nestjs/microservices';
 
 @ApiTags('cart')
 @ApiSecurity('api-key')
@@ -68,7 +69,7 @@ export class CartController {
     @Req() req,
   ) {
     const traceId = req.headers['x-correlation-id'] || 'default-trace-id';
-    const cart = await this.cartService.getCartByUserId(userId, traceId);
+    const cart = await this.cartService.getCartByUserIdHttp(userId, traceId); // Changed to getCartByUserIdHttp
     ResponseUtil.success({
       response,
       message: 'Cart fetched successfully.',
@@ -202,12 +203,38 @@ export class CartController {
     @Req() req,
   ) {
     const traceId = req.headers['x-correlation-id'] || 'default-trace-id';
-    await this.cartService.clearCart(userId, traceId);
+    const type = 'clear-cart';
+    await this.cartService.clearCart(userId, traceId, type);
     ResponseUtil.success({
       response,
       message: 'Cart cleared successfully.',
       statusCode: HttpStatus.NO_CONTENT,
     });
+  }
+
+  // gRPC method to fetch active cart and its items for a user
+  @GrpcMethod('CartService', 'getActiveCartByUserId')
+  async getActiveCartByUserIdGrpc(
+    data: { userId: string },
+    _metadata?: any,
+  ): Promise<CartResponseDto | null> {
+    const cart = await this.cartService.getActiveCartByUserId(data); // Calls the gRPC handler in service
+    return cart;
+  }
+
+  // gRPC method to clear cart by userId
+  @GrpcMethod('CartService', 'clearCartByUserId')
+  async clearCartByUserIdGrpc(
+    data: { userId: string },
+    _metadata?: any,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const type= 'place-order';
+      await this.cartService.clearCart(data.userId, `grpc-clearCart-${Date.now()}-${data.userId}`,type);
+      return { success: true, message: 'Cart cleared successfully.' };
+    } catch (error) {
+      return { success: false, message: error?.message || 'Failed to clear cart.' };
+    }
   }
 
   async onModuleInit() {

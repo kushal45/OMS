@@ -11,6 +11,7 @@ import {
   Res,
   NotAcceptableException,
   Inject,
+  OnModuleInit,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { Order } from './entity/order.entity';
@@ -32,13 +33,18 @@ import { UpdateOrderDto } from './dto/update-order-req.dto';
 import { deleteSchema, registerSchema } from '@app/utils/SchemaRegistry';
 import { ModuleRef } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import { ClientGrpc } from '@nestjs/microservices';
+import { firstValueFrom } from 'rxjs';
 
 @ApiTags('order')
 @ApiSecurity('api-key')
 @Controller('order')
-export class OrderController {
+export class OrderController implements OnModuleInit {
+  private cartServiceGrpc: any;
+
   constructor(
     private readonly orderService: OrderService,
+    @Inject('CART_PACKAGE') private readonly cartClient: ClientGrpc,
     private readonly moduleRef: ModuleRef,
   ) {}
 
@@ -225,6 +231,12 @@ export class OrderController {
       message: 'Order deleted successfully.',
       statusCode: HttpStatus.NO_CONTENT,
     });
+  }
+
+  @Get('user/:userId/cart')
+  async getUserCartViaGrpc(@Param('userId') userId: string) {
+    // Example endpoint to fetch cart via gRPC
+    return firstValueFrom(this.cartServiceGrpc.getActiveCartByUserId({ userId }));
   }
 
   async onModuleInit() {

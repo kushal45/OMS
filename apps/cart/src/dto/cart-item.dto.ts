@@ -23,10 +23,10 @@ export class CartItemDto {
 }
 
 export class AddItemToCartDto {
-  @ApiProperty({ description: 'The product ID to add', example: 'product-uuid-456' })
-  @IsString()
+  @ApiProperty({ description: 'The product ID to add', example: 456 })
+  @IsInt()
   @IsNotEmpty()
-  productId: string;
+  productId: number;
 
   @ApiProperty({ description: 'The quantity to add', example: 1, minimum: 1, maximum: 100 })
   @IsInt()

@@ -16,7 +16,7 @@ export class CartResponseDto {
 
   @ApiProperty({ type: () => [CartItemDto], description: 'The list of items in the cart' })
   @IsArray()
-  @ValidateNested({ each: true })
+  //@ValidateNested({ each: true })
   @Type(() => CartItemDto)
   items: CartItemDto[];
 

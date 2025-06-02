@@ -18,8 +18,10 @@ import { ClientGrpc } from '@nestjs/microservices';
 import { OrderQueryInterface } from './interfaces/order-query-interface';
 import { firstValueFrom, Observable } from 'rxjs';
 import { ServiceLocator } from './service-locator';
-import { KafkaProducer } from '@lib/kafka/KafkaProducer';
+// import { KafkaProducer } from '@lib/kafka/KafkaProducer'; // No longer directly used here
 import { ConfigService } from '@nestjs/config';
+import { OutboxEvent, OutboxEventStatus } from '../../cart/src/entity/outbox-event.entity';
+import type { CartResponseDto__Output } from '../../cart/src/proto/cart/CartResponseDto';
 
 interface InventoryService {
   validate(
@@ -27,14 +29,46 @@ interface InventoryService {
   ): Observable<OrderQueryInterface.ValidateOrderItemsResponse>;
 }
 
+// DTOs for Cart Service gRPC call
+interface CartItemDto {
+  id: string;
+  productId: string;
+  quantity: number;
+  price: number;
+}
+
+interface CartResponseDto {
+  id: string;
+  userId: string;
+  items: CartItemDto[];
+  subTotal: number;
+  totalItems: number;
+  discount?: number;
+  tax?: number;
+  grandTotal: number;
+  updatedAt?: string;
+}
+
+interface CartServiceGrpc {
+  getActiveCartByUserId(data: { userId: string }): Observable<CartResponseDto__Output>;
+  clearCartByUserId(data: { userId: string }): Observable<{ success: boolean; message: string }>;
+}
+
 @Injectable()
 export class OrderService {
   private context = OrderService.name;
+  private cartServiceGrpc: CartServiceGrpc;
   constructor(
     private readonly serviceLocator: ServiceLocator, // Will be gradually phased out if this approach is continued
     private readonly orderConfigService: DefaultOrderConfigService,
     private readonly addressService: AddressService, // Inject AddressService
+    @Inject('CART_PACKAGE') private readonly cartClient: ClientGrpc,
+    private readonly configService: ConfigService, // Injected ConfigService
   ) {}
+
+  onModuleInit() {
+    this.cartServiceGrpc = this.cartClient.getService<CartServiceGrpc>('CartService');
+  }
 
   async createOrder(
     order: OrderRequestDto,
@@ -42,53 +76,95 @@ export class OrderService {
     traceId: string, // Assuming traceId is passed for logging purposes
   ): Promise<CreateOrderResponseDto> {
     try {
-      const { addressId, orderItems } = order;
-      const isValid = await this.addressService.isValidAddress( // Use injected addressService
+      const { addressId } = order;
+      const isValid = await this.addressService.isValidAddress(
         userId,
         addressId,
       );
       if (!isValid) throw new BadRequestException('Address not valid');
-      await this.validateOrder(orderItems);      
+
+      // Fetch active cart and build orderItems
+      const cart: CartResponseDto__Output = await firstValueFrom(
+        this.cartServiceGrpc.getActiveCartByUserId({ userId: userId.toString() }),
+      );
+      console.log(`[${traceId}] Received cart object in OrderService:`, JSON.stringify(cart, null, 2)); // Log the received cart object
+
+      if (!cart || !cart.items || cart.items.length === 0) {
+        throw new BadRequestException('Active cart is empty or not found.');
+      }
+
+      const orderItems: OrderQueryInterface.OrderItemInput[] = cart.items.map(
+        (item) => ({
+          productId: parseInt(item.productId, 10),
+          quantity: item.quantity,
+          price: item.price,
+        }),
+      );
+
+      await this.validateOrder(orderItems);
       let orderResponse: Order;
       const percentageDeliveryChargeStrategy =
         new PercentageDeliveryChargeStrategy();
-      const config = this.orderConfigService.getOrderConfig(); // Use injected service
+      const orderCreationConfig = this.orderConfigService.getOrderConfig(); // Use injected service
       await this.serviceLocator.getTransactionService().executeInTransaction(
         async (entityManager) => {
           const totalOrderAmtInfo = getOrderInfo(
             orderItems,
-            config,
+            orderCreationConfig,
             percentageDeliveryChargeStrategy,
           );
           const orderRepo =
             this.serviceLocator.getOrderRepository().getRepository(entityManager);
           const orderItemsRepo =
             this.serviceLocator.getOrderItemsRepository().getRepository(entityManager);
+
           orderResponse = await orderRepo.create({
             ...totalOrderAmtInfo,
             addressId,
             userId,
           });
-          const orderItemsToSave = await orderItemsRepo.createMany({
+
+          const savedItemsCount = await orderItemsRepo.createMany({
             orderId: orderResponse.id,
             orderItems: orderItems,
           });
-          // TODO: Consider the implications if orderItemsToSave !== orderItems.length
-          // For now, we assume the transaction will roll back on error in createMany
-          return orderItemsToSave === orderItems.length;
+
+          if (savedItemsCount !== orderItems.length) {
+            // This case should ideally lead to transaction rollback
+            throw new UnprocessableEntityException('Failed to save all order items.');
+          }
+
+         
+
+          // Fire-and-forget: clear cart via gRPC asynchronously (do not await)
+          (async () => {
+            try {
+              const clearCartResult = await firstValueFrom(
+                this.cartServiceGrpc.clearCartByUserId({ userId: userId.toString() })
+              );
+              const logger = this.serviceLocator.getLoggerService();
+              logger.info(
+                `CartService.clearCartByUserId gRPC result: ${JSON.stringify(clearCartResult)}`,
+                traceId,
+              );
+            } catch (err) {
+              const logger = this.serviceLocator.getLoggerService();
+              logger.error(
+                `Failed to clear cart via gRPC after order creation: ${err?.message || err}`,
+                traceId,
+              );
+            }
+          })();
+
+          return true; // Indicate success for transaction
         },
       );
-      const kafkaProducer = this.serviceLocator.getModuleRef().get<KafkaProducer>("KafkaProducerInstance",{strict:false});
-      const configService = this.serviceLocator.getModuleRef().get(ConfigService,{strict:false});
-      const recordMetaData=await kafkaProducer.send(
-        configService.get<string>('REMOVE_INVENTORY_TOPIC'),
-         {
-          key: 'order',
-          value: orderItems,
-        }
-      ); 
+
       const logger = this.serviceLocator.getLoggerService();
-      logger.info(`Kafka record metadata: ${JSON.stringify(recordMetaData)}`, traceId);
+      logger.info(
+        `Order ${orderResponse.aliasId} created successfully. Outbox event for inventory removal queued.`,
+        traceId,
+      );
       return this.filterOrderResponse(orderResponse);
     } catch (error) {
       throw error;
@@ -241,5 +317,10 @@ export class OrderService {
     });
     if (!order) throw new NotFoundException('Order not found');
     return await this.serviceLocator.getOrderRepository().delete(id);
+  }
+
+  async fetchActiveCartForUser(userId: string): Promise<any> {
+    // Optionally type as CartResponseDto
+    return firstValueFrom(this.cartServiceGrpc.getActiveCartByUserId({ userId }));
   }
 }

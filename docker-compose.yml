@@ -424,6 +424,7 @@ services:
     ports:
       - "3005:3005"
       - "9234:9229" # Debug port for cart (host:container)
+      - "5005:5005" # gRPC port for cart
     environment:
       - NODE_ENV=development
       - DATABASE_HOST=postgres

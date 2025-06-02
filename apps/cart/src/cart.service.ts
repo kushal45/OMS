@@ -5,7 +5,7 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { ClientGrpc, RpcException } from '@nestjs/microservices'; // Added RpcException
+import { ClientGrpc, RpcException } from '@nestjs/microservices'; // Added RpcException and GrpcMethod
 import { ServiceLocator } from './service.locator'; // Import ServiceLocator from local file
 import { firstValueFrom, Observable, catchError, throwError } from 'rxjs'; // Added catchError, throwError
 import { Cart, CartStatus } from './entity/cart.entity';
@@ -104,13 +104,56 @@ export class CartService {
     }
   }
 
-  async getCartByUserId(
+
+  async getActiveCartByUserId( // Renamed for clarity if needed, or keep as getCartByUserId
+    data: { userId: string }, // Input from gRPC call
+    // metadata?: any, // Optional gRPC metadata
+    // callOptions?: any, // Optional gRPC call options
+  ): Promise<CartResponseDto> {
+    const { userId } = data;
+    // Assuming traceId might come from metadata or be generated
+    const traceId = `grpc-getActiveCart-${Date.now()}-${userId}`; // Placeholder for traceId
+    this.serviceLocator
+      .getLoggerService()
+      .info(`[${traceId}] gRPC: Fetching active cart for user ID: ${userId}`, this.context);
+    try {
+      const cart = await this.serviceLocator
+        .getCartDataService()
+        .findByUserId(userId);
+      if (!cart) {
+        this.serviceLocator
+          .getLoggerService()
+          .info(
+            `[${traceId}] gRPC: No cart found for user ID: ${userId}, creating a new one.`,
+            this.context,
+          );
+        const newCart = await this.serviceLocator
+          .getCartDataService()
+          .create({ userId, status: CartStatus.ACTIVE }); // Ensure status is set
+        return this.mapCartToResponseDto(newCart);
+      }
+      return this.mapCartToResponseDto(cart);
+    } catch (error) {
+      this.serviceLocator
+        .getLoggerService()
+        .error(
+          `[${traceId}] gRPC: Error fetching cart for user ID ${userId}: ${error.message}`,
+          error.stack,
+          this.context,
+        );
+      // Consider mapping to gRPC specific errors if needed
+      throw new RpcException(`Failed to fetch cart: ${error.message}`);
+    }
+  }
+
+  // Existing HTTP-triggered method (can co-exist or be refactored)
+  async getCartByUserIdHttp( // Renamed to avoid conflict if keeping separate logic
     userId: string,
     traceId?: string,
   ): Promise<CartResponseDto> {
     this.serviceLocator
       .getLoggerService()
-      .info(`[${traceId}] Fetching cart for user ID: ${userId}`, this.context);
+      .info(`[${traceId}] HTTP: Fetching cart for user ID: ${userId}`, this.context);
     const cart = await this.serviceLocator
       .getCartDataService()
       .findByUserId(userId);
@@ -118,13 +161,12 @@ export class CartService {
       this.serviceLocator
         .getLoggerService()
         .info(
-          `[${traceId}] No cart found for user ID: ${userId}, creating a new one.`,
+          `[${traceId}] HTTP: No cart found for user ID: ${userId}, creating a new one.`,
           this.context,
         );
-      // Create a new cart if one doesn't exist
       const newCart = await this.serviceLocator
         .getCartDataService()
-        .create({ userId });
+        .create({ userId, status: CartStatus.ACTIVE });
       return this.mapCartToResponseDto(newCart);
     }
     return this.mapCartToResponseDto(cart);
@@ -145,7 +187,7 @@ export class CartService {
 
       // Fetch product price from Product/Inventory service
       const productPrice = await this.fetchProductPrice(
-        itemData.productId,
+        itemData.productId.toString(),
         traceId,
       );
       if (productPrice === null) {
@@ -156,7 +198,7 @@ export class CartService {
 
       // Validate with Inventory Service (synchronous check)
       await this.validateCartItems(
-        [{ productId: itemData.productId, quantity: itemData.quantity }],
+        [{ productId: itemData.productId.toString(), quantity: itemData.quantity }],
         traceId,
       );
 
@@ -179,7 +221,7 @@ export class CartService {
             eventType: 'reserveInventory',
             payload: {
               userId,
-              productId: parseInt(itemData.productId),
+              productId: itemData.productId,
               quantity: itemData.quantity,
               traceId,
               processType: 'ADD_ITEM_TO_CART',
@@ -214,7 +256,7 @@ export class CartService {
     traceId,
   }: {
     entityManager: EntityManager;
-    productId: string;
+    productId: number;
     quantity: number;
     productPrice: number;
     itemData: AddItemToCartDto;
@@ -252,7 +294,7 @@ export class CartService {
     // Use custom cartItemRepo methods (findByCartIdAndProductId, create, update, delete)
     let cartItem = await cartItemRepo.findByCartIdAndProductId(
       cart.id,
-      itemData.productId,
+      itemData.productId.toString(),
     );
     if (cartItem) {
       cartItem.quantity += itemData.quantity;
@@ -271,7 +313,7 @@ export class CartService {
       // Do not include lineTotal in input, repository will calculate it
       cartItem = await cartItemRepo.create({
         cartId: cart.id,
-        productId: itemData.productId,
+        productId: itemData.productId.toString(),
         quantity: itemData.quantity,
         price: productPrice,
       });
@@ -443,7 +485,7 @@ export class CartService {
       });
   }
 
-  async clearCart(userId: string, traceId: string): Promise<void> {
+  async clearCart(userId: string, traceId: string, type: string): Promise<void> {
     try {
        this.serviceLocator
       .getLoggerService()
@@ -469,6 +511,7 @@ export class CartService {
               eventType: 'releaseInventory',
               payload: {
                 userId,
+                type,
                 cartItemId: item.id,
                 productId: item.productId,
                 quantity: item.quantity,
@@ -691,7 +734,8 @@ export class CartService {
           productId: item.productId,
           quantity: item.quantity,
           price: item.price,
-          // id: item.id // if you want to expose cartItem id
+          id: item.id,
+          lineTotal: item.lineTotal,
         }))
       : [];
 

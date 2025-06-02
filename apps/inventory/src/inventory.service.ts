@@ -237,9 +237,11 @@ export class InventoryService implements OnModuleInit {
               currentStatus.currentStock = inventory.quantity; // Current available stock
               overallSuccess = false;
             } else {
-              inventory.quantity += item.quantity; // Add back to available
+              if(req.type =="clear-cart"){
+                 inventory.quantity += item.quantity; // Add back to available
+                 inventory.status = QueryInput.InventoryStatus.IN_STOCK; // Should always be in stock if adding back
+              }
               inventory.reservedQuantity -= item.quantity;
-              inventory.status = QueryInput.InventoryStatus.IN_STOCK; // Should always be in stock if adding back
               await transactionalInventoryRepo.update(inventory.id, inventory); // Use repository's update method
               currentStatus.released = true;
               currentStatus.currentStock = inventory.quantity;
