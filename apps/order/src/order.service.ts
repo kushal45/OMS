@@ -337,7 +337,7 @@ export class OrderService {
         } else {
           // Prepare the outbox event payload
           const payload = orderItems.map(item => ({
-            eventType: 'ORDER_ITEMS_TO_REPLENISH',
+            processType: 'ORDER_ITEMS_TO_REPLENISH',
             productId: item.productId,
             quantity: item.quantity,
           }));
