@@ -14,7 +14,7 @@ export class CreateCartItemsTable20250601000000 implements MigrationInterface {
           },
           {
             name: 'cartId',
-            type: 'int', // changed from 'uuid' to 'int' to match carts.id
+            type: 'int', 
             isNullable: false,
           },
           {

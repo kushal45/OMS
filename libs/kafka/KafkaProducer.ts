@@ -10,6 +10,7 @@ export class KafkaProducer {
   private kafka: Kafka;
   private context: string = 'KafkaProducer';
   private schemaRegistry: SchemaRegistry;
+  private isConnected = false;
 
   constructor(
     config: KafkaConfig,
@@ -19,36 +20,13 @@ export class KafkaProducer {
     const configService = this.moduleRef.get(ConfigService, { strict: false });
     const schemaRegistryUrl = configService.get<string>('SCHEMA_REGISTRY_URL');
     this.kafka = new Kafka(config);
-    this.producer = this.kafka.producer({
-      idempotent: true,
-    });
+    this.producer = this.kafka.producer({ idempotent: true });
     this.schemaRegistry = new SchemaRegistry({
       host: schemaRegistryUrl,
-      retry: { retries: 5 }, // Retries for schema registry operations
+      retry: { retries: 5 },
     });
-
-    this.producer.on('producer.connect', (data) => {
-      console.info(`Kafka Producer connected with data: ${JSON.stringify(data)}`);
-      this.logger.info('Kafka Producer connected', this.context);
-    });
-    this.producer.on('producer.disconnect', () => {
-      this.logger.info('Kafka Producer disconnected', this.context);
-    });
-    this.producer.on('producer.network.request_timeout', (event) => {
-      this.logger.error(
-        JSON.stringify({
-          message: `Kafka Producer: Request Timeout`,
-          errorDetails: event.payload, // Log the entire payload for context
-        }),
-        this.context,
-      );
-    });
-    // Connect the producer when the KafkaProducer instance is created
-    this.producer.connect().catch(err => {
-      this.logger.error(`Kafka Producer: Failed to connect - ${err.message}`, this.context);
-      // Depending on the application, you might want to throw this error
-      // or implement a retry mechanism for the initial connection.
-    });
+    // Remove eager connect here
+    // this.producer.connect().catch(...)
   }
 
   async send(
@@ -86,6 +64,17 @@ export class KafkaProducer {
       })
     );
     try {
+      if (!this.isConnected) {
+        this.logger.info('KafkaProducer: Attempting to connect to broker...', this.context);
+        const connectPromise = this.producer.connect();
+        // Monitor for connection timeout (e.g., 10s)
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('KafkaProducer: Connection to broker timed out')), 10000)
+        );
+        await Promise.race([connectPromise, timeoutPromise]);
+        this.isConnected = true;
+        this.logger.info('KafkaProducer: Successfully connected to broker.', this.context);
+      }
       const recordMetaData = await this.producer.send({
         topic,
         acks: -1, // Wait for all in-sync replicas to acknowledge
@@ -126,6 +115,27 @@ export class KafkaProducer {
   }
 
   async disconnect(): Promise<void> {
-    await this.producer.disconnect();
+    if (this.isConnected) {
+      this.logger.info('KafkaProducer: Disconnecting from broker...', this.context);
+      try {
+        const disconnectPromise = this.producer.disconnect();
+        // Monitor for disconnect timeout (e.g., 10s)
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('KafkaProducer: Disconnect from broker timed out')), 10000)
+        );
+        await Promise.race([disconnectPromise, timeoutPromise]);
+        this.logger.info('KafkaProducer: Successfully disconnected from broker.', this.context);
+      } catch (error) {
+        this.logger.error(
+          JSON.stringify({
+            message: 'KafkaProducer: Error during disconnect',
+            error: error.message,
+            stack: error.stack,
+          }),
+          this.context,
+        );
+      }
+      this.isConnected = false;
+    }
   }
 }

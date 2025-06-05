@@ -8,7 +8,6 @@ import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
 import { KafkaConsumer } from '@lib/kafka/KafkaConsumer';
 import { GrpcMethod } from '@nestjs/microservices';
 import { LoggerService } from '@lib/logger/src';
-import { registerSchema } from '@app/utils/SchemaRegistry';
 import { ModuleRef } from '@nestjs/core';
 import { ValidateInventoryReq, ValidateInventoryRes, ReserveInventoryReq, ReserveInventoryRes, ReleaseInventoryReq, ReleaseInventoryRes } from './proto/inventory';
 
@@ -34,9 +33,9 @@ export class InventoryController {
 
   async onModuleInit() {
     // Ensure topic exists (admin client)
-    await this.kafkaAdminClient.createTopic(this.configService.get<string>('REMOVE_INVENTORY_TOPIC'));
     await this.kafkaAdminClient.createTopic(this.configService.get<string>('RESERVE_INVENTORY_TOPIC'));
     await this.kafkaAdminClient.createTopic(this.configService.get<string>('RELEASE_INVENTORY_TOPIC'));
+    await this.kafkaAdminClient.createTopic(this.configService.get<string>('REPLENISH_INVENTORY_TOPIC')); // New topic
     // Add delay to allow topic propagation across brokers
     await new Promise(resolve => setTimeout(resolve, 3000)); // 3 seconds delay
     // Do NOT subscribe here! All subscriptions are now handled in the service for idempotency.
@@ -93,7 +92,7 @@ export class InventoryController {
   }
 
   @Get(':productId') // Changed param name for clarity
-  @ApiParam({ name: 'productId', type: String, description: 'Product ID (UUID or string)' })
+  @ApiParam({ name: 'productId', type: String, description: 'Product ID (number)' })
   async getInventoryByProductId(@Param('productId') productId: string, @Res() response) {
     ResponseUtil.success({
       response,
@@ -104,7 +103,7 @@ export class InventoryController {
   }
 
   @Put(':productId') // Changed param name
-  @ApiParam({ name: 'productId', type: String, description: 'Product ID (UUID or string)' })
+  @ApiParam({ name: 'productId', type: String, description: 'Product ID (number)' })
   async updateInventory(@Param('productId') productId: string, @Body() inventory: Partial<Inventory>,@Res() response) {
     // This REST endpoint for update might need more thought.
     // The gRPC reserve/release are more specific.
@@ -121,7 +120,7 @@ export class InventoryController {
   }
 
   @Delete(':productId') // Changed param name
-  @ApiParam({ name: 'productId', type: String, description: 'Product ID (UUID or string)' })
+  @ApiParam({ name: 'productId', type: String, description: 'Product ID (number)' })
   async deleteInventory(@Param('productId') productId: string,@Res() response): Promise<void> {
     ResponseUtil.success({
       response,

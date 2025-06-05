@@ -4,7 +4,55 @@ import { ConfigService } from '@nestjs/config';
 import { ModuleRef } from '@nestjs/core';
 import axios from 'axios';
 
-export async function registerSchema(
+
+ export async function handleInventoryProcessTypeRegistration(
+    topic: string,
+    schemaJsonString: string,
+    moduleRef: ModuleRef,
+    processType: 'reserve' | 'release'| 'replenish' = 'reserve',
+  ) {
+    try {
+      console.log(`Registering schema for topic: ${topic}`);
+      await deleteSchema(moduleRef, topic);
+      if (!schemaJsonString) {
+        console.error(
+          `Schema JSON string not found in config for topic: ${topic}. Ensure  ${processType} json is set in the .env file.`,
+        );
+        // Potentially throw an error or handle as appropriate for your application
+        return;
+      }
+
+      let parsedSchema;
+      try {
+        parsedSchema = JSON.parse(schemaJsonString);
+      } catch (error) {
+        console.error(
+          `Error parsing schema JSON string for topic ${topic}:`,
+          error,
+          `Schema string: ${schemaJsonString}`,
+        );
+        // Potentially throw an error or handle as appropriate
+        return;
+      }
+
+      console.log(
+        `Schema definition for topic ${topic}: ${JSON.stringify(parsedSchema)}`,
+      );
+      await registerSchema(moduleRef, topic, parsedSchema);
+    } catch (error) {
+      console.error(
+        `Error during schema registration for topic ${topic}:`,
+        error,
+      );
+      // Depending on the desired behavior, you might want to:
+      // - Throw the error to stop the process (if it's critical)
+      // - Log and continue (current behavior)
+      // - Handle the error in a way that allows the application to recover
+      return;
+    }
+  }
+
+async function registerSchema(
   moduleRef: ModuleRef,
   topic: string,
   schemaDefinition: any,

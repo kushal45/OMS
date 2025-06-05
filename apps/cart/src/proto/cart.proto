@@ -12,15 +12,15 @@ message GetActiveCartByUserIdRequest {
 }
 
 message CartItemDto {
-  string id = 1;
-  string productId = 2;
+  int32 id = 1;
+  int32 productId = 2;
   int32 quantity = 3;
   double price = 4;
 }
 
 message CartResponseDto {
-  string id = 1;
-  string userId = 2;
+  int32 id = 1;
+  int32 userId = 2;
   repeated CartItemDto items = 3;
   double subTotal = 4;
   int32 totalItems = 5;
@@ -31,7 +31,7 @@ message CartResponseDto {
 }
 
 message ClearCartByUserIdRequest {
-  string userId = 1;
+  int32 userId = 1;
 }
 
 message ClearCartByUserIdResponse {

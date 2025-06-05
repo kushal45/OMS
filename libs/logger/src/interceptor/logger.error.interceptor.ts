@@ -33,14 +33,26 @@ export class LoggerErrorInterceptor implements NestInterceptor {
           console.log('response intercepted');
         },
         error: (err) => {
-          this.logger.error(`Error caught in interceptor: ${err.status}`, LoggerErrorInterceptor.name);
+          // Robust error extraction
+          const status =
+            err?.status ?? err?.statusCode ?? HttpStatus.INTERNAL_SERVER_ERROR;
+          const message = err?.message || 'Internal server error';
+          const stack =
+            err?.stack || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+
+          // Log full error details
+          this.logger.error(
+            `Error caught in interceptor: ${message}\nStatus: ${status}\nStack: ${stack}`,
+            LoggerErrorInterceptor.name,
+          );
           this.logError(req, err);
+
+          // Always send a proper error response
           ResponseUtil.error({
             response,
-            message: err.message,
-            error: err.message,
-            statusCode:
-              err.status ?? (HttpStatus.INTERNAL_SERVER_ERROR as HttpStatus),
+            message,
+            error: message,
+            statusCode: status,
           });
         },
       }),
@@ -62,14 +74,13 @@ export class LoggerErrorInterceptor implements NestInterceptor {
 
   private logError(req: any, error: any) {
     const logMessage = {
-      message: `Message: ${error.message}, Stack: ${error.stack}`,
+      message: `Message: ${error?.message || error} | Stack: ${error?.stack || ''}`,
       context: 'ExceptionHandler',
-      method: req.method,
-      url: req.url,
-      body: req.body,
+      method: req?.method,
+      url: req?.url,
+      body: req?.body,
+      error: typeof error === 'object' ? error : String(error),
     };
-
-    // Serialize logMessage.message to ensure it's plain text
-    this.logger.error(JSON.stringify(logMessage.message), 'intercept');
+    this.logger.error(JSON.stringify(logMessage), 'intercept');
   }
 }

@@ -90,6 +90,13 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
         const kafkaConfig = {
           clientId: configService.get<string>('ORDER_CLIENT_ID'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
+          retry: { // Add retry configuration
+            initialRetryTime: 300,
+            retries: 8,
+            maxRetryTime: 30000,
+            multiplier: 2,
+            factor: 0.2,
+          },
         };
         return new KafkaProducer(kafkaConfig, moduleRef, logger); // Pass loggerService
       },
@@ -101,6 +108,13 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
         const kafkaConfig = {
           clientId: configService.get<string>('ORDER_CLIENT_ID'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
+          retry: { // Add retry configuration for consistency
+            initialRetryTime: 300,
+            retries: 8,
+            maxRetryTime: 30000,
+            multiplier: 2,
+            factor: 0.2,
+          },
         };
         return new KafkaAdminClient(kafkaConfig, moduleRef, loggerService); // Pass loggerService
       },

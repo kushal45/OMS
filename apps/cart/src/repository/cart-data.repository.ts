@@ -5,7 +5,7 @@ import { Cart, CartStatus } from '../entity/cart.entity';
 
 // Define interfaces for input/output if they become complex
 export interface CreateCartInput {
-  userId: string;
+  userId: number;
   status?: CartStatus;
   // other fields like subTotal, grandTotal can be calculated or set default
 }
@@ -31,12 +31,12 @@ export class CartDataService {
     return new CartDataService(entityManager.getRepository(Cart));
   }
 
-  async findById(id: string, entityManager?: EntityManager): Promise<Cart | null> {
+  async findById(id: number, entityManager?: EntityManager): Promise<Cart | null> {
     const repository = entityManager ? entityManager.getRepository(Cart) : this.cartRepo;
     return repository.findOne({ where: { id }, relations: ['items'] });
   }
 
-  async findByUserId(userId: string, entityManager?: EntityManager): Promise<Cart | null> {
+  async findByUserId(userId: number, entityManager?: EntityManager): Promise<Cart | null> {
     const repository = entityManager ? entityManager.getRepository(Cart) : this.cartRepo;
     return repository.findOne({ where: { userId, status: CartStatus.ACTIVE }, relations: ['items'] });
   }
@@ -54,13 +54,13 @@ export class CartDataService {
     return repository.save(newCart);
   }
 
-  async update(id: string, input: UpdateCartInput, entityManager?: EntityManager): Promise<Cart | null> {
+  async update(id: number, input: UpdateCartInput, entityManager?: EntityManager): Promise<Cart | null> {
     const repository = entityManager ? entityManager.getRepository(Cart) : this.cartRepo;
     await repository.update(id, input);
     return this.findById(id, entityManager); // Fetch the updated cart with relations
   }
 
-  async delete(id: string, entityManager?: EntityManager): Promise<boolean> {
+  async delete(id: number, entityManager?: EntityManager): Promise<boolean> {
     const repository = entityManager ? entityManager.getRepository(Cart) : this.cartRepo;
     const result = await repository.delete(id);
     return result.affected > 0;

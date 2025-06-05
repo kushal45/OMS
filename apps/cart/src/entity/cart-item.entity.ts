@@ -4,19 +4,19 @@ import { Cart } from './cart.entity';
 @Entity('cart_items') // Explicitly naming the table
 @Index(['cart', 'productId'], { unique: true }) // Ensure a product appears only once per cart
 export class CartItem {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @ManyToOne(() => Cart, (cart) => cart.items, { onDelete: 'CASCADE' }) // If cart is deleted, its items are deleted
   @JoinColumn({ name: 'cartId' })
   cart: Cart;
 
-  @Column({ type: 'uuid' }) // Foreign key to Cart
-  cartId: string;
+  @Column({ type: 'int' }) // Foreign key to Cart
+  cartId: number;
 
   @Index() // Index productId for potential lookups if needed outside of cart context
   @Column({ type: 'varchar' }) // Assuming productId is a string (e.g., from an external product service)
-  productId: string;
+  productId: number;
 
   @Column('int')
   quantity: number;

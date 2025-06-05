@@ -10,12 +10,12 @@ export enum CartStatus {
 
 @Entity('carts') // Explicitly naming the table
 export class Cart {
-  @PrimaryGeneratedColumn('uuid') // Using UUID for cart ID
-  id: string;
+  @PrimaryGeneratedColumn() // Using UUID for cart ID
+  id: number;
 
   @Index() // Indexing userId for faster lookups
-  @Column({ type: 'uuid' }) // Assuming userId is a UUID from the auth service
-  userId: string;
+  @Column({ type: 'int' }) // Assuming userId is a number
+  userId: number;
 
   @Column({
     type: 'enum',

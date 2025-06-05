@@ -19,6 +19,7 @@ import { InventoryMonitoringController } from './monitoring/inventory-monitoring
 import { RemoveInventoryHandler } from './kafka-handlers/remove-inventory.handler'; // Import RemoveInventoryHandler
 import { ReserveInventoryHandler } from './kafka-handlers/reserve-inventory.handler';
 import { ReleaseInventoryHandler } from './kafka-handlers/release-inventory.handler';
+import { ReplenishInventoryHandler } from './kafka-handlers/replenish-inventory.handler'; // Import the new handler
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ReleaseInventoryHandler } from './kafka-handlers/release-inventory.hand
     RemoveInventoryHandler,
     ReserveInventoryHandler, // Ensure this handler is also provided
     ReleaseInventoryHandler, // Register the new handler
+    ReplenishInventoryHandler, // Provide the new handler
     {
       provide: APP_INTERCEPTOR,
       useExisting: 'LoggerErrorInterceptor', // Use the exported interceptor

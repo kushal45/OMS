@@ -16,8 +16,19 @@ export class KafkaAdminClient {
   ) {
     // create a single instance of KafkaAdminClient
     if (!KafkaAdminClient.kafkaAdminClient) {
-      const kafka = new Kafka(config);
-      KafkaAdminClient.kafkaAdminClient = kafka.admin();
+      // Enhance KafkaConfig with retry settings
+      const kafkaWithRetries = new Kafka({
+        ...config,
+        retry: {
+          initialRetryTime: 300, // Initial delay in ms
+          retries: 8, // Max number of retries
+          maxRetryTime: 30000, // Max delay between retries
+          multiplier: 2, // Exponential backoff
+          factor: 0.2, // Randomness factor
+          ...config.retry, // Allow overriding from incoming config if needed
+        },
+      });
+      KafkaAdminClient.kafkaAdminClient = kafkaWithRetries.admin();
     }
     this.logger = loggerService; // Use the injected loggerService
   }
@@ -46,6 +57,7 @@ export class KafkaAdminClient {
       if (!topics.includes(topicName) || topics.length === 0) {
         console.log(`Creating topic ${topicName}`);
         await this.retryCreateTopic(topicName);
+        await this.waitForLeaders(topicName); // Wait for leader election after topic creation
       }
     } catch (error) {
       this.logger.error(
@@ -153,6 +165,43 @@ export class KafkaAdminClient {
         `Failed to list partitions for topic ${topic}: ${error.message}`,
       );
     }
+  }
+
+  async waitForLeaders(topic: string, timeoutMs = 30000) { // Increased timeout to 30 seconds
+    const start = Date.now();
+    this.logger.info(`Waiting for leaders for topic ${topic} (timeout: ${timeoutMs}ms)...`, this.context);
+    while (Date.now() - start < timeoutMs) {
+      try {
+        // Log which broker the admin client is trying to connect to if possible (KafkaJS doesn't expose this easily)
+        // We can infer it if fetchTopicMetadata fails with a broker-specific error.
+        this.logger.debug(`Fetching metadata for topic ${topic} in waitForLeaders loop. Elapsed: ${Date.now() - start}ms`, this.context);
+        const metadata = await this.fetchTopicMetadata([topic]);
+        const topicMeta = metadata.find((t) => t.name === topic);
+        if (topicMeta && topicMeta.partitions.every((p) => p.leader !== -1 && p.isr.length > 0)) { // Added check for ISR > 0
+          this.logger.info(`All partitions for topic ${topic} have leaders and ISR count > 0. Partitions: ${JSON.stringify(topicMeta.partitions)}`, this.context);
+          return;
+        }
+        this.logger.debug(`Topic ${topic} still waiting for leaders or sufficient ISR. Current metadata: ${JSON.stringify(topicMeta?.partitions)}`, this.context);
+      } catch (error) {
+        this.logger.error(`Error fetching metadata in waitForLeaders for topic ${topic}: ${error.message}. Retrying...`, this.context);
+        // Continue loop on error, relying on the main timeout
+      }
+      await new Promise((res) => setTimeout(res, 1000)); // Increased retry interval
+    }
+    
+    let lastErrorMsg = 'Unknown error after timeout';
+    try {
+      const finalMetadataAttempt = await this.fetchTopicMetadata([topic]);
+      // If fetchTopicMetadata succeeded but leaders weren't found, log that.
+      // The actual check for leaders is inside the loop. This is just to get a final state.
+      this.logger.error(`Timeout waiting for leaders for topic ${topic}. Final metadata attempt: ${JSON.stringify(finalMetadataAttempt)}`, this.context);
+      // We can't easily get a specific "error" from a successful fetchTopicMetadata that simply shows no leaders.
+      // The error we're interested in is if fetchTopicMetadata itself failed.
+    } catch (e) {
+      lastErrorMsg = e.message || 'Failed to fetch final metadata';
+      this.logger.error(`Timeout waiting for leaders for topic ${topic}. Error during final metadata fetch: ${lastErrorMsg}`, this.context);
+    }
+    throw new Error(`Timeout waiting for leaders for topic ${topic}. Last known error: ${lastErrorMsg}`);
   }
 
   async close(): Promise<void> {

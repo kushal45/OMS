@@ -4,15 +4,14 @@ import { Type } from 'class-transformer';
 import { CartItemDto } from './cart-item.dto'; // Assuming CartItemDto is in the same directory
 
 export class CartResponseDto {
-  @ApiProperty({ description: 'The unique identifier for the cart (if persisted)', example: 'cart-uuid-789', required: false })
-  @IsUUID()
-  @IsOptional() // Cart might not have an ID if it's transient or user-session based initially
-  id?: string;
+  @ApiProperty({ description: 'The unique identifier for the cart (if persisted)', example: 789, required: false })
+  @IsNumber()
+  id: number;
 
-  @ApiProperty({ description: 'The user ID associated with this cart', example: 'user-uuid-abc' })
-  @IsString()
+  @ApiProperty({ description: 'The user ID associated with this cart', example: 123 })
+  @IsNumber()
   @IsNotEmpty()
-  userId: string;
+  userId: number;
 
   @ApiProperty({ type: () => [CartItemDto], description: 'The list of items in the cart' })
   @IsArray()

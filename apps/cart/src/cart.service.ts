@@ -21,7 +21,7 @@ import { OutboxEvent, OutboxEventStatus } from './entity/outbox-event.entity';
 // Interface for Inventory Service (similar to order service)
 interface InventoryService {
   validate(data: {
-    orderItems: { productId: string; quantity: number }[];
+    orderItems: { productId: number; quantity: number }[];
   }): Observable<{ success: boolean; invalidOrderItems?: any[] }>; // Define more specific types later
 }
 
@@ -61,7 +61,7 @@ export class CartService {
 
   // Validate items with Inventory Service
   private async validateCartItems(
-    items: { productId: string; quantity: number }[],
+    items: { productId: number; quantity: number }[],
     traceId: string,
   ): Promise<void> {
     this.serviceLocator
@@ -106,7 +106,7 @@ export class CartService {
 
 
   async getActiveCartByUserId( // Renamed for clarity if needed, or keep as getCartByUserId
-    data: { userId: string }, // Input from gRPC call
+    data: { userId: number }, // Input from gRPC call
     // metadata?: any, // Optional gRPC metadata
     // callOptions?: any, // Optional gRPC call options
   ): Promise<CartResponseDto> {
@@ -148,7 +148,7 @@ export class CartService {
 
   // Existing HTTP-triggered method (can co-exist or be refactored)
   async getCartByUserIdHttp( // Renamed to avoid conflict if keeping separate logic
-    userId: string,
+    userId: number,
     traceId?: string,
   ): Promise<CartResponseDto> {
     this.serviceLocator
@@ -173,7 +173,7 @@ export class CartService {
   }
 
   async addItemToCart(
-    userId: string,
+    userId: number,
     itemData: AddItemToCartDto,
     traceId: string,
   ): Promise<CartResponseDto> {
@@ -198,7 +198,7 @@ export class CartService {
 
       // Validate with Inventory Service (synchronous check)
       await this.validateCartItems(
-        [{ productId: itemData.productId.toString(), quantity: itemData.quantity }],
+        [{ productId: itemData.productId, quantity: itemData.quantity }],
         traceId,
       );
 
@@ -260,7 +260,7 @@ export class CartService {
     quantity: number;
     productPrice: number;
     itemData: AddItemToCartDto;
-    userId: string;
+    userId: number;
     traceId: string;
   }): Promise<Cart> {
     this.serviceLocator
@@ -294,7 +294,7 @@ export class CartService {
     // Use custom cartItemRepo methods (findByCartIdAndProductId, create, update, delete)
     let cartItem = await cartItemRepo.findByCartIdAndProductId(
       cart.id,
-      itemData.productId.toString(),
+      itemData.productId,
     );
     if (cartItem) {
       cartItem.quantity += itemData.quantity;
@@ -313,7 +313,7 @@ export class CartService {
       // Do not include lineTotal in input, repository will calculate it
       cartItem = await cartItemRepo.create({
         cartId: cart.id,
-        productId: itemData.productId.toString(),
+        productId: itemData.productId,
         quantity: itemData.quantity,
         price: productPrice,
       });
@@ -329,8 +329,8 @@ export class CartService {
   }
 
   async updateCartItem(
-    userId: string,
-    cartItemId: string, // Accept as string from controller
+    userId: number,
+    cartItemId: number, // Accept as number from controller
     updateData: UpdateCartItemDto,
     traceId: string,
   ): Promise<CartResponseDto> {
@@ -378,9 +378,12 @@ export class CartService {
           return this.mapCartToResponseDto(cart);
         }
         if (diffQuantity < 0) {
-          throw new BadRequestException(
-            `Cannot reduce quantity below zero for item ID: ${cartItemId}. Current: ${cartItem.quantity}, Requested: ${updateData.quantity}`,
-          );
+          // Allow reducing quantity, but not below 1
+          if (updateData.quantity < 1) {
+            throw new BadRequestException(
+              `Cannot reduce quantity below 1 for item ID: ${cartItemId}. Current: ${cartItem.quantity}, Requested: ${updateData.quantity}`,
+            );
+          }
         }
 
         await this.validateCartItems(
@@ -404,7 +407,7 @@ export class CartService {
             userId,
             cartItemId,
             productId: cartItem.productId,
-            quantity: diffQuantity,
+            quantity: updateData.quantity, // Use new quantity for event
             traceId,
             processType: 'UPDATE_CART_ITEM',
             timestamp: new Date().toISOString(),
@@ -418,8 +421,8 @@ export class CartService {
   }
 
   async removeItemFromCart(
-    userId: string,
-    cartItemId: string, // Accept as string from controller
+    userId: number,
+    cartItemId: number, // Accept as number from controller
     traceId: string,
   ): Promise<CartResponseDto> {
     this.serviceLocator
@@ -446,8 +449,8 @@ export class CartService {
         }
 
         const cartItem = await cartItemRepo.findOne({
-          id: cartItemId,
-          cartId: cart.id,
+          id: cartItemId, // keep as string
+          cartId: cart.id, // ensure number
         });
         if (!cartItem) {
           throw new NotFoundException(
@@ -455,7 +458,7 @@ export class CartService {
           );
         }
 
-        const deleted = await cartItemRepo.delete(cartItem.id);
+        const deleted = await cartItemRepo.delete(cartItem.id.toString());
         if (!deleted) {
           throw new NotFoundException(
             `Item ID: ${cartItemId} not found in cart for user ID: ${userId}`,
@@ -485,7 +488,7 @@ export class CartService {
       });
   }
 
-  async clearCart(userId: string, traceId: string, type: string): Promise<void> {
+  async clearCart(userId: number, traceId: string, type: string): Promise<void> {
     try {
        this.serviceLocator
       .getLoggerService()

@@ -27,6 +27,13 @@ import { RemoveInventoryHandler } from './kafka-handlers/remove-inventory.handle
 import { ReserveInventoryHandler } from './kafka-handlers/reserve-inventory.handler';
 import { ConfigService } from '@nestjs/config';
 import { ReleaseInventoryHandler } from './kafka-handlers/release-inventory.handler';
+import { ReplenishInventoryHandler } from './kafka-handlers/replenish-inventory.handler'; // Import for the new handler
+
+// Define the structure of the items for replenishment payload
+interface ReplenishItem {
+  productId: string; // Assuming productId will be string here
+  quantity: number;
+}
 
 @Injectable()
 export class InventoryService implements OnModuleInit {
@@ -41,24 +48,46 @@ export class InventoryService implements OnModuleInit {
     private readonly configService: ConfigService,
   ) {}
 
+  private topicHandlerConfig: Array<{ topicKey: string; handlerClass: any; topicName?: string }> = [
+    { topicKey: 'RESERVE_INVENTORY_TOPIC', handlerClass: ReserveInventoryHandler },
+    { topicKey: 'RELEASE_INVENTORY_TOPIC', handlerClass: ReleaseInventoryHandler },
+    { topicKey: 'REPLENISH_INVENTORY_TOPIC', handlerClass: ReplenishInventoryHandler },
+  ];
+
   async onModuleInit() {
-    const removeInventoryTopic = this.configService.get('REMOVE_INVENTORY_TOPIC');
-    const reserveInventoryTopic = this.configService.get('RESERVE_INVENTORY_TOPIC');
-    const releaseInventoryTopic = this.configService.get('RELEASE_INVENTORY_TOPIC');
     if (!(this.kafkaConsumer as any)._subscribedTopics) {
-      await this.kafkaConsumer.subscribe(reserveInventoryTopic);
-      await this.kafkaConsumer.subscribe(removeInventoryTopic);
-      await this.kafkaConsumer.subscribe(releaseInventoryTopic);
-      (this.kafkaConsumer as any)._subscribedTopics = true;
+      (this.kafkaConsumer as any)._subscribedTopics = {};
     }
+    const activeTopicToHandlerMap = new Map<string, any>();
+    // Resolve topic names and subscribe
+    for (const config of this.topicHandlerConfig) {
+      config.topicName = this.configService.get<string>(config.topicKey);
+      if (!config.topicName) {
+        this.logger.error(`Kafka topic key ${config.topicKey} not found in configuration. Skipping subscription.`, this.loggerContext);
+        continue;
+      }
+      if (!(this.kafkaConsumer as any)._subscribedTopics[config.topicName]) {
+        await this.kafkaConsumer.subscribe(config.topicName);
+        activeTopicToHandlerMap.set(config.topicName, config.handlerClass);
+        (this.kafkaConsumer as any)._subscribedTopics[config.topicName] = true;
+        this.logger.info(`Subscribed to Kafka topic: ${config.topicName} (from key ${config.topicKey})`, this.loggerContext);
+      }
+    }
+
     await this.kafkaConsumer.postSubscribeCallback({
       handleMessage: async (topic, partition, message, headers) => {
-        if (topic === reserveInventoryTopic) {
-          await this.moduleRef.get(ReserveInventoryHandler, { strict: false }).handleMessage(topic, partition, message, headers);
-        } else if (topic === removeInventoryTopic) {
-          await this.moduleRef.get(RemoveInventoryHandler, { strict: false }).handleMessage(topic, partition, message, headers);
-        } else if (topic === releaseInventoryTopic) {
-          await this.moduleRef.get(ReleaseInventoryHandler, { strict: false }).handleMessage(topic, partition, message, headers);
+        this.logger.debug(`Received message on topic: ${topic}, partition: ${partition}`, this.loggerContext);
+        const handlerClass = activeTopicToHandlerMap.get(topic);
+        if (handlerClass) {
+          try {
+            const handlerInstance = await this.moduleRef.get(handlerClass, { strict: false });
+            await handlerInstance.handleMessage(topic, partition, message, headers);
+          } catch (error) {
+            this.logger.error(`Error obtaining or executing handler for topic ${topic}: ${error.message}`, error.stack, this.loggerContext);
+            // Potentially re-throw or handle more gracefully depending on desired behavior for handler resolution/execution errors
+          }
+        } else {
+          this.logger.info(`No configured handler for Kafka topic: ${topic}`, this.loggerContext);
         }
       }
     });
@@ -276,4 +305,39 @@ export class InventoryService implements OnModuleInit {
     }
     return this.inventoryRepository.delete(inventory.id); // Use the PK for deletion
   }
+
+  async processInventoryReplenishment(items: ReplenishItem): Promise<void> {
+    this.logger.info(`Processing inventory replenishment for item type: ${items.productId}.`, this.loggerContext);
+    if (!items || items.quantity <= 0) {
+      this.logger.info('No valid items to replenish.', this.loggerContext);
+      return;
+    }
+
+    await this.transactionService.executeInTransaction(async (entityManager: EntityManager) => {
+      const transactionalInventoryRepo = this.inventoryRepository.getRepository(entityManager);
+      const inventory = await transactionalInventoryRepo.findByProductId(items.productId.toString()); // Ensure productId is string
+
+      if (!inventory) {
+        this.logger.info(`Invalid item data for replenishment: ${JSON.stringify(items)}. Skipping.`, this.loggerContext); // Changed warn to info
+        return;
+      }
+
+      const oldQuantity = inventory.quantity;
+      inventory.quantity += items.quantity;
+      // Update status if it was out of stock
+      if (inventory.quantity > 0 && inventory.status === QueryInput.InventoryStatus.OUT_OF_STOCK) {
+        inventory.status = QueryInput.InventoryStatus.IN_STOCK;
+      }
+      await transactionalInventoryRepo.update(inventory.id, {
+        quantity: inventory.quantity,
+        status: inventory.status,
+      });
+      this.logger.info(
+        `Replenished inventory for productId ${items.productId}: ${oldQuantity} -> ${inventory.quantity}`,
+        this.loggerContext,
+      );
+      return true; // Commit transaction if successful
+    });
+  this.logger.info('Inventory replenishment processing complete.', this.loggerContext);
+}
 }

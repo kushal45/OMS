@@ -4,8 +4,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CartItem } from '../entity/cart-item.entity';
 
 export interface CreateCartItemInput {
-  cartId: string;
-  productId: string;
+  cartId: number;
+  productId: number;
   quantity: number;
   price: number; // Price per unit at the time of adding
 }
@@ -27,19 +27,19 @@ export class CartItemRepository {
     return new CartItemRepository(entityManager.getRepository(CartItem));
   }
 
-  async findById(id: string, entityManager?: EntityManager): Promise<CartItem | null> {
+  async findById(id: number, entityManager?: EntityManager): Promise<CartItem | null> {
     const repository = entityManager ? entityManager.getRepository(CartItem) : this.cartItemRepo;
     return repository.findOneBy({ id });
   }
 
-  async findByCartId(cartId: string, entityManager?: EntityManager): Promise<CartItem[]> {
+  async findByCartId(cartId: number, entityManager?: EntityManager): Promise<CartItem[]> {
     const repository = entityManager ? entityManager.getRepository(CartItem) : this.cartItemRepo;
     return repository.find({ where: { cartId } });
   }
 
-  async findByCartIdAndProductId(cartId: string, productId: string, entityManager?: EntityManager): Promise<CartItem | null> {
+  async findByCartIdAndProductId(cartId: number, productId: number, entityManager?: EntityManager): Promise<CartItem | null> {
     const repository = entityManager ? entityManager.getRepository(CartItem) : this.cartItemRepo;
-    return repository.findOne({ where: { cartId, productId } });
+    return this.findOne({ cartId, productId });
   }
 
   async create(input: CreateCartItemInput, entityManager?: EntityManager): Promise<CartItem> {
@@ -59,7 +59,7 @@ export class CartItemRepository {
   }
 
 
-  async update(id: string, input: UpdateCartItemInput, entityManager?: EntityManager): Promise<CartItem | null> {
+  async update(id: number, input: UpdateCartItemInput, entityManager?: EntityManager): Promise<CartItem | null> {
     const repository = entityManager ? entityManager.getRepository(CartItem) : this.cartItemRepo;
     const itemToUpdate = await this.findById(id, entityManager);
     if (!itemToUpdate) return null;
@@ -73,13 +73,13 @@ export class CartItemRepository {
     return this.findById(id, entityManager);
   }
 
-  async updateQuantity(id: string, quantity: number, entityManager?: EntityManager): Promise<CartItem | null> {
+  async updateQuantity(id: number, quantity: number, entityManager?: EntityManager): Promise<CartItem | null> {
     const repository = entityManager ? entityManager.getRepository(CartItem) : this.cartItemRepo;
-    const item = await repository.findOneBy({id});
-    if(item){
-        item.quantity = quantity;
-        item.lineTotal = item.price * quantity;
-        return repository.save(item);
+    const item = await repository.findOneBy({ id });
+    if (item) {
+      item.quantity = quantity;
+      item.lineTotal = item.price * quantity;
+      return repository.save(item);
     }
     return null;
   }
@@ -91,13 +91,13 @@ export class CartItemRepository {
     return result.affected > 0;
   }
 
-  async deleteByCartId(cartId: string, entityManager?: EntityManager): Promise<number> {
+  async deleteByCartId(cartId: number, entityManager?: EntityManager): Promise<number> {
     const repository = entityManager ? entityManager.getRepository(CartItem) : this.cartItemRepo;
     const result = await repository.delete({ cartId });
     return result.affected || 0;
   }
 
-  async deleteByCartIdAndProductId(cartId: string, productId: string, entityManager?: EntityManager): Promise<boolean> {
+  async deleteByCartIdAndProductId(cartId: number, productId: number, entityManager?: EntityManager): Promise<boolean> {
     const repository = entityManager ? entityManager.getRepository(CartItem) : this.cartItemRepo;
     const result = await repository.delete({ cartId, productId });
     return result.affected > 0;

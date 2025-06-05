@@ -3,9 +3,10 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class CartItemDto {
   @ApiProperty({ description: 'The product ID', example: 'product-uuid-123' })
-  @IsString()
+  @IsInt({ message: 'Product ID must be an integer' })
+  @Min(1, { message: 'Product ID must be a positive integer' })
   @IsNotEmpty()
-  productId: string;
+  productId: number;
 
   @ApiProperty({ description: 'The quantity of the product', example: 2, minimum: 1, maximum: 100 })
   @IsInt({ message: 'Quantity must be an integer' })

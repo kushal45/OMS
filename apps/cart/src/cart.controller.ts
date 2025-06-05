@@ -25,7 +25,7 @@ import { CartResponseDto } from './dto/cart-response.dto';
 import { ResponseErrDto } from '@app/utils/dto/response-err.dto';
 import { ResponseUtil } from '@app/utils/response.util';
 import { ModuleRef } from '@nestjs/core';
-import { registerSchema, deleteSchema } from '@app/utils/SchemaRegistry';
+import { handleInventoryProcessTypeRegistration } from '@app/utils/SchemaRegistry';
 import { ConfigService } from '@nestjs/config';
 import { GrpcMethod } from '@nestjs/microservices';
 
@@ -64,7 +64,7 @@ export class CartController {
   @ApiResponse(ResponseErrDto, 500)
   @Get('user/:userId')
   async getCartByUserId(
-    @Param('userId') userId: string,
+    @Param('userId') userId: number,
     @Res() response,
     @Req() req,
   ) {
@@ -100,7 +100,7 @@ export class CartController {
   @ApiResponse(ResponseErrDto, 500)
   @Post('user/:user_id/item')
   async addItemToCart(
-    @Param('user_id') userId: string,
+    @Param('user_id') userId: number,
     @Body() item: AddItemToCartDto,
     @Res() response,
     @Req() req,
@@ -137,8 +137,8 @@ export class CartController {
   @ApiResponse(ResponseErrDto, 500)
   @Put('user/:userId/item/:itemId')
   async updateCartItem(
-    @Param('userId') userId: string,
-    @Param('itemId') itemId: string,
+    @Param('userId') userId: number,
+    @Param('itemId') itemId: number,
     @Body() update: UpdateCartItemDto,
     @Res() response,
     @Req() req,
@@ -173,8 +173,8 @@ export class CartController {
   @ApiResponse(ResponseErrDto, 500)
   @Delete('user/:userId/item/:itemId')
   async removeItemFromCart(
-    @Param('userId') userId: string,
-    @Param('itemId') itemId: string,
+    @Param('userId') userId: number,
+    @Param('itemId') itemId: number,
     @Res() response,
     @Req() req,
   ) {
@@ -198,7 +198,7 @@ export class CartController {
   @ApiResponse(ResponseErrDto, 500)
   @Delete('user/:userId')
   async clearCart(
-    @Param('userId') userId: string,
+    @Param('userId') userId: number,
     @Res() response,
     @Req() req,
   ) {
@@ -215,7 +215,7 @@ export class CartController {
   // gRPC method to fetch active cart and its items for a user
   @GrpcMethod('CartService', 'getActiveCartByUserId')
   async getActiveCartByUserIdGrpc(
-    data: { userId: string },
+    data: { userId: number },
     _metadata?: any,
   ): Promise<CartResponseDto | null> {
     const cart = await this.cartService.getActiveCartByUserId(data); // Calls the gRPC handler in service
@@ -225,7 +225,7 @@ export class CartController {
   // gRPC method to clear cart by userId
   @GrpcMethod('CartService', 'clearCartByUserId')
   async clearCartByUserIdGrpc(
-    data: { userId: string },
+    data: { userId: number },
     _metadata?: any,
   ): Promise<{ success: boolean; message: string }> {
     try {
@@ -249,57 +249,12 @@ export class CartController {
     const schemaReleaseJsonString = configService.get<string>(
       'INVENTORY_RELEASE_SCHEMA_JSON',
     );
-    await this.handleInventoryProcessTypeRegistration(topic, schemaJsonString);
-    await this.handleInventoryProcessTypeRegistration(
+    await handleInventoryProcessTypeRegistration(topic, schemaJsonString,this.moduleRef);
+    await handleInventoryProcessTypeRegistration(
       releaseTopic,
       schemaReleaseJsonString,
+      this.moduleRef,
       'release',
     );
-  }
-
-  async handleInventoryProcessTypeRegistration(
-    topic: string,
-    schemaJsonString: string,
-    processType: 'reserve' | 'release' = 'reserve',
-  ) {
-    try {
-      console.log(`Registering schema for topic: ${topic}`);
-      await deleteSchema(this.moduleRef, topic);
-      if (!schemaJsonString) {
-        console.error(
-          `Schema JSON string not found in config for topic: ${topic}. Ensure  ${processType} json is set in the .env file.`,
-        );
-        // Potentially throw an error or handle as appropriate for your application
-        return;
-      }
-
-      let parsedSchema;
-      try {
-        parsedSchema = JSON.parse(schemaJsonString);
-      } catch (error) {
-        console.error(
-          `Error parsing schema JSON string for topic ${topic}:`,
-          error,
-          `Schema string: ${schemaJsonString}`,
-        );
-        // Potentially throw an error or handle as appropriate
-        return;
-      }
-
-      console.log(
-        `Schema definition for topic ${topic}: ${JSON.stringify(parsedSchema)}`,
-      );
-      await registerSchema(this.moduleRef, topic, parsedSchema);
-    } catch (error) {
-      console.error(
-        `Error during schema registration for topic ${topic}:`,
-        error,
-      );
-      // Depending on the desired behavior, you might want to:
-      // - Throw the error to stop the process (if it's critical)
-      // - Log and continue (current behavior)
-      // - Handle the error in a way that allows the application to recover
-      return;
-    }
   }
 }

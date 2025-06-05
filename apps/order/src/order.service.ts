@@ -20,7 +20,8 @@ import { firstValueFrom, Observable } from 'rxjs';
 import { ServiceLocator } from './service-locator';
 // import { KafkaProducer } from '@lib/kafka/KafkaProducer'; // No longer directly used here
 import { ConfigService } from '@nestjs/config';
-import { OutboxEvent, OutboxEventStatus } from '../../cart/src/entity/outbox-event.entity';
+import { OutboxEvent, OutboxEventStatus } from '../../cart/src/entity/outbox-event.entity'; // Ensure this path is correct
+import { EntityManager } from 'typeorm';
 import type { CartResponseDto__Output } from '../../cart/src/proto/cart/CartResponseDto';
 
 interface InventoryService {
@@ -303,12 +304,75 @@ export class OrderService {
   }
 
   async cancelOrder(aliasId: string): Promise<Order> {
-    const order = await this.serviceLocator.getOrderRepository().findOne({
-      aliasId,
-    });
-    if (!order) throw new NotFoundException('Order not found');
-    order.orderStatus = OrderStatus.Cancelled;
-    return this.serviceLocator.getOrderRepository().update(order.aliasId, order);
+    const orderRepo = this.serviceLocator.getOrderRepository();
+    const orderItemsRepo = this.serviceLocator.getOrderItemsRepository();
+    // const outboxRepo = this.serviceLocator.getOutboxEventRepository(); // Assuming you have a way to get this
+
+    let cancelledOrder: Order;
+
+    await this.serviceLocator.getTransactionService().executeInTransaction(
+      async (entityManager: EntityManager) => {
+        const transactionalOrderRepo = orderRepo.getRepository(entityManager);
+        const transactionalOrderItemsRepo = orderItemsRepo.getRepository(entityManager);
+        const outboxRepository = entityManager.getRepository(OutboxEvent); // TypeORM's generic repository for OutboxEvent
+
+        // Use the repository's specific findOne method
+        const order = await transactionalOrderRepo.findOne({ aliasId });
+        if (!order) {
+          throw new NotFoundException('Order not found');
+        }
+
+        if (order.orderStatus === OrderStatus.Cancelled) {
+          throw new BadRequestException('Order is already cancelled.');
+        }
+
+        // Use the repository's specific method to get order items
+        const orderItems = await transactionalOrderItemsRepo.findAll(order.id);
+
+        if (!orderItems || orderItems.length === 0) {
+          this.serviceLocator.getLoggerService().info(
+            `Order ${aliasId} has no items to replenish. Still cancelling order.`,
+            this.context,
+          );
+        } else {
+          // Prepare the outbox event payload
+          const payload = orderItems.map(item => ({
+            eventType: 'ORDER_ITEMS_TO_REPLENISH',
+            productId: item.productId,
+            quantity: item.quantity,
+          }));
+
+          // Create and save the outbox event
+          const outboxEvent = new OutboxEvent();
+          outboxEvent.eventType = this.configService.get('REPLENISH_INVENTORY_TOPIC');
+          outboxEvent.payload = {
+            orderId: order.id,
+            items: payload,
+          };
+          outboxEvent.status = OutboxEventStatus.PENDING;
+
+          await outboxRepository.save(outboxEvent);
+
+          this.serviceLocator.getLoggerService().info(
+            `Outbox event created for replenishing items of order ${aliasId}.`,
+            this.context,
+          );
+        }
+
+        order.orderStatus = OrderStatus.Cancelled;
+        // Use the repository's specific update method
+        // The update method in the original service returns the updated order.
+        // If transactionalOrderRepo.update behaves similarly to orderRepo.update
+        cancelledOrder = await transactionalOrderRepo.update(aliasId, { orderStatus: OrderStatus.Cancelled });
+        return true; // Indicate success for transaction
+      },
+    );
+
+    if (!cancelledOrder) {
+      // This should ideally not happen if executeInTransaction handles errors properly
+      throw new UnprocessableEntityException('Failed to cancel order.');
+    }
+    return cancelledOrder;
   }
 
   async deleteOrder(id: number): Promise<boolean> {

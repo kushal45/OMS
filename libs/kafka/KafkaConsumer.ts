@@ -4,6 +4,7 @@ import { ModuleRef } from '@nestjs/core';
 import { Consumer, IHeaders, Kafka, KafkaConfig } from 'kafkajs';
 import { SchemaRegistry } from '@kafkajs/confluent-schema-registry';
 import { IMessageHandler } from './interfaces/message-handler.interface'; // Import the new interface
+import { KafkaAdminClient } from './KafKaAdminClient';
 
 export class KafkaConsumer {
   private consumer: Consumer;
@@ -22,10 +23,39 @@ export class KafkaConsumer {
     this.schemaRegistry = new SchemaRegistry({ host: schemaRegistryUrl, retry: { retries: 5 } });
   }
 
-  async subscribe(topic: string): Promise<void> {
-    this.logger.info(`Subscribing to topic ${topic}`, this.context);
-    this.consumer.connect();
-    this.consumer.subscribe({ topic, fromBeginning: true });
+  async subscribe(topic: string, maxRetries = 3, initialDelayMs = 2000): Promise<void> {
+    this.logger.info(`Attempting to subscribe to topic ${topic} (max retries: ${maxRetries})`, this.context);
+    const kafkaAdminClient = this.moduleRef.get<KafkaAdminClient>(KafkaAdminClient, { strict: false });
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        this.logger.info(`[Attempt ${attempt}/${maxRetries}] Waiting for leader election for topic ${topic} before subscribing...`, this.context);
+        // waitForLeaders will use its own timeout (now 30s by default)
+        await kafkaAdminClient.waitForLeaders(topic);
+        this.logger.info(`[Attempt ${attempt}/${maxRetries}] Leader election complete for topic ${topic}. Proceeding to connect and subscribe.`, this.context);
+        
+        await this.consumer.connect(); // Connect before subscribing
+        await this.consumer.subscribe({ topic, fromBeginning: true });
+        this.logger.info(`Successfully subscribed to topic ${topic} on attempt ${attempt}`, this.context);
+        return; // Success
+      } catch (err) {
+        this.logger.error(
+          JSON.stringify({
+            message: `[Attempt ${attempt}/${maxRetries}] Failed during subscription process for topic ${topic}`,
+            error: err.message,
+            stack: err.stack, // Log stack for more details on the error from waitForLeaders or consumer.subscribe
+          }),
+          this.context,
+        );
+        if (attempt === maxRetries) {
+          this.logger.error(`All ${maxRetries} attempts to subscribe to topic ${topic} failed.`, this.context);
+          throw err; // Re-throw the last error if all retries fail
+        }
+        const delay = initialDelayMs * Math.pow(2, attempt - 1); // Exponential backoff
+        this.logger.info(`Waiting ${delay}ms before next subscribe attempt for topic ${topic}...`, this.context);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
   }
 
   async postSubscribeCallback(handler: IMessageHandler): Promise<void> { // Accept IMessageHandler
