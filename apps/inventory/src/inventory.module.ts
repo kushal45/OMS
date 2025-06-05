@@ -16,7 +16,6 @@ import { TransactionService } from '@app/utils/transaction.service';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
 import { InventoryKafkaMetricsService } from './monitoring/inventory-kafka-metrics.service';
 import { InventoryMonitoringController } from './monitoring/inventory-monitoring.controller';
-import { RemoveInventoryHandler } from './kafka-handlers/remove-inventory.handler'; // Import RemoveInventoryHandler
 import { ReserveInventoryHandler } from './kafka-handlers/reserve-inventory.handler';
 import { ReleaseInventoryHandler } from './kafka-handlers/release-inventory.handler';
 import { ReplenishInventoryHandler } from './kafka-handlers/replenish-inventory.handler'; // Import the new handler
@@ -43,7 +42,6 @@ import { ReplenishInventoryHandler } from './kafka-handlers/replenish-inventory.
     InventoryService,
     InventoryRepository,
     InventoryKafkaMetricsService,
-    RemoveInventoryHandler,
     ReserveInventoryHandler, // Ensure this handler is also provided
     ReleaseInventoryHandler, // Register the new handler
     ReplenishInventoryHandler, // Provide the new handler

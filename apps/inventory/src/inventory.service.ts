@@ -23,7 +23,6 @@ import {
 } from './proto/inventory'; // Import gRPC request/response types
 import { EntityManager } from 'typeorm';
 import { LoggerService } from '@lib/logger/src';
-import { RemoveInventoryHandler } from './kafka-handlers/remove-inventory.handler'; // Renamed handler import
 import { ReserveInventoryHandler } from './kafka-handlers/reserve-inventory.handler';
 import { ConfigService } from '@nestjs/config';
 import { ReleaseInventoryHandler } from './kafka-handlers/release-inventory.handler';
