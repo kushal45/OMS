@@ -24,6 +24,12 @@
       "@lib/*": [
         "libs/*"
       ],
+      "@lib/redis-client": [ // New path alias
+        "libs/redis-client/src"
+      ],
+      "@lib/redis-client/*": [ // New path alias
+        "libs/redis-client/src/*"
+      ],
       "@app/config": [
         "libs/config/src"
       ],

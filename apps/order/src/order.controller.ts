@@ -233,12 +233,43 @@ export class OrderController implements OnModuleInit {
     });
   }
 
-  @Get('user/:userId/cart')
-  async getUserCartViaGrpc(@Param('userId') userId: string) {
-    // Example endpoint to fetch cart via gRPC
-    return firstValueFrom(this.cartServiceGrpc.getActiveCartByUserId({ userId }));
-  }
+  @Get("/orders")
+  @ApiOperation({ summary: 'Get all orders' })
+  @ApiResponse(
+    OrderResponseDto,
+    200,
+    true,
+    {
+      message: 'Orders fetched successfully.',
+      data: [
+        {
+          id: 1,
+          aliasId: 'ORD-123',
+          userId: 1,
+          status: 'created',
+          total: 100.0,
+          createdAt: '2025-05-31T12:00:00.000Z',
+          updatedAt: '2025-05-31T12:00:00.000Z',
+          // ...add other fields as needed
+        }
+      ],
+      status: 'success'
+    }
+  )
+  @ApiResponse(ResponseErrDto, 400)
+  @ApiResponse(ResponseErrDto, 500)
+  async getAllOrders(@Res() response,@Req() req) {
+    const userObj = JSON.parse(req.headers['x-user-data']);
+    const userId = userObj.id;
+    const orders = await this.orderService.getOrders(userId);
 
+    ResponseUtil.success({
+      response,
+      message: 'Orders fetched successfully.',
+      data: orders,
+      statusCode: HttpStatus.OK,
+    });
+  }
   async onModuleInit() {
     const configService = this.moduleRef.get(ConfigService, { strict: false });
     const topic = configService.get<string>('REPLENISH_INVENTORY_TOPIC');

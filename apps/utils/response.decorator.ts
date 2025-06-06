@@ -73,7 +73,7 @@ export const { ApiDefaultResponse }: { ApiDefaultResponse: (options?: ApiRespons
 
 export const ApiResponse = <DataDto extends Type<unknown>>(
   dataDto: DataDto,
-  statusCode: 200 | 201|400| 500 = 200,
+  statusCode: 200 | 201|400|401 |500 = 200,
   isResponseArray = false,
   example?: any
 ) => {
@@ -100,6 +100,8 @@ function getApiResponseType(statusCode:number): (options?: ApiResponseOptions) =
         return ApiOkResponse;
       case 400:
         return ApiBadRequestResponse;
+      case 401:
+        return ApiUnauthorizedResponse;
       case 500:
         return ApiInternalServerErrorResponse;
    }

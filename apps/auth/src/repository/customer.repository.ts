@@ -27,5 +27,9 @@ export class CustomerRepository {
     return updatedUser ? updatedUser : null;
   }
 
+  async findById(id: number): Promise<Customer | null> {
+    return await this.custRepo.findOne({ where: { id } });
+  }
+
   // Add more repository methods as needed
 }

@@ -2,11 +2,26 @@ version: '3.8'
 
 services:
   # --- Application Services (Node.js) ---
+  # Base service definition for shared build
+  # This service won't run, it's just for building the shared image
+  app-base:
+    image: oms-app-base:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: echo "Base image built successfully"
+    profiles:
+      - build-only
+
   # Keep these largely the same as the previous optimized version,
   # but adjust environment variables to reflect the 2-node clusters.
   gateway:
-    build:
-      context: .
+    image: oms-app-base:latest
+    depends_on:
+      auth:
+        condition: service_healthy
+      order:
+        condition: service_healthy
     ports:
       - "3000:3000"
       - "9229:9229" # Debug port for gateway (host:container)
@@ -15,11 +30,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-    depends_on:
-      auth:
-        condition: service_healthy
-      order:
-        condition: service_healthy
     environment:
       - NODE_ENV=development
       - PORT=3000
@@ -46,20 +56,22 @@ services:
           target: /app
 
   auth:
-    build:
-      context: .
-    ports:
-      - "3001:3001"
-      - "9230:9229" # Debug port for auth (host:container)
+    image: oms-app-base:latest
     depends_on:
       postgres:
         condition: service_healthy
-      es01: # Still depend on first ES node for healthcheck
+      es01:
         condition: service_healthy
-      es02: # Also depend on second ES node
+      es02:
         condition: service_healthy
+    ports:
+      - "3001:3001"
+      - "9230:9229" # Debug port for auth (host:container)
     environment: # Ensure this service also uses the ES cluster
       - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200
+      - REDIS_SENTINEL_ADDRESSES=redis-sentinel-1:26379,redis-sentinel-2:26379,redis-sentinel-3:26379
+      - REDIS_SENTINEL_MASTER_NAME=omsredisprimary
+      # - REDIS_PASSWORD=yoursecuremasterpassword # Uncomment if Redis password is set
     command: npm run start:debug --project auth
     networks:
       - oms
@@ -80,11 +92,7 @@ services:
           cpus: '0.1'
 
   order:
-    build:
-      context: .
-    ports:
-      - "3002:3002"
-      - "9231:9229" # Debug port for order (host:container)
+    image: oms-app-base:latest
     depends_on:
       postgres:
         condition: service_healthy
@@ -98,6 +106,9 @@ services:
         condition: service_healthy
       kafka3:
         condition: service_healthy
+    ports:
+      - "3002:3002"
+      - "9231:9229" # Debug port for order (host:container)
     environment:
         - NODE_ENV=development
         - DATABASE_HOST=postgres
@@ -127,12 +138,7 @@ services:
           cpus: '0.1'
   
   inventory:
-    build:
-      context: .
-    ports:
-      - "3003:3003" # App port
-      - "5002:5002" # gRPC port
-      - "9232:9229" # Debug port for inventory (host:container)
+    image: oms-app-base:latest
     depends_on:
       postgres:
         condition: service_healthy
@@ -144,6 +150,14 @@ services:
         condition: service_healthy
       kafka2:
         condition: service_healthy
+      kafka3:
+        condition: service_healthy
+
+    ports:
+      - "3003:3003" # App port
+      - "5002:5002" # gRPC port
+      - "9232:9229" # Debug port for inventory (host:container)
+     
     environment: # Ensure this service also uses the ES and Kafka clusters
       - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9092
       - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
@@ -162,8 +176,18 @@ services:
           cpus: '0.1'
     
   product:
-    build:
-      context: .
+    image: oms-app-base:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
     ports:
       - "3004:3004"
       - "9233:9229" # Debug port for product/cart (host:container)
@@ -178,17 +202,10 @@ services:
       # Ensure this service also uses the ES and Kafka clusters
       - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9092
       - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
-    depends_on:
-      postgres:
-        condition: service_healthy
-      es01:
-        condition: service_healthy
-      es02:
-        condition: service_healthy
-      kafka1:
-        condition: service_healthy
-      kafka2:
-        condition: service_healthy
+      - REDIS_SENTINEL_ADDRESSES=redis-sentinel-1:26379,redis-sentinel-2:26379,redis-sentinel-3:26379
+      - REDIS_SENTINEL_MASTER_NAME=omsredisprimary
+      # - REDIS_PASSWORD=yoursecuremasterpassword # Uncomment if Redis password is set
+    
     command: npm run start:debug --project product
     networks:
       - oms
@@ -204,8 +221,18 @@ services:
           cpus: '0.1'
 
   cart:
-    build:
-      context: .
+    image: oms-app-base:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
     ports:
       - "3005:3005"
       - "9234:9229" # Debug port for cart (host:container)
@@ -225,17 +252,7 @@ services:
       - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
       - INVENTORY_RESERVE_TOPIC=reserveInventory
       - INVENTORY_RELEASE_TOPIC=releaseInventory
-    depends_on:
-      postgres:
-        condition: service_healthy
-      es01:
-        condition: service_healthy
-      es02:
-        condition: service_healthy
-      kafka1:
-        condition: service_healthy
-      kafka2:
-        condition: service_healthy
+     
     command: npm run start:debug --project cart
     networks:
       - oms
@@ -592,6 +609,139 @@ services:
           memory: 128M
           cpus: '0.05'
 
+  # --- Redis Sentinel Cluster ---
+  redis-master:
+    image: redis:7.2-alpine
+    container_name: redis-master
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./config/redis/master.conf:/usr/local/etc/redis/redis.conf
+      - redis_master_data:/data
+    networks:
+      - oms
+    healthcheck:
+      test: ["CMD", "redis-cli", "-h", "localhost", "-p", "6379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  redis-replica-1:
+    image: redis:7.2-alpine
+    container_name: redis-replica-1
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports: # Optional: expose if direct access to replica is needed for debugging
+      - "6380:6379"
+    volumes:
+      - ./config/redis/replica.conf:/usr/local/etc/redis/redis.conf
+      - redis_replica1_data:/data
+    depends_on:
+      - redis-master
+    networks:
+      - oms
+    healthcheck:
+      test: ["CMD", "redis-cli", "-h", "localhost", "-p", "6379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  redis-sentinel-1:
+    image: redis:7.2-alpine
+    container_name: redis-sentinel-1
+    command: /app/sentinel-entrypoint.sh
+    ports:
+      - "26379:26379"
+    volumes:
+      - ./config/redis/sentinel-entrypoint.sh:/app/sentinel-entrypoint.sh:ro
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica-1:
+        condition: service_healthy
+    networks:
+      - oms
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  redis-sentinel-2:
+    image: redis:7.2-alpine
+    container_name: redis-sentinel-2
+    command: /app/sentinel-entrypoint.sh
+    ports:
+      - "26380:26379"
+    volumes:
+      - ./config/redis/sentinel-entrypoint.sh:/app/sentinel-entrypoint.sh:ro
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica-1:
+        condition: service_healthy
+    networks:
+      - oms
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  redis-sentinel-3:
+    image: redis:7.2-alpine
+    container_name: redis-sentinel-3
+    command: /app/sentinel-entrypoint.sh
+    ports:
+      - "26381:26379"
+    volumes:
+      - ./config/redis/sentinel-entrypoint.sh:/app/sentinel-entrypoint.sh:ro
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica-1:
+        condition: service_healthy
+    networks:
+      - oms
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
 volumes:
   postgres_data:
   esdata1:
@@ -599,6 +749,8 @@ volumes:
   kafka1_data:
   kafka2_data: # Keep this for the second Kafka node
   kafka3_data:
+  redis_master_data:
+  redis_replica1_data:
 
 networks:
   oms:

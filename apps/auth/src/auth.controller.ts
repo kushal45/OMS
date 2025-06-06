@@ -213,9 +213,31 @@ export class AuthController {
     })
   }
 
-  @Get('health')
-  @ApiOperation({ summary: 'Health check' })
-  healthCheck(@Res() response) {
+ @Get('me')
+ @UseGuards(JwtAuthGuard)
+ @ApiOperation({ summary: 'Get current user profile from token' })
+ @ApiBearerAuth()
+ @ApiResponse(ValidateTokenResponseDto, 200) // Assuming ValidateTokenResponseDto is suitable for user profile
+ @ApiResponse(ResponseErrDto, 401, true, {message: "Unauthorized"})
+ async getMyProfile(@Request() req, @Res() response) {
+   // JwtAuthGuard already validates the token and attaches user to req.user
+   // The req.user will contain the payload of the JWT.
+   // AuthService.validateToken could also be called if we wanted to re-verify or get a specific DTO shape,
+   // but typically the guard handles the validation, and req.user is sufficient.
+   // For consistency with how other DTOs are returned by ResponseUtil:
+   const userPayload = req.user as ValidateTokenResponseDto; // Cast if req.user matches this DTO structure
+
+   ResponseUtil.success({
+     response,
+     message: 'User profile retrieved successfully.',
+     data: userPayload,
+     statusCode: HttpStatus.OK,
+   });
+ }
+
+ @Get('health')
+ @ApiOperation({ summary: 'Health check' })
+ healthCheck(@Res() response) {
     response.status(HttpStatus.OK).send('OK');
   }
 
