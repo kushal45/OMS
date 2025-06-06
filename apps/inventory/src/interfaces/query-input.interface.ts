@@ -4,18 +4,18 @@ export namespace QueryInput {
     OUT_OF_STOCK = 'out-of-stock',
   }
   export interface FetchInStockProductsInput {
-    productId: number[]| number;
+    productId: string[]| string; // Changed from number
     status: InventoryStatus;
   }
 
   export interface OrderItem {
-    productId: number;
+    productId: string; // Changed from number
     price: number;
     quantity: number;
   }
 
   export interface InventoryItem {
-    productId: number;
+    productId: string; // Changed from number
     quantity: number;
   }
 

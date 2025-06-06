@@ -11,63 +11,128 @@ import {
   Res,
   NotAcceptableException,
   Inject,
+  OnModuleInit,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { Order } from './entity/order.entity';
-import { ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiOperation,
+  ApiParam,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
 import { ApiResponse } from '../../utils/response.decorator';
 import { OrderRequestDto } from './dto/create-order-req';
 import { ResponseErrDto } from '@app/utils/dto/response-err.dto';
-import { ApiResponseFormat } from '@app/utils/dto/response-format.dto';
 import { CreateOrderResponseDto } from './dto/create-order-res';
 import { ResponseUtil } from '@app/utils/response.util';
 import { OrderResponseDto } from './dto/get-order-res';
 import { OrderItemsResponseDto } from './dto/get-order-items-res';
 import { UpdateOrderDto } from './dto/update-order-req.dto';
-import { registerSchema } from '@app/utils/SchemaRegistry';
+import { handleInventoryProcessTypeRegistration } from '@app/utils/SchemaRegistry';
 import { ModuleRef } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
+import { ClientGrpc } from '@nestjs/microservices';
+import { firstValueFrom } from 'rxjs';
 
-@ApiTags('orders')
-@Controller('orders')
-export class OrderController {
-  constructor(private readonly orderService: OrderService,
-    private readonly moduleRef: ModuleRef
+@ApiTags('order')
+@ApiSecurity('api-key')
+@Controller('order')
+export class OrderController implements OnModuleInit {
+  private cartServiceGrpc: any;
+
+  constructor(
+    private readonly orderService: OrderService,
+    @Inject('CART_PACKAGE') private readonly cartClient: ClientGrpc,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
+  @Post('orders')
   @ApiOperation({ summary: 'Create new Order' })
-  @ApiResponse(ApiResponseFormat(CreateOrderResponseDto), 201)
+  @ApiResponse(
+    CreateOrderResponseDto,
+    201,
+    false,
+    {
+      message: 'Order created successfully.',
+      data: {
+        id: 1,
+        aliasId: 'ORD-123',
+        userId: 1,
+        status: 'created',
+        total: 100.0,
+        createdAt: '2025-05-31T12:00:00.000Z',
+        updatedAt: '2025-05-31T12:00:00.000Z',
+        // ...add other fields as needed
+      },
+      status: 'success'
+    }
+  )
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
-  @Post()
   @ApiBody({ type: OrderRequestDto })
   async createOrder(
     @Req() req,
     @Body() order: OrderRequestDto,
     @Res() response,
   ) {
+    try {
       const userObj = JSON.parse(req.headers['x-user-data']);
       const userId = userObj.id;
-      const orderRes = await this.orderService.createOrder(order, userId);
+      const traceId = req.headers['x-correlation-id'] || 'default-trace-id';
+
+      const orderRes = await this.orderService.createOrder(
+        order,
+        userId,
+        traceId,
+      );
       ResponseUtil.success({
         response,
         message: 'Order created successfully.',
         data: orderRes,
         statusCode: HttpStatus.CREATED,
       });
+    } catch (error) {
+      ResponseUtil.error({
+        response,
+        message: error.message,
+        statusCode: error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        error: error.message || 'Internal Server Error',
+      });
+    }
   }
 
-  @Get("health")
+  @Get('health')
   async health(@Res() response) {
     response.status(HttpStatus.OK).send('OK');
   }
 
   @Get(':aliasId')
-  @ApiResponse(ApiResponseFormat(OrderResponseDto), 200)
+  @ApiResponse(
+    OrderResponseDto,
+    200,
+    false,
+    {
+      message: 'Order fetched successfully.',
+      data: {
+        id: 1,
+        aliasId: 'ORD-123',
+        userId: 1,
+        status: 'created',
+        total: 100.0,
+        createdAt: '2025-05-31T12:00:00.000Z',
+        updatedAt: '2025-05-31T12:00:00.000Z',
+        // ...add other fields as needed
+      },
+      status: 'success'
+    }
+  )
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
   @ApiParam({ name: 'aliasId', required: true })
-  async getOrderById(@Param('aliasId') aliasId: string,@Res() response) {
-    const order= await this.orderService.getOrderById(aliasId);
+  async getOrderById(@Param('aliasId') aliasId: string, @Res() response) {
+    const order = await this.orderService.getOrderById(aliasId);
     ResponseUtil.success({
       response,
       message: 'Order fetched successfully.',
@@ -76,19 +141,37 @@ export class OrderController {
     });
   }
 
-  @Get(":aliasId/orderItems")
-  @ApiResponse(ApiResponseFormat(OrderItemsResponseDto), 200)
+  @Get(':aliasId/orderItems')
+  @ApiResponse(
+    OrderItemsResponseDto,
+    200,
+    true,
+    {
+      message: 'Order items fetched successfully.',
+      data: [
+        {
+          id: 1,
+          orderId: 1,
+          productId: 1,
+          quantity: 2,
+          price: 50.0,
+          // ...add other fields as needed
+        }
+      ],
+      status: 'success'
+    }
+  )
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
   @ApiParam({ name: 'aliasId', required: true })
   async getOrderItems(@Param('aliasId') aliasId: string, @Res() response) {
-    const orderItems= await this.orderService.getOrderItems(aliasId);
+    const orderItems = await this.orderService.getOrderItems(aliasId);
     ResponseUtil.success({
       response,
       message: 'Order items fetched successfully.',
       data: orderItems,
       statusCode: HttpStatus.OK,
-    })
+    });
   }
 
   @Get('user/:userId')
@@ -98,7 +181,25 @@ export class OrderController {
 
   @Put(':aliasId')
   @ApiParam({ name: 'aliasId', required: true })
-  @ApiResponse(ApiResponseFormat(CreateOrderResponseDto), 200)
+  @ApiResponse(
+    CreateOrderResponseDto,
+    200,
+    false,
+    {
+      message: 'Order updated successfully.',
+      data: {
+        id: 1,
+        aliasId: 'ORD-123',
+        userId: 1,
+        status: 'updated',
+        total: 120.0,
+        createdAt: '2025-05-31T12:00:00.000Z',
+        updatedAt: '2025-05-31T12:10:00.000Z',
+        // ...add other fields as needed
+      },
+      status: 'success'
+    }
+  )
   @ApiResponse(ResponseErrDto, 400)
   @ApiResponse(ResponseErrDto, 500)
   @ApiBody({ type: UpdateOrderDto })
@@ -107,13 +208,13 @@ export class OrderController {
     @Body() order: UpdateOrderDto,
     @Res() response,
   ) {
-    const orderResponse= await this.orderService.updateOrder(aliasId, order);
+    const orderResponse = await this.orderService.updateOrder(aliasId, order);
     ResponseUtil.success({
       response,
       message: 'Order updated successfully.',
       data: orderResponse,
       statusCode: HttpStatus.OK,
-    })
+    });
   }
 
   @Put(':aliasId/cancel')
@@ -123,16 +224,56 @@ export class OrderController {
 
   @Delete(':id')
   async deleteOrder(@Param('id') id: number, @Res() response) {
-    if(!await this.orderService.deleteOrder(id))
+    if (!(await this.orderService.deleteOrder(id)))
       throw new NotAcceptableException('Order not Deleted');
     ResponseUtil.success({
       response,
       message: 'Order deleted successfully.',
       statusCode: HttpStatus.NO_CONTENT,
-    })
+    });
   }
 
+  @Get("/orders")
+  @ApiOperation({ summary: 'Get all orders' })
+  @ApiResponse(
+    OrderResponseDto,
+    200,
+    true,
+    {
+      message: 'Orders fetched successfully.',
+      data: [
+        {
+          id: 1,
+          aliasId: 'ORD-123',
+          userId: 1,
+          status: 'created',
+          total: 100.0,
+          createdAt: '2025-05-31T12:00:00.000Z',
+          updatedAt: '2025-05-31T12:00:00.000Z',
+          // ...add other fields as needed
+        }
+      ],
+      status: 'success'
+    }
+  )
+  @ApiResponse(ResponseErrDto, 400)
+  @ApiResponse(ResponseErrDto, 500)
+  async getAllOrders(@Res() response,@Req() req) {
+    const userObj = JSON.parse(req.headers['x-user-data']);
+    const userId = userObj.id;
+    const orders = await this.orderService.getOrders(userId);
+
+    ResponseUtil.success({
+      response,
+      message: 'Orders fetched successfully.',
+      data: orders,
+      statusCode: HttpStatus.OK,
+    });
+  }
   async onModuleInit() {
-    await registerSchema(this.moduleRef)
+    const configService = this.moduleRef.get(ConfigService, { strict: false });
+    const topic = configService.get<string>('REPLENISH_INVENTORY_TOPIC');
+    const schemaJsonString = configService.get<string>('REPLENISH_INVENTORY_SCHEMA_JSON');
+    await handleInventoryProcessTypeRegistration(topic, schemaJsonString, this.moduleRef);
   }
 }

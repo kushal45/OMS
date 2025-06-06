@@ -1,20 +1,16 @@
-<<<<<<< HEAD
-=======
-# compiled output
+# Compiled output
 /dist
 /node_modules
 /build
 
->>>>>>> ace1870 (basic skeleton of auth and order mono repo)
 # Logs
 logs
 *.log
 npm-debug.log*
-<<<<<<< HEAD
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
-.pnpm-debug.log*
+pnpm-debug.log*
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
@@ -47,8 +43,7 @@ bower_components
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
 
-# Dependency directories
-node_modules/
+# Dependency directories (node_modules already covered)
 jspm_packages/
 
 # Snowpack dependency directory (https://snowpack.dev/)
@@ -80,18 +75,10 @@ web_modules/
 
 # Yarn Integrity file
 .yarn-integrity
-=======
-pnpm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
 
-# OS
+# OS generated files
 .DS_Store
-
-# Tests
-/coverage
-/.nyc_output
+Thumbs.db
 
 # IDEs and editors
 /.idea
@@ -108,16 +95,17 @@ lerna-debug.log*
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
->>>>>>> ace1870 (basic skeleton of auth and order mono repo)
 
 # dotenv environment variable files
 .env
-.env.development.local
-.env.test.local
-.env.production.local
 .env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
 
-<<<<<<< HEAD
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
@@ -128,20 +116,18 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
+# dist is already covered by /dist
 
 # Gatsby files
-.cache/
-# Comment in the public line in if your project uses Gatsby and not Next.js
-# https://nextjs.org/blog/next-9-1#public-directory-support
-# public
+# .cache/ # already covered by general .cache
+# public # User should uncomment if using Gatsby and not Next.js
 
 # vuepress build output
 .vuepress/dist
 
 # vuepress v2.x temp and cache directory
 .temp
-.cache
+# .cache # already covered
 
 # Docusaurus cache and generated files
 .docusaurus
@@ -167,17 +153,6 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
-=======
-# temp directory
-.temp
+
+# Temporary files
 .tmp
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Diagnostic reports (https://nodejs.org/api/report.html)
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
->>>>>>> ace1870 (basic skeleton of auth and order mono repo)

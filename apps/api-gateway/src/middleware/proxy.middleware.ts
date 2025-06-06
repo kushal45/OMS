@@ -9,12 +9,10 @@ export class ProxyMiddleware implements NestMiddleware {
   private ORDER_SERVICE_URL = 'http://order:3002';
   private context = ProxyMiddleware.name;
 
-  constructor(
-    @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: LoggerService
-  ) {}
+  constructor() {}
 
   use(req: Request, res: Response, next: () => void) {
-    this.logger.log(
+    console.info(
       'Initial request fetched in proxy middleware  baseUrl-->',
       req.baseUrl,
       'path-->',
@@ -23,7 +21,7 @@ export class ProxyMiddleware implements NestMiddleware {
     );
     const target = this.determineTarget(req.path);
     if (!target) {
-      this.logger.error('[ProxyMiddleware] Missing target for request:', req.path);
+      console.error('[ProxyMiddleware] Missing target for request:', req.path);
       res.status(500).send('Proxy target not found');
       return;
     }

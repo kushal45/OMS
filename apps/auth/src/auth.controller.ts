@@ -3,7 +3,7 @@ import { AuthService } from './auth.service';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { LoginCustomerDto } from './dto/login-customer.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiParam, ApiSecurity } from '@nestjs/swagger';
 import { ApiResponse } from '../../utils/response.decorator';
 import { ResponseUtil } from "../../utils/response.util"
 import { UpdateCustomerDto } from './dto/update-customer.dto';
@@ -11,12 +11,13 @@ import { RegisterCustomerResponseDto } from './dto/register-customer-response.dt
 import { LoginResponseDataDto } from './dto/login-response.dto';
 import { ValidateTokenResponseDto } from './dto/validate-token-response.dto';
 import { CreateAddressDto } from './dto/create-address.dto';
-import { ApiResponseFormat,ResponseFormatDto } from '../../utils/dto/response-format.dto';
+import { ResponseFormatDto } from '../../utils/dto/response-format.dto';
 import { ResponseErrDto } from '../../utils/dto/response-err.dto';
 import { CreateAddrDataResponseDto } from './dto/create-addr-response.dto';
 
 
 @ApiTags('auth')
+@ApiSecurity('api-key')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -38,7 +39,7 @@ export class AuthController {
 
   @Post('login')
   @ApiOperation({ summary: 'Customer login' })
-  @ApiResponse(ApiResponseFormat(LoginResponseDataDto),200)
+  @ApiResponse(LoginResponseDataDto,200)
   @ApiResponse(ResponseErrDto,500)
   @ApiBody({ type: LoginCustomerDto })  // This tells Swagger to expect a LoginCustomerDto in the body
   async login(@Request() req,@Body() loginDto: LoginCustomerDto, @Res() response) {
@@ -61,7 +62,7 @@ export class AuthController {
   async update(@Request() req, @Body() updateData: Partial<UpdateCustomerDto>,@Res() response) {
       console.log("request",req.user,"request body -->",req.body);
       const updatedCust= await this.authService.update(req.user.userId, updateData);
-      return ResponseUtil.success({
+      ResponseUtil.success({
         response,
         message: 'Customer details updated successfully.',
         data: updatedCust,
@@ -73,33 +74,95 @@ export class AuthController {
   @ApiOperation({ summary: 'Validate token' })
   @ApiBody({ schema: { type: 'object', properties: { token: { type: 'string' } } } }) 
   @ApiResponse(ValidateTokenResponseDto)
-  async validateToken(@Body('token') token: string) {
+  async validateToken(@Body('token') token: string, @Res() response) {
     const payload = await this.authService.validateToken(token);
-    return payload; // Return payload data if token is valid
+    ResponseUtil.success({
+      response,
+      message: 'Token is valid',
+      data: payload,
+      statusCode: HttpStatus.OK
+    });
   }
 
   @Post('addresses')
+  @ApiOperation({ summary: 'Create customer address' })
+  @ApiBody({ type: CreateAddressDto })
   @ApiBearerAuth()  // JWT authentication
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Create customer address' })
-  @ApiResponse(ApiResponseFormat(CreateAddrDataResponseDto),201)
-  @ApiBody({ type: CreateAddressDto })  // This tells Swagger to expect a CreateAddressDto in the body
-
+  @ApiResponse(
+    CreateAddrDataResponseDto,
+    201,
+    false,
+    {
+      message: 'Address created successfully',
+      data: {
+        street: '123 Main St',
+        city: 'Test City',
+        state: 'Test State',
+        country: 'Test Country',
+        pincode: '12345'
+      },
+      status: 'success'
+    }
+  )
   async createAddress(@Req() req: any, @Res() response, @Body() addressData: CreateAddressDto) {
-     const addressCreated= await this.authService.createAddress(req.user.userId, addressData);
+    try {
+      const addressCreated= await this.authService.createAddress(req.user.userId, addressData);
       ResponseUtil.success({
         response,
         message: 'Address created successfully',
         data: addressCreated,
         statusCode:HttpStatus.CREATED
       });
+    } catch (error) {
+      console.error("Error in createAddress:", error);
+      throw new NotAcceptableException('Address could not be created');
+    }
+  }
+
+  @Get('addresses')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get customer addresses' })
+  @ApiBearerAuth()  // JWT authentication
+  @ApiResponse(
+    CreateAddrDataResponseDto,
+    200,
+    true,
+    {
+      message: 'Addresses retrieved successfully',
+      data: [
+        {
+          street: '123 Main St',
+          city: 'Test City',
+          state: 'Test State',
+          country: 'Test Country',
+          pincode: '12345'
+        }
+      ],
+      status: 'success'
+    }
+  )
+  async getAddresses(@Req() req: any, @Res() response) {
+    try {
+      const addresses = await this.authService.getAddresses(req.user.userId);
+      ResponseUtil.success({
+        response,
+        message: 'Addresses retrieved successfully',
+        data: addresses,
+        statusCode:HttpStatus.OK
+      });
+    } catch (error) {
+      console.error("Error in getAddresses:", error);
+      throw new NotAcceptableException('Addresses could not be retrieved');
+    }
   }
 
   @Put('addresses/:addressId')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Update customer address' })
   @ApiBearerAuth()  // JWT authentication
-  @ApiResponse(ApiResponseFormat(CreateAddrDataResponseDto))
+  @ApiResponse(CreateAddrDataResponseDto, 200, true)
+  @ApiResponse(ResponseErrDto,500)
   @ApiBody({ type: CreateAddressDto })  // This tells Swagger to expect a CreateAddressDto in the body
   @ApiParam({ name: 'addressId', type: 'number' })  // This tells Swagger to expect a number in the URL parameter
   async updateAddress(@Req() req: any, @Res() response, @Body() addressData: CreateAddressDto) {
@@ -130,8 +193,6 @@ export class AuthController {
     } catch (error) {
        throw new NotAcceptableException('Address could not be deleted');
     }
-      
-    
   }
 
 
@@ -152,9 +213,31 @@ export class AuthController {
     })
   }
 
-  @Get('health')
-  @ApiOperation({ summary: 'Health check' })
-  healthCheck(@Res() response) {
+ @Get('me')
+ @UseGuards(JwtAuthGuard)
+ @ApiOperation({ summary: 'Get current user profile from token' })
+ @ApiBearerAuth()
+ @ApiResponse(ValidateTokenResponseDto, 200) // Assuming ValidateTokenResponseDto is suitable for user profile
+ @ApiResponse(ResponseErrDto, 401, true, {message: "Unauthorized"})
+ async getMyProfile(@Request() req, @Res() response) {
+   // JwtAuthGuard already validates the token and attaches user to req.user
+   // The req.user will contain the payload of the JWT.
+   // AuthService.validateToken could also be called if we wanted to re-verify or get a specific DTO shape,
+   // but typically the guard handles the validation, and req.user is sufficient.
+   // For consistency with how other DTOs are returned by ResponseUtil:
+   const userPayload = req.user as ValidateTokenResponseDto; // Cast if req.user matches this DTO structure
+
+   ResponseUtil.success({
+     response,
+     message: 'User profile retrieved successfully.',
+     data: userPayload,
+     statusCode: HttpStatus.OK,
+   });
+ }
+
+ @Get('health')
+ @ApiOperation({ summary: 'Health check' })
+ healthCheck(@Res() response) {
     response.status(HttpStatus.OK).send('OK');
   }
 
