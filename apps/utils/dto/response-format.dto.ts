@@ -1,13 +1,13 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiExtraModels } from "@nestjs/swagger";
 
 
-export class ResponseFormatDto<T = any> {
+export class ResponseFormatDto<T> {
   @ApiProperty({ description: 'Response message' })
   message: string;
 
   @ApiProperty({
-      description: 'Response data',
-      type: 'object', // This will be replaced dynamically
+    description: 'Response data',
+    type: 'object',
   })
   data?: T;
 
@@ -15,13 +15,29 @@ export class ResponseFormatDto<T = any> {
   status: string;
 }
 
-export function ApiResponseFormat<T>(type: new () => T) {
-  class TypedResponseFormatDto extends ResponseFormatDto<T> {
-      @ApiProperty({
-          description: 'Response data',
-          type,
-      })
-      data: T;
+// Helper for array response
+export function ApiArrayResponseFormat<TModel extends new (...args: any[]) => any>(model: TModel) {
+  @ApiExtraModels(ResponseFormatDto)
+  class TypedArrayResponseFormatDto extends ResponseFormatDto<InstanceType<TModel>[]> {
+    @ApiProperty({
+      description: 'Response data',
+      isArray: true,
+      type: model,
+    })
+    data: InstanceType<TModel>[];
   }
-  return TypedResponseFormatDto;
+  return TypedArrayResponseFormatDto;
+}
+
+// Helper for single object response
+export function ApiObjectResponseFormat<TModel extends new (...args: any[]) => any>(model: TModel) {
+  @ApiExtraModels(ResponseFormatDto)
+  class TypedObjectResponseFormatDto extends ResponseFormatDto<InstanceType<TModel>> {
+    @ApiProperty({
+      description: 'Response data',
+      type: model,
+    })
+    data: InstanceType<TModel>;
+  }
+  return TypedObjectResponseFormatDto;
 }

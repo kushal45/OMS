@@ -1,0 +1,660 @@
+{
+  "root_group": {
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e",
+    "groups": [
+      {
+        "name": "FlashSale Login",
+        "path": "::FlashSale Login",
+        "id": "b32294c91e7cc6489bcda2dec28f57cd",
+        "groups": [
+          {
+            "id": "936894efc71dcf4e6b33e50902ae16c4",
+            "groups": [
+              {
+                "groups": [],
+                "checks": [
+                    {
+                      "name": "Add to cart successful",
+                      "path": "::FlashSale Login::FlashSale Get Products::FlashSale Add To Cart::Add to cart successful",
+                      "id": "fe4c98ec1339303936482ba4c33fdde7",
+                      "passes": 27,
+                      "fails": 0
+                    },
+                    {
+                      "name": "Response has cart data",
+                      "path": "::FlashSale Login::FlashSale Get Products::FlashSale Add To Cart::Response has cart data",
+                      "id": "c66b18336bc6566f5d33e4130b64eb72",
+                      "passes": 27,
+                      "fails": 0
+                    },
+                    {
+                      "name": "Get cart successful",
+                      "path": "::FlashSale Login::FlashSale Get Products::FlashSale Add To Cart::Get cart successful",
+                      "id": "b3a66c997a674b34762932f50150a74b",
+                      "passes": 14,
+                      "fails": 0
+                    },
+                    {
+                      "fails": 0,
+                      "name": "Cart response valid",
+                      "path": "::FlashSale Login::FlashSale Get Products::FlashSale Add To Cart::Cart response valid",
+                      "id": "7c420593defa0f4d8b000bfc6bc381b8",
+                      "passes": 14
+                    }
+                  ],
+                "name": "FlashSale Add To Cart",
+                "path": "::FlashSale Login::FlashSale Get Products::FlashSale Add To Cart",
+                "id": "0ea3f51bccf5e2c4f4ab157ab89ed741"
+              },
+              {
+                "name": "FlashSale Add To Cart (Order Pre-step)",
+                "path": "::FlashSale Login::FlashSale Get Products::FlashSale Add To Cart (Order Pre-step)",
+                "id": "6665ef31f79b21af9676a4404fab84b8",
+                "groups": [],
+                "checks": [
+                    {
+                      "name": "Add to cart successful",
+                      "path": "::FlashSale Login::FlashSale Get Products::FlashSale Add To Cart (Order Pre-step)::Add to cart successful",
+                      "id": "adeb95d077e4ca958dee035235ef1f8e",
+                      "passes": 20,
+                      "fails": 0
+                    },
+                    {
+                      "name": "Response has cart data",
+                      "path": "::FlashSale Login::FlashSale Get Products::FlashSale Add To Cart (Order Pre-step)::Response has cart data",
+                      "id": "8c8e12651f819162259df4d4ce6e457b",
+                      "passes": 20,
+                      "fails": 0
+                    }
+                  ]
+              },
+              {
+                "checks": [
+                  {
+                    "passes": 0,
+                    "fails": 15,
+                    "name": "Create address successful",
+                    "path": "::FlashSale Login::FlashSale Get Products::FlashSale Create Address (Order Pre-step)::Create address successful",
+                    "id": "aaa13857313e469f3f8de328ff2b4d90"
+                  },
+                  {
+                    "fails": 15,
+                    "name": "Address has ID",
+                    "path": "::FlashSale Login::FlashSale Get Products::FlashSale Create Address (Order Pre-step)::Address has ID",
+                    "id": "bc229c0e5783fc37982c4ae9768be78e",
+                    "passes": 0
+                  }
+                ],
+                "name": "FlashSale Create Address (Order Pre-step)",
+                "path": "::FlashSale Login::FlashSale Get Products::FlashSale Create Address (Order Pre-step)",
+                "id": "a54137ffdc0d2bb9fa81a31963a53b3b",
+                "groups": []
+              },
+              {
+                "id": "d27094a5bb7851ec8f746fe8ee9830d6",
+                "groups": [],
+                "checks": [
+                    {
+                      "name": "Add to cart successful",
+                      "path": "::FlashSale Login::FlashSale Get Products::FlashSale Add To Cart (Cancel Pre-step)::Add to cart successful",
+                      "id": "5e4a15b231ef82347452375c35b1087a",
+                      "passes": 6,
+                      "fails": 0
+                    },
+                    {
+                      "name": "Response has cart data",
+                      "path": "::FlashSale Login::FlashSale Get Products::FlashSale Add To Cart (Cancel Pre-step)::Response has cart data",
+                      "id": "177a2a209cd05ae77f23072cbaff4a3b",
+                      "passes": 6,
+                      "fails": 0
+                    }
+                  ],
+                "name": "FlashSale Add To Cart (Cancel Pre-step)",
+                "path": "::FlashSale Login::FlashSale Get Products::FlashSale Add To Cart (Cancel Pre-step)"
+              }
+            ],
+            "checks": [
+              {
+                "id": "f0bc309ff66855af154ec1da0f5ae317",
+                "passes": 35,
+                "fails": 0,
+                "name": "Get products successful (status 200)",
+                "path": "::FlashSale Login::FlashSale Get Products::Get products successful (status 200)"
+              },
+              {
+                "name": "Response has \"status\": \"success\"",
+                "path": "::FlashSale Login::FlashSale Get Products::Response has \"status\": \"success\"",
+                "id": "151bf5a3ada0ac91246aeed5b5db18c8",
+                "passes": 35,
+                "fails": 0
+              },
+              {
+                "name": "Response has \"data\" array",
+                "path": "::FlashSale Login::FlashSale Get Products::Response has \"data\" array",
+                "id": "88ef1d9ea02981f0aefeea4d33c42d0b",
+                "passes": 35,
+                "fails": 0
+              },
+              {
+                "name": "Clear cart successful",
+                "path": "::FlashSale Login::FlashSale Get Products::Clear cart successful",
+                "id": "cabcbb460bb74cb190dab333e5a661a1",
+                "passes": 0,
+                "fails": 21
+              },
+              {
+                "name": "Get addresses successful",
+                "path": "::FlashSale Login::FlashSale Get Products::Get addresses successful",
+                "id": "098273eb896f4d5214c2515df5460c83",
+                "passes": 21,
+                "fails": 0
+              },
+              {
+                "name": "Response is array",
+                "path": "::FlashSale Login::FlashSale Get Products::Response is array",
+                "id": "66f430a160e3fa4d24cf209c316915bb",
+                "passes": 0,
+                "fails": 21
+              }
+            ],
+            "name": "FlashSale Get Products",
+            "path": "::FlashSale Login::FlashSale Get Products"
+          }
+        ],
+        "checks": [
+          {
+            "name": "Login successful (status 200)",
+            "path": "::FlashSale Login::Login successful (status 200)",
+            "id": "30205e1f69594710fa72afc5956472c6",
+            "passes": 35,
+            "fails": 0
+          },
+          {
+            "name": "Login response has accessToken",
+            "path": "::FlashSale Login::Login response has accessToken",
+            "id": "530e7bf3951d4d59575ffdb36e027c6d",
+            "passes": 35,
+            "fails": 0
+          }
+        ]
+      }
+    ],
+    "checks": []
+  },
+  "options": {
+    "summaryTrendStats": [
+      "avg",
+      "min",
+      "med",
+      "max",
+      "p(90)",
+      "p(95)"
+    ],
+    "summaryTimeUnit": "",
+    "noColor": false
+  },
+  "state": {
+    "isStdOutTTY": false,
+    "isStdErrTTY": false,
+    "testRunDurationMs": 34482.2
+  },
+  "metrics": {
+    "group_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 11.718806,
+        "med": 1264.686594,
+        "max": 5775.246275,
+        "p(90)": 3235.7061832,
+        "p(95)": 3796.4230079500003,
+        "avg": 1503.690525141667
+      }
+    },
+    "scenario_executions": {
+      "contains": "default",
+      "values": {
+        "rate": 1.0150164432663809,
+        "count": 35
+      },
+      "type": "counter"
+    },
+    "action_login_time": {
+      "contains": "default",
+      "values": {
+        "avg": 918.3176285714286,
+        "min": 306.283,
+        "med": 664.007,
+        "max": 2205.248,
+        "p(90)": 1903.4360000000001,
+        "p(95)": 2146.6382
+      },
+      "type": "trend"
+    },
+    "checks": {
+      "values": {
+        "rate": 0.8208955223880597,
+        "passes": 330,
+        "fails": 72
+      },
+      "thresholds": {
+        "rate>0.95": {
+          "ok": false
+        }
+      },
+      "type": "rate",
+      "contains": "default"
+    },
+    "http_req_blocked": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(90)": 0.37620000000000026,
+        "p(95)": 0.469,
+        "avg": 0.21126288659793832,
+        "min": 0.003,
+        "med": 0.020499999999999997,
+        "max": 7.276
+      }
+    },
+    "group_duration{group:::FlashSale Get Products}": {
+      "values": {
+        "med": 0,
+        "max": 0,
+        "p(90)": 0,
+        "p(95)": 0,
+        "avg": 0,
+        "min": 0
+      },
+      "thresholds": {
+        "p(95)<1000": {
+          "ok": true
+        }
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "http_reqs": {
+      "contains": "default",
+      "values": {
+        "count": 194,
+        "rate": 5.626091142676511
+      },
+      "type": "counter"
+    },
+    "vus": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "value": 1,
+        "min": 0,
+        "max": 7
+      }
+    },
+    "action_add_to_cart_time": {
+      "contains": "default",
+      "values": {
+        "p(95)": 1598.9392,
+        "avg": 543.3948301886792,
+        "min": 85.889,
+        "med": 302.5,
+        "max": 2392.185,
+        "p(90)": 1362.2566000000006
+      },
+      "type": "trend"
+    },
+    "group_duration{group:::FlashSale Add To Cart}": {
+      "thresholds": {
+        "p(95)<800": {
+          "ok": true
+        }
+      },
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 0,
+        "min": 0,
+        "med": 0,
+        "max": 0,
+        "p(90)": 0,
+        "p(95)": 0
+      }
+    },
+    "http_req_duration_by_endpoint": {
+      "contains": "default",
+      "values": {
+        "p(95)": 1619.8514999999995,
+        "avg": 444.54816352201226,
+        "min": 1.161,
+        "med": 219.118,
+        "max": 2392.185,
+        "p(90)": 1127.931800000001
+      },
+      "type": "trend"
+    },
+    "vus_max": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "value": 7,
+        "min": 7,
+        "max": 7
+      }
+    },
+    "group_duration{group:::FlashSale Register New User}": {
+      "contains": "time",
+      "values": {
+        "p(95)": 0,
+        "avg": 0,
+        "min": 0,
+        "med": 0,
+        "max": 0,
+        "p(90)": 0
+      },
+      "thresholds": {
+        "p(95)<1200": {
+          "ok": true
+        }
+      },
+      "type": "trend"
+    },
+    "flow_completion_rate": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 41,
+        "rate": 1.1890192621120463
+      }
+    },
+    "http_req_failed": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "fails": 158,
+        "rate": 0.18556701030927836,
+        "passes": 36
+      },
+      "thresholds": {
+        "rate<0.75": {
+          "ok": true
+        }
+      }
+    },
+    "action_get_addresses_time": {
+      "type": "trend",
+      "contains": "default",
+      "values": {
+        "avg": 244.0087619047619,
+        "min": 13.905,
+        "med": 72.804,
+        "max": 791.683,
+        "p(90)": 783.43,
+        "p(95)": 789.731
+      }
+    },
+    "iteration_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 4344.467540342858,
+        "min": 2282.674119,
+        "med": 4038.021041,
+        "max": 7855.518157,
+        "p(90)": 6385.2079574,
+        "p(95)": 7085.111799899998
+      }
+    },
+    "iterations": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 35,
+        "rate": 1.0150164432663809
+      }
+    },
+    "action_create_address_time": {
+      "type": "trend",
+      "contains": "default",
+      "values": {
+        "min": 10.923,
+        "med": 63.959,
+        "max": 786.713,
+        "p(90)": 510.83639999999986,
+        "p(95)": 735.9875,
+        "avg": 171.5691333333333
+      }
+    },
+    "data_received": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 490925,
+        "rate": 14237.055640301372
+      }
+    },
+    "group_duration{group:::FlashSale Cancel Order}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 0,
+        "p(90)": 0,
+        "p(95)": 0,
+        "avg": 0,
+        "min": 0,
+        "med": 0
+      },
+      "thresholds": {
+        "p(95)<1000": {
+          "ok": true
+        }
+      }
+    },
+    "group_duration{group:::FlashSale Create Order}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(90)": 0,
+        "p(95)": 0,
+        "avg": 0,
+        "min": 0,
+        "med": 0,
+        "max": 0
+      },
+      "thresholds": {
+        "p(95)<1500": {
+          "ok": true
+        }
+      }
+    },
+    "common_general_errors": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 1,
+        "passes": 78,
+        "fails": 0
+      }
+    },
+    "http_req_receiving": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 0.13803608247422683,
+        "min": 0,
+        "med": 0.087,
+        "max": 3.156,
+        "p(90)": 0.155,
+        "p(95)": 0.19049999999999995
+      }
+    },
+    "http_req_duration{expected_response:true}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 428.0435569620251,
+        "min": 2.247,
+        "med": 214.614,
+        "max": 2392.185,
+        "p(90)": 1133.4947000000006,
+        "p(95)": 1622.8667500000004
+      }
+    },
+    "http_req_waiting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 1.076,
+        "med": 188.2935,
+        "max": 2392.082,
+        "p(90)": 1018.2692000000005,
+        "p(95)": 1542.9296999999997,
+        "avg": 364.94595360824763
+      }
+    },
+    "http_req_tls_handshaking": {
+      "values": {
+        "min": 0,
+        "med": 0,
+        "max": 0,
+        "p(90)": 0,
+        "p(95)": 0,
+        "avg": 0
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "action_get_products_time": {
+      "type": "trend",
+      "contains": "default",
+      "values": {
+        "avg": 4.341942857142856,
+        "min": 2.247,
+        "med": 3.931,
+        "max": 12.538,
+        "p(90)": 5.453600000000001,
+        "p(95)": 7.175499999999994
+      }
+    },
+    "http_req_connecting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 4.848,
+        "p(90)": 0.2684,
+        "p(95)": 0.32505,
+        "avg": 0.13505670103092784,
+        "min": 0,
+        "med": 0
+      }
+    },
+    "http_reqs_by_endpoint": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 159,
+        "rate": 4.611074699410131
+      }
+    },
+    "http_req_sending": {
+      "values": {
+        "p(90)": 0.08410000000000006,
+        "p(95)": 0.101,
+        "avg": 0.0455257731958763,
+        "min": 0.014,
+        "med": 0.0295,
+        "max": 0.906
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "data_sent": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 62875,
+        "rate": 1823.4045391535344
+      }
+    },
+    "http_reqs_by_status": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 159,
+        "rate": 4.611074699410131
+      }
+    },
+    "http_req_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 2392.185,
+        "p(90)": 1018.4914000000006,
+        "p(95)": 1543.0532499999997,
+        "avg": 365.1295154639174,
+        "min": 1.161,
+        "med": 188.457
+      },
+      "thresholds": {
+        "p(95)<2000": {
+          "ok": true
+        }
+      }
+    },
+    "action_get_cart_time": {
+      "type": "trend",
+      "contains": "default",
+      "values": {
+        "max": 386.788,
+        "p(90)": 191.00600000000003,
+        "p(95)": 262.8836999999999,
+        "avg": 100.97764285714288,
+        "min": 9.237,
+        "med": 99.676
+      }
+    },
+    "group_duration{group:::FlashSale Login}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 5775.246275,
+        "p(90)": 4556.180628400001,
+        "p(95)": 5033.1161095,
+        "avg": 2586.7006352285703,
+        "min": 1243.735549,
+        "med": 2424.965732
+      },
+      "thresholds": {
+        "p(95)<800": {
+          "ok": false
+        }
+      }
+    }
+  },
+  "customData": {
+    "flowSummary": {
+      "scenarioExecutions": {
+        "values": {
+          "count": 35,
+          "rate": 1.0150164432663809
+        },
+        "type": "counter",
+        "contains": "default"
+      },
+      "totalRequests": 0,
+      "byType": {},
+      "byUser": {},
+      "byScenario": {},
+      "flowCompletions": {
+              "type": "counter",
+              "contains": "default",
+              "values": {
+                "count": 41,
+                "rate": 1.1890192621120463
+              }
+            }
+    },
+    "sampleRequests": []
+  }
+}

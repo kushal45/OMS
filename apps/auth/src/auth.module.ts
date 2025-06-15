@@ -14,6 +14,7 @@ import { CustomerRepository } from './repository/customer.repository';
 import { LoggerModule } from '@lib/logger/src';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AddressModule } from '@lib/address/src';
+import { RedisClientModule } from '@lib/redis-client'; // Import RedisClientModule
 
 @Module({
   imports: [
@@ -33,7 +34,8 @@ import { AddressModule } from '@lib/address/src';
     TypeOrmModule.forRootAsync(typeOrmAsyncConfig),
     TypeOrmModule.forFeature([Customer]),
     LoggerModule,
-    AddressModule
+    AddressModule,
+    RedisClientModule, // Add RedisClientModule
   ],
   controllers: [AuthController],
   providers: [

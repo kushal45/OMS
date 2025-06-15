@@ -19,7 +19,16 @@ const options = new DocumentBuilder()
   .setExternalDoc('OMS Documentation', '')
   .setTermsOfService('')
   .setLicense('MIT', 'https://opensource.org/license/mit')
-  .addBearerAuth();
+  .addApiKey( // Define the 'api-key' security scheme
+    {
+      type: 'apiKey',
+      name: 'Authorization', // This is the actual HTTP header name
+      in: 'header',
+      description: 'API key authentication. Usage: Authorization: ApiKey YOUR_API_KEY_HERE',
+    },
+    'api-key' // This name must match what removeEndpointsWithoutApiKey expects
+  )
+  .addBearerAuth(); // Defines the 'bearer' scheme
 export const setupSwagger = async (app: INestApplication,path:string) => {
   const document = injectDocumentComponents(
     SwaggerModule.createDocument(app, options.build(), {
@@ -39,8 +48,6 @@ export const setupSwagger = async (app: INestApplication,path:string) => {
     },
   });
   SwaggerModule.setup('openapi', app, removeEndpointsWithoutApiKey(document), {
-    jsonDocumentUrl: 'openapi.json',
-    yamlDocumentUrl: 'openapi.yaml',
     explorer: process.env.NODE_ENV !== 'production',
   });
   sdkSetup(app, document);
@@ -70,8 +77,6 @@ function sdkSetup(app: INestApplication, document: OpenAPIObject) {
   };
 
   SwaggerModule.setup('openapi.sdk', app, transformDocument(document), {
-    jsonDocumentUrl: 'openapi.sdk.json',
-    yamlDocumentUrl: 'openapi.sdk.yaml',
     explorer: process.env.NODE_ENV !== 'production',
   });
 }

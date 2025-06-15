@@ -13,8 +13,8 @@ export class Inventory {
   @JoinColumn({ name: 'productId' })
   product: Product;
 
-  @Column({ type: 'int' })
-  productId: number;
+  @Column({ type: 'varchar' }) // Changed from int
+  productId: string;
 
   @Column({ type: 'int' })
   quantity: number;

@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: k6_grafana
+    ports:
+      - "3030:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - k6_monitoring
+
+  # k6 runner (optional - for running tests in container)
+  k6:
+    image: grafana/k6:latest
+    container_name: k6_runner
+    networks:
+      - k6_monitoring
+      - oms_default  # Connect to your OMS network
+    volumes:
+      - ./:/scripts
+    environment:
+      - BASE_URL=http://localhost:3000  # For Mac/Windows
+      # - BASE_URL=http://172.17.0.1:3000/api  # For Linux
+    command: run /scripts/flash_sale.js
+    profiles:
+      - test  # Only run when explicitly requested
+
+volumes:
+  grafana_data:
+
+networks:
+  k6_monitoring:
+    driver: bridge
+  oms_default:
+    external: true  # Assumes your OMS docker-compose creates this network

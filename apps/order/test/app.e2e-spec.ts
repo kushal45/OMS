@@ -15,7 +15,6 @@ import { add } from 'winston';
 import { CustomerAddress } from '@lib/address/src/entity/customerAdress.entity';
 import { Customer } from '@app/auth/src/entity/customer.entity';
 import { Product } from '@app/product/src/entity/product.entity';
-import { Order } from '../src/entity/order.entity';
 
 describe('OrderController (e2e)', () => {
   let app: INestApplication;
