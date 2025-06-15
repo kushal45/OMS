@@ -1,7 +1,7 @@
 # Documentation Progress
 
 ## Phase 1: Core Services
-- [ ] OrderService (apps/order/src/order.service.ts)
+- [x] OrderService (apps/order/src/order.service.ts)
 - [ ] CartService (apps/cart/src/cart.service.ts)
 - [ ] InventoryService (apps/inventory/src/inventory.service.ts)
 - [ ] ProductService (apps/product/src/product.service.ts)
