@@ -73,8 +73,9 @@ export const { ApiDefaultResponse }: { ApiDefaultResponse: (options?: ApiRespons
 
 export const ApiResponse = <DataDto extends Type<unknown>>(
   dataDto: DataDto,
-  statusCode: 200 | 201|400| 500 = 200,
-  isResponseArray = false
+  statusCode: 200 | 201|400|401 |500 = 200,
+  isResponseArray = false,
+  example?: any
 ) => {
   const Response = getApiResponseType(statusCode);
 
@@ -86,6 +87,7 @@ export const ApiResponse = <DataDto extends Type<unknown>>(
         properties: isResponseArray
           ? { data: { type: 'array', items: { $ref: getSchemaPath(dataDto) } } }
           : { data: { $ref: getSchemaPath(dataDto) } },
+        ...(example ? { example } : {}),
       },
     })
   );
@@ -98,6 +100,8 @@ function getApiResponseType(statusCode:number): (options?: ApiResponseOptions) =
         return ApiOkResponse;
       case 400:
         return ApiBadRequestResponse;
+      case 401:
+        return ApiUnauthorizedResponse;
       case 500:
         return ApiInternalServerErrorResponse;
    }

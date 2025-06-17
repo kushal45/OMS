@@ -21,6 +21,17 @@ export class AddressRepository  implements BaseRepository<AddressRepository> {
     });
   }
 
+  async findByAttributes(attributes: Partial<Address>, selectOption: (keyof Partial<Address>)[]=["id"]): Promise<Address[]> {
+    const selectCriteria: FindOptionsSelect<Address> = selectOption.reduce((acc, key) => {
+      acc[key] = true;
+      return acc;
+    }, {} as FindOptionsSelect<Address>);
+    return await this.addressRepo.find({
+      where: attributes,
+      select: selectCriteria
+    });
+  }
+
   async create(address: Partial<Address>): Promise<Address> {
     const newAddress = this.addressRepo.create(address);
     return this.addressRepo.save(newAddress);

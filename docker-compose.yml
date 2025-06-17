@@ -1,94 +1,196 @@
+version: '3.8'
+
 services:
-  gateway:
+  # --- Application Services (Node.js) ---
+  # Base service definition for shared build
+  # This service won't run, it's just for building the shared image
+  app-base:
+    image: oms-app-base:latest
     build:
       context: .
-    ports:
-      - "3000:3000"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://gateway:3000/api-gateway/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      dockerfile: Dockerfile
+    command: echo "Base image built successfully"
+    profiles:
+      - build-only
+
+  # Keep these largely the same as the previous optimized version,
+  # but adjust environment variables to reflect the 2-node clusters.
+  gateway:
+    image: oms-app-base:latest
     depends_on:
       auth:
         condition: service_healthy
       order:
-       condition: service_healthy
-     
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+      - "9229:9229" # Debug port for gateway (host:container)
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://gateway:3000/api-gateway/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - ELASTICSEARCH_HOST=http://es01:9200
+      # Point to both ES nodes for redundancy
+      - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200
       - SERVICE_NAME=gateway
-    command: npm run  start:debug  --project api-gateway
+    command: npm run start:debug --project api-gateway
     networks:
       - oms
     volumes:
       - ./:/app
+    deploy:
+      resources:
+        limits:
+          memory: 768M # Adjust based on actual Node.js app memory usage
+          cpus: '0.3'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    develop:
+      watch:
+        - action: sync
+          path: ./
+          target: /app
+
   auth:
-    build:
-      context: .
+    image: oms-app-base:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
     ports:
       - "3001:3001"
-    depends_on:
-      - postgres
-      - es01
-    command: npm run  start:debug  --project auth
+      - "9230:9229" # Debug port for auth (host:container)
+    environment: # Ensure this service also uses the ES cluster
+      - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200
+      - REDIS_SENTINEL_ADDRESSES=redis-sentinel-1:26379,redis-sentinel-2:26379,redis-sentinel-3:26379
+      - REDIS_SENTINEL_MASTER_NAME=omsredisprimary
+      # - REDIS_PASSWORD=yoursecuremasterpassword # Uncomment if Redis password is set
+    command: npm run start:debug --project auth
     networks:
       - oms
     volumes:
       - ./:/app
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://auth:3001/auth/health || exit 1"]
-      interval: 30s
+      interval: 20s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.3'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
 
   order:
-    build:
-      context: .
+    image: oms-app-base:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+      kafka1: # Depend on both Kafka brokers
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
     ports:
       - "3002:3002"
-    depends_on:
-      - postgres
-      - es01
-      - kafka1
-      - kafka2
-      - kafka3
-    command: npm run  start:debug  --project order
+      - "9231:9229" # Debug port for order (host:container)
+    environment:
+        - NODE_ENV=development
+        - DATABASE_HOST=postgres
+        - DATABASE_PORT=5432
+        - DATABASE_USER=postgres
+        - DATABASE_PASSWORD=postgres
+        - DATABASE_NAME=oms
+        # Point to all Kafka brokers for redundancy
+        - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
+    command: npm run start:debug --project order
     networks:
       - oms
     volumes:
       - ./:/app
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://order:3002/orders/health || exit 1"]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.3'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
   
   inventory:
-    build:
-      context: .
-    ports:
-      - "3003:3003"
-      - "5002:5002"
+    image: oms-app-base:latest
     depends_on:
-      - postgres
-      - es01
-      - kafka1
-      - kafka2
-      - kafka3
-    command: npm run  start:debug  --project inventory
+      postgres:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+
+    ports:
+      - "3003:3003" # App port
+      - "5002:5002" # gRPC port
+      - "9232:9229" # Debug port for inventory (host:container)
+     
+    environment: # Ensure this service also uses the ES and Kafka clusters
+      - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9092
+      - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
+    command: npm run start:debug --project inventory
     networks:
       - oms
     volumes:
       - ./:/app
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.3'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
     
   product:
-    build:
-      context: .
+    image: oms-app-base:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
     ports:
       - "3004:3004"
+      - "9233:9229" # Debug port for product/cart (host:container)
     environment:
       - NODE_ENV=development
       - DATABASE_HOST=postgres
@@ -97,19 +199,87 @@ services:
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=oms
       - PORT=3004
-    depends_on:
-      - postgres
-    command: npm run  start:debug  --project product
+      # Ensure this service also uses the ES and Kafka clusters
+      - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9092
+      - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
+      - REDIS_SENTINEL_ADDRESSES=redis-sentinel-1:26379,redis-sentinel-2:26379,redis-sentinel-3:26379
+      - REDIS_SENTINEL_MASTER_NAME=omsredisprimary
+      # - REDIS_PASSWORD=yoursecuremasterpassword # Uncomment if Redis password is set
+    
+    command: npm run start:debug --project product
     networks:
       - oms
     volumes:
       - ./:/app
-  postgres:
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.3'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  cart:
+    image: oms-app-base:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+    ports:
+      - "3005:3005"
+      - "9234:9229" # Debug port for cart (host:container)
+      - "5005:5005" # gRPC port for cart
+    environment:
+      - NODE_ENV=development
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_NAME=oms
+      - PORT=3005
+      # Point to both ES nodes
+      - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200
+      - SERVICE_NAME=cart
+      # Point to all Kafka brokers
+      - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
+      - INVENTORY_RESERVE_TOPIC=reserveInventory
+      - INVENTORY_RELEASE_TOPIC=releaseInventory
+     
+    command: npm run start:debug --project cart
+    networks:
+      - oms
+    volumes:
+      - ./:/app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://cart:3005/cart/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.3'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  # --- Infrastructure Services (Optimized for Local Dev Clusters) ---
+
+  postgres: # No changes needed here, already lean
     image: postgres:14-alpine
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 5
     ports:
       - "5433:5432"
@@ -121,15 +291,27 @@ services:
       - oms
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.2'
+        reservations:
+          memory: 128M
+          cpus: '0.05'
+
+  # Elasticsearch Cluster (2 Nodes)
   es01:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+    container_name: es01
     environment:
       - node.name=es01
       - cluster.name=es-docker-cluster
-      - discovery.seed_hosts=es02,es03
-      - cluster.initial_master_nodes=es01,es02,es03
+      # Only two nodes in the cluster
+      - discovery.seed_hosts=es02
+      - cluster.initial_master_nodes=es01,es02 # Both can be master eligible
       - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" # Aggressive memory limits
       - xpack.security.enabled=false
     ulimits:
       memlock:
@@ -140,18 +322,33 @@ services:
     ports:
       - "9200:9200"
       - "9300:9300"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -f http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - oms
+    deploy:
+      resources:
+        limits:
+          memory: 1024M # Docker-level limit slightly above JVM to prevent OOMKill from other processes
+          cpus: '0.7'
+        reservations:
+          memory: 384M
+          cpus: '0.3'
 
-  es02:
+  es02: # Second Elasticsearch node
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+    container_name: es02
     environment:
       - node.name=es02
       - cluster.name=es-docker-cluster
-      - discovery.seed_hosts=es01,es03
-      - cluster.initial_master_nodes=es01,es02,es03
+      - discovery.seed_hosts=es01
+      - cluster.initial_master_nodes=es01,es02
       - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" # Aggressive memory limits
       - xpack.security.enabled=false
     ulimits:
       memlock:
@@ -159,51 +356,63 @@ services:
         hard: -1
     volumes:
       - esdata2:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -f http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - oms
-
-  es03:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
-    environment:
-      - node.name=es03
-      - cluster.name=es-docker-cluster
-      - discovery.seed_hosts=es01,es02
-      - cluster.initial_master_nodes=es01,es02,es03
-      - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - xpack.security.enabled=false
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    volumes:
-      - esdata3:/usr/share/elasticsearch/data
-    networks:
-      - oms
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: '0.7'
+        reservations:
+          memory: 384M
+          cpus: '0.3'
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.15.2
     ports:
       - "5601:5601"
     environment:
-      ELASTICSEARCH_HOSTS: http://es01:9200
+      ELASTICSEARCH_HOSTS: '["http://es01:9200","http://es02:9200"]' # JSON array for Kibana
     networks:
       - oms
+    depends_on:
+      es01:
+        condition: service_healthy
+      es02: # Ensure Kibana waits for both ES nodes
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.2'
+        reservations:
+          memory: 128M
+          cpus: '0.05'
+
+  # Kafka Cluster (2 Brokers)
   kafka1:
     image: confluentinc/cp-kafka:latest
     container_name: kafka1
     ports:
       - "9092:9092"
-      - "9093:9093"
+      - "9093:9093" # Internal controller listener
     healthcheck:
-      test: ["CMD", "bash", "-c", "/usr/bin/kafka-broker-api-versions --bootstrap-server=kafka1:9092"]
-      interval: 30s
+      test: ["CMD", "bash", "/app/kafka-ready.sh", "kafka1:9092", "60"]
+      interval: 20s
       timeout: 10s
-      retries: 3
+      retries: 10
+      start_period: 120s
     environment:
       KAFKA_KRAFT_MODE: 'true'
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_NODE_ID: 1
+      # Both nodes in the quorum
       KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9093,2@kafka2:9093,3@kafka3:9093"
       KAFKA_LISTENERS: "PLAINTEXT://kafka1:9092,CONTROLLER://kafka1:9093,EXTERNAL://kafka1:29092"
       KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka1:9092,EXTERNAL://host.docker.internal:29092"
@@ -215,30 +424,44 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       KAFKA_MIN_INSYNC_REPLICAS: 2
       KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: 'false'
-      CLUSTER_ID: DK3WNslFRemFujcyCzKORw
+      CLUSTER_ID: DK3WNslFRemFujcyCzKORw # Keep consistent for both Kafka brokers
+      # KAFKA_HEAP_OPTS: "-Xms512m -Xmx512m" # Adjust if your Kafka image uses this for JVM
     volumes:
+      - ./kafka-ready.sh:/app/kafka-ready.sh
       - kafka1_data:/var/lib/kafka/data
     networks:
       - oms
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: '0.7'
+        reservations:
+          memory: 384M
+          cpus: '0.3'
 
-  kafka2:
+  kafka2: # Second Kafka broker
     image: confluentinc/cp-kafka:latest
     container_name: kafka2
-    ports:
-      - "9094:9092"
-      - "9096:9093"
+    # Ensure unique ports for external access if needed, but not strictly required if only internal communication
+    # For local dev, you might only need 9092 from kafka1 exposed to host.
+    # If you need to access kafka2 directly from host, map a different port:
+    # ports:
+    #  - "9094:9092" # Map 9092 from kafka2 to host port 9094
+    #  - "9096:9093" # Internal controller listener
     healthcheck:
-      test: ["CMD", "bash", "-c", "/usr/bin/kafka-broker-api-versions --bootstrap-server=kafka2:9092"]
-      interval: 30s
+      test: ["CMD", "bash", "/app/kafka-ready.sh", "kafka2:9092", "60"]
+      interval: 20s
       timeout: 10s
-      retries: 3
+      retries: 10
+      start_period: 120s
     environment:
       KAFKA_KRAFT_MODE: 'true'
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_NODE_ID: 2
       KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9093,2@kafka2:9093,3@kafka3:9093"
       KAFKA_LISTENERS: "PLAINTEXT://kafka2:9092,CONTROLLER://kafka2:9093,EXTERNAL://kafka2:29094"
-      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka2:9092,EXTERNAL://host.docker.internal:29094"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka2:9092,EXTERNAL://host.docker.internal:29094" # Unique external port
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LOG_DIRS: /var/lib/kafka/data
@@ -248,22 +471,34 @@ services:
       KAFKA_MIN_INSYNC_REPLICAS: 2
       KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: 'false'
       CLUSTER_ID: DK3WNslFRemFujcyCzKORw
+      # KAFKA_HEAP_OPTS: "-Xms512m -Xmx512m"
     volumes:
+      - ./kafka-ready.sh:/app/kafka-ready.sh
       - kafka2_data:/var/lib/kafka/data
     networks:
       - oms
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: '0.7'
+        reservations:
+          memory: 384M
+          cpus: '0.3'
 
-  kafka3:
+  kafka3: # Third Kafka broker
     image: confluentinc/cp-kafka:latest
     container_name: kafka3
-    ports:
-      - "9095:9092"
-      - "9097:9093"
+    # No need to expose ports unless you want to access directly from host
+    # ports:
+    #   - "9095:9092" # Optional: expose kafka3 broker
+    #   - "9097:9093" # Optional: expose controller
     healthcheck:
-      test: ["CMD", "bash", "-c", "/usr/bin/kafka-broker-api-versions --bootstrap-server=kafka3:9092"]
-      interval: 30s
+      test: ["CMD", "bash", "/app/kafka-ready.sh", "kafka3:9092", "60"]
+      interval: 20s
       timeout: 10s
-      retries: 3
+      retries: 10
+      start_period: 120s
     environment:
       KAFKA_KRAFT_MODE: 'true'
       KAFKA_PROCESS_ROLES: broker,controller
@@ -280,10 +515,21 @@ services:
       KAFKA_MIN_INSYNC_REPLICAS: 2
       KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: 'false'
       CLUSTER_ID: DK3WNslFRemFujcyCzKORw
+      # KAFKA_HEAP_OPTS: "-Xms512m -Xmx512m"
     volumes:
+      - ./kafka-ready.sh:/app/kafka-ready.sh
       - kafka3_data:/var/lib/kafka/data
     networks:
       - oms
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: '0.7'
+        reservations:
+          memory: 384M
+          cpus: '0.3'
+
   kafdrop:
     image: obsidiandynamics/kafdrop:latest
     container_name: kafdrop
@@ -291,15 +537,27 @@ services:
     ports:
       - "9000:9000"
     environment:
-      KAFKA_BROKERCONNECT: "kafka1:9092,kafka2:9092,kafka3:9092"
+      KAFKA_BROKERCONNECT: "kafka1:9092,kafka2:9092,kafka3:9092" # Point to both Kafka brokers
       JVM_OPTS: "-Xms32M -Xmx64M"
       SERVER_PORT: 9000
     depends_on:
-      - kafka1
-      - kafka2
-      - kafka3
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
     networks:
       - oms
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.2'
+        reservations:
+          memory: 64M
+          cpus: '0.05'
+
   schema-registry:
     image: confluentinc/cp-schema-registry:latest
     depends_on:
@@ -317,15 +575,182 @@ services:
       - "8081:8081"
     networks:
       - oms
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.2'
+        reservations:
+          memory: 128M
+          cpus: '0.05'
+
+  apm-server: # No changes, depends on ES cluster
+    image: docker.elastic.co/apm/apm-server:8.15.2
+    depends_on:
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+    environment:
+      - output.elasticsearch.hosts=["http://es01:9200","http://es02:9200"]
+      - apm-server.host=0.0.0.0:8200
+      - apm-server.secret_token=changeme
+      - apm-server.enable_rum=true
+    ports:
+      - "8200:8200"
+    networks:
+      - oms
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.2'
+        reservations:
+          memory: 128M
+          cpus: '0.05'
+
+  # --- Redis Sentinel Cluster ---
+  redis-master:
+    image: redis:7.2-alpine
+    container_name: redis-master
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./config/redis/master.conf:/usr/local/etc/redis/redis.conf
+      - redis_master_data:/data
+    networks:
+      - oms
+    healthcheck:
+      test: ["CMD", "redis-cli", "-h", "localhost", "-p", "6379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  redis-replica-1:
+    image: redis:7.2-alpine
+    container_name: redis-replica-1
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports: # Optional: expose if direct access to replica is needed for debugging
+      - "6380:6379"
+    volumes:
+      - ./config/redis/replica.conf:/usr/local/etc/redis/redis.conf
+      - redis_replica1_data:/data
+    depends_on:
+      - redis-master
+    networks:
+      - oms
+    healthcheck:
+      test: ["CMD", "redis-cli", "-h", "localhost", "-p", "6379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  redis-sentinel-1:
+    image: redis:7.2-alpine
+    container_name: redis-sentinel-1
+    command: /app/sentinel-entrypoint.sh
+    ports:
+      - "26379:26379"
+    volumes:
+      - ./config/redis/sentinel-entrypoint.sh:/app/sentinel-entrypoint.sh:ro
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica-1:
+        condition: service_healthy
+    networks:
+      - oms
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  redis-sentinel-2:
+    image: redis:7.2-alpine
+    container_name: redis-sentinel-2
+    command: /app/sentinel-entrypoint.sh
+    ports:
+      - "26380:26379"
+    volumes:
+      - ./config/redis/sentinel-entrypoint.sh:/app/sentinel-entrypoint.sh:ro
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica-1:
+        condition: service_healthy
+    networks:
+      - oms
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  redis-sentinel-3:
+    image: redis:7.2-alpine
+    container_name: redis-sentinel-3
+    command: /app/sentinel-entrypoint.sh
+    ports:
+      - "26381:26379"
+    volumes:
+      - ./config/redis/sentinel-entrypoint.sh:/app/sentinel-entrypoint.sh:ro
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica-1:
+        condition: service_healthy
+    networks:
+      - oms
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
 
 volumes:
   postgres_data:
   esdata1:
-  esdata2:
-  esdata3:
+  esdata2: # Keep this for the second ES node
   kafka1_data:
-  kafka2_data:
+  kafka2_data: # Keep this for the second Kafka node
   kafka3_data:
+  redis_master_data:
+  redis_replica1_data:
 
 networks:
   oms:

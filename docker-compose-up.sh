@@ -1,14 +1,25 @@
-unused_volumes=$(docker volume ls -f dangling=true -q)
-if [ -n "$unused_volumes" ]; then
-  echo "Pruning unused Docker volumes..."
-  docker volume prune -f
+# Remove all containers from this compose file
+COMPOSE_PROJECT_NAME=oms
+
+echo "Stopping and removing containers and networks defined in docker-compose.yml (volumes will be preserved)..."
+docker compose -f docker-compose.yml down --remove-orphans
+
+echo "Removing images previously built by this compose project ($COMPOSE_PROJECT_NAME)..."
+# Remove images built by this compose file (filter by project label)
+images=$(docker images --filter label=com.docker.compose.project=$COMPOSE_PROJECT_NAME -q)
+if [ -n "$images" ]; then
+  docker rmi -f $images
 else
-  echo "No unused Docker volumes found."
+  echo "No images to remove."
 fi
-docker-compose -f docker-compose.yml down
-#check for containers having the prefix oms and remove them
-docker ps -a | grep oms | awk '{print $1}' | xargs docker rm -f
-#remove the corresponding matching images
-docker images | grep oms | awk '{print $3}' | xargs docker rmi -f
+
+echo "Pruning Docker build cache and dangling images..."
+docker builder prune -af
 docker image prune -f
-DEBUG=1 docker-compose -f docker-compose.yml up --remove-orphans --build -d
+
+echo "Restarting containers without rebuilding (unless Dockerfile or dependencies have changed)..."
+docker compose -f docker-compose.yml up -d --remove-orphans
+
+echo "Watching for changes to docker-compose.yml..."
+#docker compose watch
+echo "Done."

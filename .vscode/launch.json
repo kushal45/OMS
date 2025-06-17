@@ -23,9 +23,12 @@
         "--inspect-brk",
         "${workspaceRoot}/node_modules/.bin/jest",
         "--runInBand",
+        "--config",
+        "${workspaceRoot}/jest.config.js",
         "--coverage",
         "false",
-        "${fileBasenameNoExtension}"
+        "${fileBasenameNoExtension}",
+       "--testTimeout=6000000"
       ],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
@@ -49,7 +52,98 @@
         "NODE_ENV": "test"
       },
       "sourceMaps": true,
-      "disableOptimisticBPs": true
+    },
+    // Docker Attach Configurations
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Docker: Attach to Gateway",
+      "address": "localhost",
+      "port": 9229,
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app",
+      "protocol": "inspector",
+      "restart": true,
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**", "node_modules/**"]
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Docker: Attach to Auth",
+      "address": "localhost",
+      "port": 9230, // Host port for auth
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app",
+      "protocol": "inspector",
+      "restart": true,
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**", "node_modules/**"]
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Docker: Attach to Order",
+      "address": "localhost",
+      "port": 9231, // Host port for order
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app",
+      "protocol": "inspector",
+      "restart": true,
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**", "node_modules/**"]
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Docker: Attach to Inventory",
+      "address": "localhost",
+      "port": 9232, // Host port for inventory
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app",
+      "protocol": "inspector",
+      "restart": true,
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**", "node_modules/**"]
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Docker: Attach to Product", // Assuming 'product' service uses host port 9233
+      "address": "localhost",
+      "port": 9233, // Host port for product
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app",
+      "protocol": "inspector",
+      "restart": true,
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**", "node_modules/**"]
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Docker: Attach to Cart",
+      "address": "localhost",
+      "port": 9234, // Assigning a new host port for cart service
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app",
+      "protocol": "inspector",
+      "restart": true,
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**", "node_modules/**"]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Attach to All OMS Services",
+      "configurations": [
+        "Docker: Attach to Gateway",
+        "Docker: Attach to Auth",
+        "Docker: Attach to Order",
+        "Docker: Attach to Inventory",
+        "Docker: Attach to Product",
+        "Docker: Attach to Cart"
+      ]
     }
   ]
 }

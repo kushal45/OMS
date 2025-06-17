@@ -1,12 +1,13 @@
-import { getRepository } from 'typeorm';
+import { DataSource } from 'typeorm'; // Import DataSource
 import { Product } from '../../product/src/entity/product.entity';
 import { Inventory } from '../../inventory/src/entity/inventory.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 
-export async function seedProductsAndInventory() {
-  const productRepository = getRepository(Product);
-  const inventoryRepository = getRepository(Inventory);
+// Updated function to accept a DataSource instance
+export async function seedProductsAndInventory(dataSource: DataSource) { 
+  const productRepository = dataSource.getRepository(Product);
+  const inventoryRepository = dataSource.getRepository(Inventory);
 
   // Load product data from JSON file
   const productsData = JSON.parse(
@@ -30,6 +31,11 @@ export async function seedProductsAndInventory() {
   // Insert inventory data into the database, referencing the product ids
   for (let i = 0; i < inventoriesData.length; i++) {
     const inventoryData = inventoriesData[i];
+    // Ensure productId is correctly mapped if your inventories.json doesn't directly have it
+    // or if it needs to be linked to the `products` array created above.
+    // For simplicity, assuming inventories.json contains a productId that matches an existing product.
+    // If inventories.json refers to products by an index or name, you'll need to adjust:
+    // Example: inventoryData.productId = products[someIndexBasedOnInventoryData].id;
     console.log("inventoryData-->",inventoryData);
     const inventory = inventoryRepository.create(inventoryData);
     await inventoryRepository.save(inventory);

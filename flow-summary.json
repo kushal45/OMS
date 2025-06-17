@@ -1,0 +1,22 @@
+{
+  "totalRequests": 0,
+  "byType": {},
+  "byUser": {},
+  "byScenario": {},
+  "flowCompletions": {
+          "values": {
+            "count": 41,
+            "rate": 1.1890192621120463
+          },
+          "type": "counter",
+          "contains": "default"
+        },
+  "scenarioExecutions": {
+          "type": "counter",
+          "contains": "default",
+          "values": {
+            "rate": 1.0150164432663809,
+            "count": 35
+          }
+        }
+}

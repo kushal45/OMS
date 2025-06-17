@@ -1,9 +1,8 @@
 import { EntityManager, FindOptionsSelect, Repository } from 'typeorm';
 import { CustomerAddress } from '../entity/customerAdress.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { console } from 'inspector';
 import { ModuleRef } from '@nestjs/core';
-import { CustomLoggerService } from '@lib/logger/src';
+import { LoggerService } from '@lib/logger/src';
 
 export class CustomerAddressRepository {
   constructor(
@@ -12,16 +11,15 @@ export class CustomerAddressRepository {
     private moduleRef:ModuleRef) {}
 
     async findOne({addressId,userId}:{addressId:number,userId:number},selectOption: (keyof Partial<CustomerAddress>)[]=["addressId"]): Promise<CustomerAddress> {
-      const selectCriteria: FindOptionsSelect<CustomerAddress> = selectOption.reduce((acc, key) => {
-        acc[key] = true;
-        return acc;
-      }, {} as FindOptionsSelect<CustomerAddress>);
+      // const selectCriteria: FindOptionsSelect<CustomerAddress> = selectOption.reduce((acc, key) => {
+      //   acc[key] = true;
+      //   return acc;
+      // }, {} as FindOptionsSelect<CustomerAddress>);
       return await this.custAddressRepo.findOne({
         where: { 
           userId,
           addressId
          },
-        select: selectCriteria
       });
     }
   async create(addressObj: Partial<CustomerAddress>): Promise<CustomerAddress> {
@@ -47,7 +45,7 @@ export class CustomerAddressRepository {
   }
 
   async isValidAddress(userId:number,addressId:number): Promise<boolean> {
-    const loggerService = await this.moduleRef.resolve(CustomLoggerService);
+    const loggerService = await this.moduleRef.resolve(LoggerService);
     loggerService.info(`Checking if address is valid for user ${userId} and addressId ${addressId}`,CustomerAddressRepository.name);
     const address = await this.findOne({ addressId,userId });
     return !!address;

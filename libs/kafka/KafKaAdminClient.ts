@@ -1,4 +1,4 @@
-import { CustomLoggerService } from '@lib/logger/src';
+import { LoggerService } from '@lib/logger/src';
 import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { Admin, KafkaConfig, Kafka, ITopicMetadata } from 'kafkajs';
@@ -7,15 +7,30 @@ import { Admin, KafkaConfig, Kafka, ITopicMetadata } from 'kafkajs';
 export class KafkaAdminClient {
   private static kafkaAdminClient: Admin;
   private context: string = 'KafkaAdminClient';
+  private logger: LoggerService;
+  private isConnected: boolean = false;
   constructor(
     config: KafkaConfig,
-    private moduleRef: ModuleRef,
+    private readonly moduleRef: ModuleRef, // moduleRef might still be needed for other purposes or can be removed if not used elsewhere
+    loggerService: LoggerService, // Add loggerService parameter
   ) {
     // create a single instance of KafkaAdminClient
     if (!KafkaAdminClient.kafkaAdminClient) {
-      const kafka = new Kafka(config);
-      KafkaAdminClient.kafkaAdminClient = kafka.admin();
+      // Enhance KafkaConfig with retry settings
+      const kafkaWithRetries = new Kafka({
+        ...config,
+        retry: {
+          initialRetryTime: 300, // Initial delay in ms
+          retries: 8, // Max number of retries
+          maxRetryTime: 30000, // Max delay between retries
+          multiplier: 2, // Exponential backoff
+          factor: 0.2, // Randomness factor
+          ...config.retry, // Allow overriding from incoming config if needed
+        },
+      });
+      KafkaAdminClient.kafkaAdminClient = kafkaWithRetries.admin();
     }
+    this.logger = loggerService; // Use the injected loggerService
   }
 
   async fetchTopicMetadata(topics: string[]): Promise<Array<ITopicMetadata>> {
@@ -24,12 +39,11 @@ export class KafkaAdminClient {
         await KafkaAdminClient.kafkaAdminClient.fetchTopicMetadata({ topics });
       return metadata.topics;
     } catch (error) {
-      const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
-      logger.error(
-        {
+      this.logger.error(
+        JSON.stringify({
           message: `Failed to fetch topic metadata for topics: ${topics.join(', ')}`,
           error: error.message,
-        },
+        }),
         this.context,
       );
       throw new Error(`Failed to fetch topic metadata: ${error.message}`);
@@ -38,20 +52,19 @@ export class KafkaAdminClient {
   async createTopic(topicName: string): Promise<void> {
     try {
       await KafkaAdminClient.kafkaAdminClient.connect();
-      const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
       const topics = await this.listTopics();
-      logger.info(`Topics: ${JSON.stringify(topics)}`, this.context);
+      this.logger.info(`Topics: ${JSON.stringify(topics)}`, this.context);
       if (!topics.includes(topicName) || topics.length === 0) {
         console.log(`Creating topic ${topicName}`);
         await this.retryCreateTopic(topicName);
+        await this.waitForLeaders(topicName); // Wait for leader election after topic creation
       }
     } catch (error) {
-      const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
-      logger.error(
-        {
+      this.logger.error(
+        JSON.stringify({
           message: `Failed to create topic ${topicName}`,
           error: error.message,
-        },
+        }),
         this.context,
       );
     }
@@ -68,25 +81,17 @@ export class KafkaAdminClient {
             },
           ],
         });
-        const logger = this.moduleRef.get(CustomLoggerService, {
-          strict: false,
-        });
-        logger.info(
+        this.logger.info(
           `Successfully created topic ${topicName} on attempt ${attempt}`,
           this.context,
         );
         return;
       } catch (error) {
         if (attempt === retries) {
-          const logger = this.moduleRef.get(CustomLoggerService, {
-            strict: false,
-          });
-          logger.error(
-            {
-              message: `Failed to create topic ${topicName} after ${retries} attempts`,
-              error: error.message,
-            },
+          this.logger.error(
+            `Failed to create topic ${topicName} after ${retries} attempts`,
             this.context,
+            error, // Pass the full error object
           );
           throw new Error(
             `Failed to create topic ${topicName} after ${retries} attempts: ${error.message}`,
@@ -105,8 +110,7 @@ export class KafkaAdminClient {
     }
   }
   async listTopics(): Promise<string[]> {
-    const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
-    logger.info('Listing topics', this.context);
+    this.logger.info('Listing topics', this.context);
     return await KafkaAdminClient.kafkaAdminClient.listTopics();
   }
 
@@ -117,30 +121,87 @@ export class KafkaAdminClient {
 
   async getNumberOfPartitions(topic: string): Promise<number> {
     try {
-
       const admin = KafkaAdminClient.kafkaAdminClient;
       await admin.connect();
+      this.isConnected = true; // Set isConnected to true after successful connection
       const metadata = await admin.fetchTopicMetadata({ topics: [topic] });
       const topicMetadata = metadata.topics.find((t) => t.name === topic);
 
       if (!topicMetadata) {
         throw new Error(`Topic "${topic}" not found`);
       }
-      await admin.disconnect();
+     // await admin.disconnect();
       return topicMetadata.partitions.length; // Number of partitions
     } catch (error) {
-      const logger = this.moduleRef.get(CustomLoggerService, { strict: false });
-      logger.error(
-        {
-          message: `Failed to get number of partitions for topic ${topic}`,
-          error: error.message,
-        },
+      this.logger.error(
+        `Failed to get number of partitions for topic ${topic}`,
         this.context,
+        error, // Pass the full error object
       );
       throw new Error(
         `Failed to get number of partitions for topic ${topic}: ${error.message}`,
       );
     }
+  }
+
+  async listPartitions(topic: string): Promise<number[]> {
+    try {
+      const admin = KafkaAdminClient.kafkaAdminClient;
+      if (!this.isConnected) {
+        await admin.connect();
+        this.isConnected = true; // Set isConnected to true after successful connection
+      }
+      const metadata = await admin.fetchTopicMetadata({ topics: [topic] });
+      const topicMeta = metadata.topics.find((t) => t.name === topic);
+      if (!topicMeta) throw new Error(`Topic ${topic} not found`);
+      return topicMeta.partitions.map((p) => p.partitionId);
+    } catch (error) {
+      this.logger.error(
+        `Failed to list partitions for topic ${topic}`,
+        this.context,
+        error, // Pass the full error object
+      );
+      throw new Error(
+        `Failed to list partitions for topic ${topic}: ${error.message}`,
+      );
+    }
+  }
+
+  async waitForLeaders(topic: string, timeoutMs = 30000) { // Increased timeout to 30 seconds
+    const start = Date.now();
+    this.logger.info(`Waiting for leaders for topic ${topic} (timeout: ${timeoutMs}ms)...`, this.context);
+    while (Date.now() - start < timeoutMs) {
+      try {
+        // Log which broker the admin client is trying to connect to if possible (KafkaJS doesn't expose this easily)
+        // We can infer it if fetchTopicMetadata fails with a broker-specific error.
+        this.logger.debug(`Fetching metadata for topic ${topic} in waitForLeaders loop. Elapsed: ${Date.now() - start}ms`, this.context);
+        const metadata = await this.fetchTopicMetadata([topic]);
+        const topicMeta = metadata.find((t) => t.name === topic);
+        if (topicMeta && topicMeta.partitions.every((p) => p.leader !== -1 && p.isr.length > 0)) { // Added check for ISR > 0
+          this.logger.info(`All partitions for topic ${topic} have leaders and ISR count > 0. Partitions: ${JSON.stringify(topicMeta.partitions)}`, this.context);
+          return;
+        }
+        this.logger.debug(`Topic ${topic} still waiting for leaders or sufficient ISR. Current metadata: ${JSON.stringify(topicMeta?.partitions)}`, this.context);
+      } catch (error) {
+        this.logger.error(`Error fetching metadata in waitForLeaders for topic ${topic}: ${error.message}. Retrying...`, this.context);
+        // Continue loop on error, relying on the main timeout
+      }
+      await new Promise((res) => setTimeout(res, 1000)); // Increased retry interval
+    }
+    
+    let lastErrorMsg = 'Unknown error after timeout';
+    try {
+      const finalMetadataAttempt = await this.fetchTopicMetadata([topic]);
+      // If fetchTopicMetadata succeeded but leaders weren't found, log that.
+      // The actual check for leaders is inside the loop. This is just to get a final state.
+      this.logger.error(`Timeout waiting for leaders for topic ${topic}. Final metadata attempt: ${JSON.stringify(finalMetadataAttempt)}`, this.context);
+      // We can't easily get a specific "error" from a successful fetchTopicMetadata that simply shows no leaders.
+      // The error we're interested in is if fetchTopicMetadata itself failed.
+    } catch (e) {
+      lastErrorMsg = e.message || 'Failed to fetch final metadata';
+      this.logger.error(`Timeout waiting for leaders for topic ${topic}. Error during final metadata fetch: ${lastErrorMsg}`, this.context);
+    }
+    throw new Error(`Timeout waiting for leaders for topic ${topic}. Last known error: ${lastErrorMsg}`);
   }
 
   async close(): Promise<void> {
