@@ -40,6 +40,15 @@ chmod +x docker-compose-up.sh
 ./docker-compose-up.sh
 ```
 
+### Docker Compose Structure
+
+The Docker Compose setup has been split into two files for better organization and flexibility:
+
+- `docker-compose.app.yml`: Contains the application services.
+- `docker-compose.infra.yml`: Contains the infrastructure services (databases, Kafka, etc.).
+
+The provided scripts (`docker-compose-up.sh`, `docker-compose-down.sh`, `docker-compose-build.sh`) have been updated to use this new structure.
+
 ## Run tests
 
 ```bash

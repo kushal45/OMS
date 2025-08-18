@@ -1,0 +1,275 @@
+services:
+  # --- Application Services (Node.js) ---
+  # Base service definition for shared build
+  # This service won't run, it's just for building the shared image
+  app-base:
+    image: oms-app-base:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: echo "Base image built successfully"
+    profiles:
+      - build-only
+
+  # Keep these largely the same as the previous optimized version,
+  # but adjust environment variables to reflect the 2-node clusters.
+  gateway:
+    image: oms-app-base:latest
+    depends_on:
+      auth:
+        condition: service_healthy
+      order:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+      - "9229:9229" # Debug port for gateway (host:container)
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://gateway:3000/api-gateway/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      # Point to both ES nodes for redundancy
+      - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200
+      - SERVICE_NAME=gateway
+    command: npm run start:debug --project api-gateway
+    networks:
+      - oms
+    volumes:
+      - ./:/app
+    deploy:
+      resources:
+        limits:
+          memory: 768M # Adjust based on actual Node.js app memory usage
+          cpus: '0.3'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    develop:
+      watch:
+        - action: sync
+          path: ./
+          target: /app
+
+  auth:
+    image: oms-app-base:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+      - "9230:9229" # Debug port for auth (host:container)
+    environment: # Ensure this service also uses the ES cluster
+      - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200
+      - REDIS_SENTINEL_ADDRESSES=redis-sentinel-1:26379,redis-sentinel-2:26379,redis-sentinel-3:26379
+      - REDIS_SENTINEL_MASTER_NAME=omsredisprimary
+      # - REDIS_PASSWORD=yoursecuremasterpassword # Uncomment if Redis password is set
+    command: npm run start:debug --project auth
+    networks:
+      - oms
+    volumes:
+      - ./:/app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://auth:3001/auth/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.3'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  order:
+    image: oms-app-base:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+      kafka1: # Depend on both Kafka brokers
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+    ports:
+      - "3002:3002"
+      - "9231:9229" # Debug port for order (host:container)
+    environment:
+        - NODE_ENV=development
+        - DATABASE_HOST=postgres
+        - DATABASE_PORT=5432
+        - DATABASE_USER=postgres
+        - DATABASE_PASSWORD=postgres
+        - DATABASE_NAME=oms
+        # Point to all Kafka brokers for redundancy
+        - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
+    command: npm run start:debug --project order
+    networks:
+      - oms
+    volumes:
+      - ./:/app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://order:3002/orders/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.3'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  inventory:
+    image: oms-app-base:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+
+    ports:
+      - "3003:3003" # App port
+      - "5002:5002" # gRPC port
+      - "9232:9229" # Debug port for inventory (host:container)
+
+    environment: # Ensure this service also uses the ES and Kafka clusters
+      - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9092
+      - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
+    command: npm run start:debug --project inventory
+    networks:
+      - oms
+    volumes:
+      - ./:/app
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.3'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  product:
+    image: oms-app-base:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+    ports:
+      - "3004:3004"
+      - "9233:9229" # Debug port for product/cart (host:container)
+    environment:
+      - NODE_ENV=development
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_NAME=oms
+      - PORT=3004
+      # Ensure this service also uses the ES and Kafka clusters
+      - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9092
+      - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
+      - REDIS_SENTINEL_ADDRESSES=redis-sentinel-1:26379,redis-sentinel-2:26379,redis-sentinel-3:26379
+      - REDIS_SENTINEL_MASTER_NAME=omsredisprimary
+      # - REDIS_PASSWORD=yoursecuremasterpassword # Uncomment if Redis password is set
+
+    command: npm run start:debug --project product
+    networks:
+      - oms
+    volumes:
+      - ./:/app
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.3'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  cart:
+    image: oms-app-base:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+    ports:
+      - "3005:3005"
+      - "9234:9229" # Debug port for cart (host:container)
+      - "5005:5005" # gRPC port for cart
+    environment:
+      - NODE_ENV=development
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_NAME=oms
+      - PORT=3005
+      # Point to both ES nodes
+      - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200
+      - SERVICE_NAME=cart
+      # Point to all Kafka brokers
+      - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
+      - INVENTORY_RESERVE_TOPIC=reserveInventory
+      - INVENTORY_RELEASE_TOPIC=releaseInventory
+
+    command: npm run start:debug --project cart
+    networks:
+      - oms
+    volumes:
+      - ./:/app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://cart:3005/cart/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.3'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+networks:
+  oms:
+    driver: bridge

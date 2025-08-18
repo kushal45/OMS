@@ -11,12 +11,12 @@ else
 fi
 
 # Build the app-base service with the build-only profile
-$DOCKER_COMPOSE --profile build-only build app-base
+$DOCKER_COMPOSE -f docker-compose.infra.yml -f docker-compose.app.yml --profile build-only build app-base
 
 echo "Base image built successfully!"
 echo ""
 echo "You can now start the services with:"
-echo "  $DOCKER_COMPOSE up -d"
+echo "  ./docker-compose-up.sh"
 echo ""
 echo "Or start specific services:"
 echo "  $DOCKER_COMPOSE up -d gateway auth order inventory product cart"
