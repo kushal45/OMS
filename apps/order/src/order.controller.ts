@@ -175,11 +175,6 @@ export class OrderController implements OnModuleInit {
     });
   }
 
-  @Get('user/:userId')
-  async getOrders(@Param('userId') userId: number): Promise<Order[]> {
-    return await this.orderService.getOrders(userId);
-  }
-
   @Put(':aliasId')
   @ApiParam({ name: 'aliasId', required: true })
   @ApiResponse(

@@ -27,8 +27,9 @@ services:
       - NODE_ENV=production # Changed to production
       - PORT=3000
       - SERVICE_NAME=gateway
+      - JWT_SECRET=sec1234
       - REDIS_CLIENT_TYPE=STANDALONE
-      - REDIS_HOST=host.docker.internal
+      - REDIS_HOST=redis
       - REDIS_PORT=6379
       # Removed Kafka and Elasticsearch related environment variables
     command: node dist/apps/api-gateway/src/main.js # Run compiled code directly
@@ -50,17 +51,25 @@ services:
       - "3001:3001"
       - "9230:9229"
     environment:
-      - REDIS_HOST=host.docker.internal
+      - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - DATABASE_HOST=host.docker.internal
-      - DATABASE_PORT=5433
-      - DATABASE_USER=postgres
-      - DATABASE_PASSWORD=postgres
-      - DATABASE_NAME=oms
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=oms
+      - JWT_SECRET=sec1234
       - REDIS_CLIENT_TYPE=STANDALONE
       - NODE_ENV=production # Changed to production
       # Removed Kafka and Elasticsearch related environment variables
-    command: node dist/apps/auth/src/main.js # Run compiled code directly
+    command: >
+      sh -c "
+        echo '⏳ Auth service waiting for database migrations...' &&
+        chmod +x /app/scripts/wait-for-migrations.sh &&
+        sh /app/scripts/wait-for-migrations.sh &&
+        echo '🚀 Starting Auth service...' &&
+        node dist/apps/auth/src/main.js
+      "
     networks:
       - oms-network
     healthcheck:
@@ -84,21 +93,37 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     ports:
       - "3002:3002"
       - "9231:9229"
     environment:
         - NODE_ENV=production # Changed to production
-        - DATABASE_HOST=host.docker.internal
-        - DATABASE_PORT=5433
+        - DB_HOST=postgres
+        - DB_PORT=5432
+        - DB_USERNAME=postgres
+        - DB_PASSWORD=postgres
+        - DB_NAME=oms
+        - DATABASE_HOST=postgres
+        - DATABASE_PORT=5432
         - DATABASE_USER=postgres
         - DATABASE_PASSWORD=postgres
         - DATABASE_NAME=oms
         - KAFKA_BROKERS=kafka:9092
+        - CART_SERVICE_GRPC_URL=cart:5005
+        - INVENTORY_SERVICE_GRPC_URL=inventory:5002
         - REDIS_CLIENT_TYPE=STANDALONE
-        - REDIS_HOST=host.docker.internal
+        - REDIS_HOST=redis
         - REDIS_PORT=6379
-    command: node dist/apps/order/src/main.js # Run compiled code directly
+    command: >
+      sh -c "
+        echo '⏳ Order service waiting for database migrations...' &&
+        chmod +x /app/scripts/wait-for-migrations.sh &&
+        sh /app/scripts/wait-for-migrations.sh &&
+        echo '🚀 Starting Order service...' &&
+        node dist/apps/order/src/main.js
+      "
     networks:
       - oms-network
     healthcheck:
@@ -122,22 +147,36 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     ports:
       - "3003:3003"
       - "5002:5002"
       - "9232:9229"
     environment:
       - KAFKA_BROKERS=kafka:9092
-      - DATABASE_HOST=host.docker.internal
-      - DATABASE_PORT=5433
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=oms
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=oms
       - REDIS_CLIENT_TYPE=STANDALONE
-      - REDIS_HOST=host.docker.internal
+      - REDIS_HOST=redis
       - REDIS_PORT=6379
       - NODE_ENV=production # Changed to production
-    command: node dist/apps/inventory/src/main.js # Run compiled code directly
+    command: >
+      sh -c "
+        echo '⏳ Inventory service waiting for database migrations...' &&
+        chmod +x /app/scripts/wait-for-migrations.sh &&
+        sh /app/scripts/wait-for-migrations.sh &&
+        echo '🚀 Starting Inventory service...' &&
+        node dist/apps/inventory/src/main.js
+      "
     networks:
       - oms-network
     healthcheck:
@@ -163,16 +202,23 @@ services:
       - "9233:9229"
     environment:
       - NODE_ENV=production # Changed to production
-      - DATABASE_HOST=host.docker.internal
-      - DATABASE_PORT=5433
-      - DATABASE_USER=postgres
-      - DATABASE_PASSWORD=postgres
-      - DATABASE_NAME=oms
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=oms
       - PORT=3004
-      - REDIS_HOST=host.docker.internal
+      - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_CLIENT_TYPE=STANDALONE
-    command: node dist/apps/product/src/main.js # Run compiled code directly
+    command: >
+      sh -c "
+        echo '⏳ Product service waiting for database migrations...' &&
+        chmod +x /app/scripts/wait-for-migrations.sh &&
+        sh /app/scripts/wait-for-migrations.sh &&
+        echo '🚀 Starting Product service...' &&
+        node dist/apps/product/src/main.js
+      "
     networks:
       - oms-network
     healthcheck:
@@ -196,14 +242,21 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     ports:
       - "3005:3005"
       - "9234:9229"
       - "5005:5005"
     environment:
       - NODE_ENV=production # Changed to production
-      - DATABASE_HOST=host.docker.internal
-      - DATABASE_PORT=5433
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=oms
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=oms
@@ -212,10 +265,19 @@ services:
       - KAFKA_BROKERS=kafka:9092
       - INVENTORY_RESERVE_TOPIC=reserveInventory
       - INVENTORY_RELEASE_TOPIC=releaseInventory
+      - INVENTORY_SERVICE_URL=inventory:5002
+      - PRODUCT_SERVICE_URL=product:5001
       - REDIS_CLIENT_TYPE=STANDALONE
-      - REDIS_HOST=host.docker.internal
+      - REDIS_HOST=redis
       - REDIS_PORT=6379
-    command: node dist/apps/cart/src/main.js # Run compiled code directly
+    command: >
+      sh -c "
+        echo '⏳ Cart service waiting for database migrations...' &&
+        chmod +x /app/scripts/wait-for-migrations.sh &&
+        sh /app/scripts/wait-for-migrations.sh &&
+        echo '🚀 Starting Cart service...' &&
+        node dist/apps/cart/src/main.js
+      "
     networks:
       - oms-network
     healthcheck:

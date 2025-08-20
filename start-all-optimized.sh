@@ -540,9 +540,9 @@ start_infra_app(){
         exit 1
     fi
 
-    # Now start application services
+    # Now start application services (using both compose files to resolve dependencies)
     print_status "Starting Application services..."
-    if docker-compose -f docker-compose.app.slim.yml up -d; then
+    if docker-compose -f docker-compose.infra.slim.yml -f docker-compose.app.slim.yml up -d --no-recreate; then
         print_success "Application services started"
     else
         print_error "Failed to start application services"

@@ -37,6 +37,9 @@ COPY apps/product/src/proto/*.proto dist/apps/product/src/proto/
 # Stage 2: Create the production image
 FROM node:21-alpine AS production
 
+# Install PostgreSQL client and wget for database operations and health checks
+RUN apk add --no-cache postgresql-client wget
+
 WORKDIR /app
 
 # Copy only the necessary files from the builder stage
@@ -46,6 +49,12 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/nest-cli.json ./nest-cli.json
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/tsconfig.build.json ./tsconfig.build.json
+
+# Copy scripts directory for database migrations and utilities
+COPY --from=builder /app/scripts ./scripts
+
+# Copy database seeder data files to the correct location
+COPY --from=builder /app/apps/database/seeders/data ./dist/apps/database/seeders/data
 
 # Expose the default port
 EXPOSE 3000

@@ -81,6 +81,43 @@ services:
           memory: 512M
           cpus: '0.25'
 
+  # Database Migration and Seeding Service
+  db-migrate:
+    image: oms-app-base:latest
+    container_name: oms-db-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_NAME=oms
+      - NODE_ENV=production
+    networks:
+      - oms-network
+    command: >
+      sh -c "
+        echo '🔄 Starting database migration and seeding process...' &&
+        echo '📋 Running database migrations...' &&
+        node dist/apps/config/dataSource.js &&
+        echo '✅ Migrations completed successfully' &&
+        echo '🌱 Running database seeders...' &&
+        node dist/apps/database/seeders/seed.js &&
+        echo '✅ Seeding completed successfully' &&
+        echo '🎉 Database setup completed!'
+      "
+    restart: "no"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.2'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
   redis:
     image: redis:7.2-alpine
     container_name: redis

@@ -19,11 +19,11 @@ export class Order {
   @Column({ type: 'uuid', unique: true })
   aliasId: string;
 
-  @ManyToOne(() => Address,address=>address.id) // Removed eager: true
+  @ManyToOne(() => Address) // Removed eager: true
   @JoinColumn({ name: 'addressId' })
   address: Address;
 
-  @ManyToOne(() => Customer, customer=>customer.id) // Removed eager: true
+  @ManyToOne(() => Customer) // Removed eager: true
   @JoinColumn({ name: 'userId' })
   user: Customer;
 

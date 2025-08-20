@@ -216,7 +216,7 @@ export class CartController {
   // gRPC method to fetch active cart and its items for a user
   @GrpcMethod('CartService', 'getActiveCartByUserId')
   async getActiveCartByUserIdGrpc(
-    data: { userId: number },
+    data: { userId: string },
     _metadata?: any,
   ): Promise<CartResponseDto | null> {
     const cart = await this.cartService.getActiveCartByUserId(data); // Calls the gRPC handler in service
