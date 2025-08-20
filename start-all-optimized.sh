@@ -3,6 +3,42 @@
 # Exit on any error
 set -e
 
+# Parse command line arguments
+FORCE_REBUILD=false
+SKIP_REBUILD_CHECK=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --force-rebuild)
+            FORCE_REBUILD=true
+            shift
+            ;;
+        --skip-rebuild-check)
+            SKIP_REBUILD_CHECK=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --force-rebuild       Force rebuild of application image regardless of changes"
+            echo "  --skip-rebuild-check  Skip automatic rebuild check (use existing image)"
+            echo "  --help, -h           Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0                    # Normal startup with automatic rebuild check"
+            echo "  $0 --force-rebuild   # Force rebuild application image"
+            echo "  $0 --skip-rebuild-check # Skip rebuild check for faster startup"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -89,6 +125,195 @@ check_images() {
         done
     else
         print_success "All required images are available"
+    fi
+}
+
+# Function to generate a hash of source files for change detection
+generate_source_hash() {
+    local hash_file=".build-hash"
+    local temp_hash_file="/tmp/oms-current-hash"
+
+    # Generate hash of key source files and directories
+    {
+        find apps libs -type f \( -name "*.ts" -o -name "*.js" -o -name "*.json" -o -name "*.proto" \) -exec sha256sum {} \; 2>/dev/null || \
+        find apps libs -type f \( -name "*.ts" -o -name "*.js" -o -name "*.json" -o -name "*.proto" \) -exec shasum -a 256 {} \; 2>/dev/null || \
+        echo "hash-unavailable"
+
+        # Include key configuration files
+        for file in package.json package-lock.json tsconfig.json nest-cli.json Dockerfile; do
+            if [ -f "$file" ]; then
+                sha256sum "$file" 2>/dev/null || shasum -a 256 "$file" 2>/dev/null || echo "hash-unavailable $file"
+            fi
+        done
+    } | sort | sha256sum 2>/dev/null | cut -d' ' -f1 > "$temp_hash_file" || \
+    {
+        # Fallback for systems without sha256sum
+        echo "fallback-hash-$(date +%s)" > "$temp_hash_file"
+    }
+
+    echo "$temp_hash_file"
+}
+
+# Function to check if source hash has changed
+check_source_hash_changed() {
+    local hash_file=".build-hash"
+    local current_hash_file=$(generate_source_hash)
+    local current_hash=$(cat "$current_hash_file" 2>/dev/null || echo "")
+    local stored_hash=$(cat "$hash_file" 2>/dev/null || echo "")
+
+    rm -f "$current_hash_file"
+
+    if [ "$current_hash" != "$stored_hash" ] || [ -z "$stored_hash" ]; then
+        return 0  # Hash changed or no stored hash
+    else
+        return 1  # Hash unchanged
+    fi
+}
+
+# Function to store current source hash
+store_source_hash() {
+    local hash_file=".build-hash"
+    local current_hash_file=$(generate_source_hash)
+
+    if [ -f "$current_hash_file" ]; then
+        cp "$current_hash_file" "$hash_file"
+        rm -f "$current_hash_file"
+        print_status "Source hash stored for future change detection"
+    fi
+}
+
+# Function to check if application code has changed and rebuild if necessary
+check_and_rebuild_if_needed() {
+    local image_name="oms-app-base:latest"
+    local rebuild_needed=false
+    local rebuild_reason=""
+
+    # Check command line flags
+    if [ "$SKIP_REBUILD_CHECK" = true ]; then
+        print_status "⏭️  Skipping rebuild check (--skip-rebuild-check flag)"
+        return 0
+    fi
+
+    if [ "$FORCE_REBUILD" = true ]; then
+        print_status "🔨 Force rebuild requested (--force-rebuild flag)"
+        rebuild_needed=true
+        rebuild_reason="Force rebuild requested via command line"
+    else
+        print_status "🔍 Checking if application code has changed..."
+
+        # First check using hash-based approach (most reliable)
+        if check_source_hash_changed; then
+            rebuild_needed=true
+            rebuild_reason="Source code hash has changed (most reliable detection method)"
+        fi
+    fi
+
+    # Check if image exists (unless force rebuild is requested)
+    if [ "$FORCE_REBUILD" != true ]; then
+        if ! docker image inspect "$image_name" >/dev/null 2>&1; then
+            rebuild_needed=true
+            rebuild_reason="Image does not exist"
+        fi
+    fi
+
+    # Only do detailed checks if not forcing rebuild and image exists
+    if [ "$FORCE_REBUILD" != true ] && [ "$rebuild_needed" != true ]; then
+        # Get image creation time
+        local image_created=$(docker image inspect "$image_name" --format='{{.Created}}' 2>/dev/null)
+        local image_timestamp=$(date -d "$image_created" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%S" "${image_created%.*}" +%s 2>/dev/null || echo "0")
+
+        print_status "Image was created: $image_created"
+
+        # Check Git status for uncommitted changes
+        if command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
+            local git_status=$(git status --porcelain 2>/dev/null || echo "")
+            if [ -n "$git_status" ]; then
+                # Check if any of the changed files are source files
+                local changed_source_files=$(echo "$git_status" | grep -E '\.(ts|js|json|proto)$|Dockerfile|package.*\.json' || echo "")
+                if [ -n "$changed_source_files" ]; then
+                    rebuild_needed=true
+                    rebuild_reason="Uncommitted changes detected in source files"
+                    print_status "Detected uncommitted changes in source files:"
+                    echo "$changed_source_files" | head -5
+                fi
+            fi
+        fi
+
+        # Check if any source files are newer than the image (if not already flagged for rebuild)
+        if [ "$rebuild_needed" != true ]; then
+            local source_dirs=("apps" "libs" "package.json" "package-lock.json" "tsconfig.json" "nest-cli.json" "Dockerfile")
+            local newest_file=""
+            local newest_timestamp=0
+
+        for dir in "${source_dirs[@]}"; do
+            if [ -e "$dir" ]; then
+                # Find the newest file in each directory/file
+                if [ -d "$dir" ]; then
+                    local newest_in_dir=$(find "$dir" -type f \( -name "*.ts" -o -name "*.js" -o -name "*.json" -o -name "*.proto" \) -newer <(date -d "@$image_timestamp" 2>/dev/null || date -r "$image_timestamp" 2>/dev/null || echo) 2>/dev/null | head -1)
+                    if [ -n "$newest_in_dir" ]; then
+                        local file_timestamp=$(stat -c %Y "$newest_in_dir" 2>/dev/null || stat -f %m "$newest_in_dir" 2>/dev/null || echo "0")
+                        if [ "$file_timestamp" -gt "$newest_timestamp" ]; then
+                            newest_timestamp=$file_timestamp
+                            newest_file="$newest_in_dir"
+                        fi
+                    fi
+                else
+                    # Single file
+                    local file_timestamp=$(stat -c %Y "$dir" 2>/dev/null || stat -f %m "$dir" 2>/dev/null || echo "0")
+                    if [ "$file_timestamp" -gt "$image_timestamp" ] && [ "$file_timestamp" -gt "$newest_timestamp" ]; then
+                        newest_timestamp=$file_timestamp
+                        newest_file="$dir"
+                    fi
+                fi
+            fi
+        done
+
+            if [ "$newest_timestamp" -gt "$image_timestamp" ]; then
+                rebuild_needed=true
+                rebuild_reason="Source code is newer than image. Newest file: $newest_file"
+            fi
+        fi
+
+        # Check if dependencies have changed
+        if [ -f "package-lock.json" ]; then
+            local package_lock_timestamp=$(stat -c %Y "package-lock.json" 2>/dev/null || stat -f %m "package-lock.json" 2>/dev/null || echo "0")
+            if [ "$package_lock_timestamp" -gt "$image_timestamp" ]; then
+                rebuild_needed=true
+                rebuild_reason="Dependencies have changed (package-lock.json is newer)"
+            fi
+        fi
+
+        # Check if Dockerfile has changed
+        if [ -f "Dockerfile" ]; then
+            local dockerfile_timestamp=$(stat -c %Y "Dockerfile" 2>/dev/null || stat -f %m "Dockerfile" 2>/dev/null || echo "0")
+            if [ "$dockerfile_timestamp" -gt "$image_timestamp" ]; then
+                rebuild_needed=true
+                rebuild_reason="Dockerfile has been modified"
+            fi
+        fi
+    fi
+
+    if [ "$rebuild_needed" = true ]; then
+        print_warning "Rebuild needed: $rebuild_reason"
+        print_status "🔨 Rebuilding application image..."
+
+        # Remove old image to ensure clean build
+        docker rmi "$image_name" 2>/dev/null || true
+
+        # Build new image with no cache to ensure fresh build
+        if docker build --no-cache -t "$image_name" .; then
+            print_success "Application image rebuilt successfully"
+            # Store the new source hash for future comparisons
+            store_source_hash
+        else
+            print_error "Failed to rebuild application image"
+            print_status "💡 Make sure you have all dependencies installed:"
+            print_status "   npm install"
+            print_status "   npm run build"
+            exit 1
+        fi
+    else
+        print_success "Application image is up to date"
     fi
 }
 
@@ -285,14 +510,44 @@ check_failed_services() {
 
 
 start_infra_app(){
-     print_status "Starting Infra then app services...."
-    if docker-compose -f docker-compose.infra.slim.yml -f docker-compose.app.slim.yml up -d; then
-         print_success "Infrastructure app services started"
+    print_status "Starting Infrastructure services first..."
+    if docker-compose -f docker-compose.infra.slim.yml up -d; then
+        print_success "Infrastructure services started"
     else
-         print_error "Failed to start infrastructure app services"
-         exit 1
+        print_error "Failed to start infrastructure services"
+        exit 1
     fi
 
+    # Wait for Kafka to be ready before starting applications
+    print_status "Waiting for Kafka to be ready..."
+    max_attempts=30
+    attempt=1
+
+    while [ $attempt -le $max_attempts ]; do
+        if docker exec kafka kafka-topics --bootstrap-server localhost:9092 --list > /dev/null 2>&1; then
+            print_success "Kafka is ready (attempt $attempt/$max_attempts)"
+            break
+        else
+            print_status "Waiting for Kafka... (attempt $attempt/$max_attempts)"
+            sleep 3
+            ((attempt++))
+        fi
+    done
+
+    if [ $attempt -gt $max_attempts ]; then
+        print_error "Kafka failed to become ready after $max_attempts attempts"
+        print_error "Check Kafka logs with: docker logs kafka"
+        exit 1
+    fi
+
+    # Now start application services
+    print_status "Starting Application services..."
+    if docker-compose -f docker-compose.app.slim.yml up -d; then
+        print_success "Application services started"
+    else
+        print_error "Failed to start application services"
+        exit 1
+    fi
 }
 
 
@@ -308,10 +563,17 @@ main() {
     
     # Check images
     check_images
-    
+
+    # Check if application code has changed and rebuild if necessary
+    if [ "$SKIP_REBUILD_CHECK" != true ]; then
+        check_and_rebuild_if_needed
+    else
+        print_status "⏭️  Skipping rebuild check as requested"
+    fi
+
     # Create network
     create_network
-    
+
     # Cleanup existing
     cleanup_existing
     

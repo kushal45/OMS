@@ -1,4 +1,4 @@
-import { Module, Res } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
 import { InventoryRepository } from './repository/inventory.repository';
@@ -56,9 +56,16 @@ import { SchemaRegistryModule, SCHEMA_REGISTRY_SERVICE_TOKEN } from '@lib/kafka/
       provide: KafkaAdminClient,
       inject: [ConfigService, LoggerService, ModuleRef], // Inject ConfigService, LoggerService, and ModuleRef
       useFactory: (configService: ConfigService, loggerService: LoggerService, moduleRef: ModuleRef) => { // Correct factory signature
-        const kafkaConfig: KafkaConfig ={
+        const kafkaConfig: KafkaConfig = {
           clientId: configService.get<string>('INVENTORY_CLIENT_ID'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
+          retry: {
+            initialRetryTime: 300,
+            retries: 8,
+            maxRetryTime: 30000,
+            multiplier: 2,
+            factor: 0.2,
+          },
         }
         return new KafkaAdminClient(kafkaConfig, moduleRef, loggerService); // Pass loggerService
       },
@@ -70,6 +77,13 @@ import { SchemaRegistryModule, SCHEMA_REGISTRY_SERVICE_TOKEN } from '@lib/kafka/
         const kafkaConfig: KafkaConfig = {
           clientId: configService.get<string>('INVENTORY_CLIENT_ID'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
+          retry: {
+            initialRetryTime: 300,
+            retries: 8,
+            maxRetryTime: 30000,
+            multiplier: 2,
+            factor: 0.2,
+          },
         };
         return new KafkaConsumer(kafkaConfig, moduleRef, loggerService, schemaRegistryService); // Pass loggerService
       },

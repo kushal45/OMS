@@ -102,6 +102,13 @@ import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-se
         const kafkaConfig = {
           clientId: configService.get<string>('CART_CLIENT_ID', 'cart-service'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
+          retry: {
+            initialRetryTime: 300,
+            retries: 8,
+            maxRetryTime: 30000,
+            multiplier: 2,
+            factor: 0.2,
+          },
         };
         return new KafkaProducer(kafkaConfig, moduleRef, logger, schemaRegistryService);
       },
@@ -113,6 +120,13 @@ import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-se
         const kafkaConfig = {
           clientId: configService.get<string>('CART_CLIENT_ID', 'cart-service'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
+          retry: {
+            initialRetryTime: 300,
+            retries: 8,
+            maxRetryTime: 30000,
+            multiplier: 2,
+            factor: 0.2,
+          },
         };
         return new KafkaAdminClient(kafkaConfig, moduleRef, logger);
       },

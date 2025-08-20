@@ -51,7 +51,12 @@ export class KafkaAdminClient {
   }
   async createTopic(topicName: string): Promise<void> {
     try {
-      await KafkaAdminClient.kafkaAdminClient.connect();
+      if (!this.isConnected) {
+        await KafkaAdminClient.kafkaAdminClient.connect();
+        this.isConnected = true;
+        this.logger.info('Admin client connected successfully', this.context);
+      }
+
       const topics = await this.listTopics();
       this.logger.info(`Topics: ${JSON.stringify(topics)}`, this.context);
       if (!topics.includes(topicName) || topics.length === 0) {
@@ -67,6 +72,9 @@ export class KafkaAdminClient {
         }),
         this.context,
       );
+      // Reset connection state on error
+      this.isConnected = false;
+      throw error;
     }
   }
 
@@ -205,6 +213,16 @@ export class KafkaAdminClient {
   }
 
   async close(): Promise<void> {
-    await KafkaAdminClient.kafkaAdminClient.disconnect();
+    try {
+      if (this.isConnected) {
+        await KafkaAdminClient.kafkaAdminClient.disconnect();
+        this.isConnected = false;
+        this.logger.info('Admin client disconnected successfully', this.context);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to disconnect admin client: ${error.message}`, this.context);
+      this.isConnected = false; // Reset state even on error
+      throw error;
+    }
   }
 }
