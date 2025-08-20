@@ -283,6 +283,21 @@ check_failed_services() {
     fi
 }
 
+
+start_infra_app(){
+     print_status "Starting Infra then app services...."
+    if docker-compose -f docker-compose.infra.slim.yml -f docker-compose.app.slim.yml up -d; then
+         print_success "Infrastructure app services started"
+    else
+         print_error "Failed to start infrastructure app services"
+         exit 1
+    fi
+
+}
+
+
+
+
 # Main execution
 main() {
     print_status "🚀 Starting OMS Application Stack (Optimized Mode)"
@@ -300,11 +315,11 @@ main() {
     # Cleanup existing
     cleanup_existing
     
-    # Start infrastructure
-    start_infrastructure
+
     
-    # Start applications
-    start_applications
+    
+    # Start Infrastructure and  applications
+    start_infra_app
     
     # Start Jenkins
     start_jenkins

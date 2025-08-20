@@ -81,6 +81,9 @@ services:
 
   order:
     image: oms-app-base:latest
+    depends_on:
+      kafka:
+        condition: service_healthy
     ports:
       - "3002:3002"
       - "9231:9229"
@@ -91,7 +94,7 @@ services:
         - DATABASE_USER=postgres
         - DATABASE_PASSWORD=postgres
         - DATABASE_NAME=oms
-        # Removed KAFKA_BROKERS
+        - KAFKA_BROKERS=kafka:9092
         - REDIS_CLIENT_TYPE=STANDALONE
         - REDIS_HOST=host.docker.internal
         - REDIS_PORT=6379
@@ -116,12 +119,15 @@ services:
 
   inventory:
     image: oms-app-base:latest
+    depends_on:
+      kafka:
+        condition: service_healthy
     ports:
       - "3003:3003"
       - "5002:5002"
       - "9232:9229"
     environment:
-      # Removed KAFKA_BROKERS
+      - KAFKA_BROKERS=kafka:9092
       - DATABASE_HOST=host.docker.internal
       - DATABASE_PORT=5433
       - DATABASE_USER=postgres
@@ -163,7 +169,6 @@ services:
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=oms
       - PORT=3004
-      # Removed KAFKA_BROKERS
       - REDIS_HOST=host.docker.internal
       - REDIS_PORT=6379
       - REDIS_CLIENT_TYPE=STANDALONE
@@ -188,6 +193,9 @@ services:
 
   cart:
     image: oms-app-base:latest
+    depends_on:
+      kafka:
+        condition: service_healthy
     ports:
       - "3005:3005"
       - "9234:9229"
@@ -201,7 +209,7 @@ services:
       - DATABASE_NAME=oms
       - PORT=3005
       - SERVICE_NAME=cart
-      # Removed KAFKA_BROKERS
+      - KAFKA_BROKERS=kafka:9092
       - INVENTORY_RESERVE_TOPIC=reserveInventory
       - INVENTORY_RELEASE_TOPIC=releaseInventory
       - REDIS_CLIENT_TYPE=STANDALONE
