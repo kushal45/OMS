@@ -59,12 +59,12 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
         // Support comma-separated list of hosts for winston-elasticsearch
         const nodes = esHost.split(',').map((host) => host.trim());
 
-        const esTransportOptions: ElasticsearchTransportOptions = {
-          // apm:{
-          //   serviceName: serviceName,
-          //   environment: configService.get<string>('NODE_ENV', 'development'),
-          //   serverUrl: configService.get<string>('APM_SERVER_URL', 'http://apm-server:8200'),
-          // },
+        const esTransportOptions = {
+          apm: {
+            serviceName: serviceName,
+            environment: configService.get<string>('NODE_ENV', 'development'),
+            serverUrl: configService.get<string>('APM_SERVER_URL', 'http://apm-server:8200'),
+          },
           level: 'info',
           clientOpts: {
             node: nodes.length === 1 ? nodes[0] : undefined,

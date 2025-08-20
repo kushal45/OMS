@@ -1,16 +1,36 @@
-# auth/Dockerfile
-FROM node:21-alpine
+# Use a Node.js 21 Alpine image as the base for the builder stage
+FROM node:21-alpine AS builder
 
+# Set the working directory inside the container
 WORKDIR /usr/src/app
+
+# Copy package.json and package-lock.json to install dependencies
 COPY package*.json ./
 
-RUN npm install
+# Install production dependencies
+RUN npm install --only=production
 
-
-RUN npm install
-
+# Copy the entire project
 COPY . .
 
+# Build the specific NestJS application (order)
+# The 'nest build' command will output to 'dist/apps/order' based on tsconfig.app.json
+RUN npx nest build order
+
+# --- Production Stage ---
+FROM node:21-alpine AS production
+
+# Set the working directory
+WORKDIR /usr/src/app
+
+# Copy only the built application and node_modules from the builder stage
+COPY --from=builder /usr/src/app/dist/apps/order ./dist/apps/order
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY package.json ./
+
+# Expose the port the application listens on
 EXPOSE 3000
 
-CMD ["npm","run", "start:debug","--project","order"]
+# Command to run the application
+# Ensure this path is correct relative to the WORKDIR
+CMD ["node", "dist/apps/order/main.js"]

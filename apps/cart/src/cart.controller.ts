@@ -36,6 +36,7 @@ export class CartController {
   constructor(
     private readonly cartService: CartService,
     private readonly moduleRef: ModuleRef,
+    @Inject('ISchemaRegistryService') private readonly schemaRegistryService: any,
   ) {}
 
   @Get('health')
@@ -249,12 +250,12 @@ export class CartController {
     const schemaReleaseJsonString = configService.get<string>(
       'INVENTORY_RELEASE_SCHEMA_JSON',
     );
-    await handleInventoryProcessTypeRegistration(topic, schemaJsonString,this.moduleRef);
+  await handleInventoryProcessTypeRegistration(topic, schemaJsonString, this.moduleRef, this.schemaRegistryService);
     await handleInventoryProcessTypeRegistration(
       releaseTopic,
       schemaReleaseJsonString,
       this.moduleRef,
-      'release',
+      this.schemaRegistryService,
     );
   }
 }

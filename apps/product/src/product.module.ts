@@ -13,7 +13,7 @@ import { RedisClientModule } from '@lib/redis-client'; // Import RedisClientModu
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: path.resolve('apps/product/.env'), // Loads the .env file specific to this microservice
+      envFilePath: path.join(__dirname, '../.env'), // Loads the .env file specific to this microservice
       isGlobal: true, // Makes the environment variables available globally
     }),
     TypeOrmModule.forRootAsync(typeOrmAsyncConfig),

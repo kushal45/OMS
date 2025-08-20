@@ -27,7 +27,7 @@ async function bootStrapGrpcServer() {
       options: {
         url: '0.0.0.0:5002',
         package: 'INVENTORY_PACKAGE',
-        protoPath: path.resolve('apps/inventory/src/proto/inventory.proto'),
+        protoPath: path.join(__dirname, 'proto/inventory.proto'),
       },
     },
   );

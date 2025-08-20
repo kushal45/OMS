@@ -20,7 +20,7 @@ async function bootstrap() {
     transport: Transport.GRPC,
     options: {
       package: 'product', // Must match the package name in product.proto
-      protoPath: path.resolve('apps/product/src/proto/product.proto'), // Path to the .proto file
+      protoPath: path.join(__dirname, 'proto/product.proto'), // Path to the .proto file
       url: configService.get<string>('PRODUCT_GRPC_URL', '0.0.0.0:5001'), // gRPC listening address
     },
   });

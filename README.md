@@ -1,83 +1,166 @@
-# OMS
+# OMS - Order Management System
 
-Implement Clone of  OMS for Ecommerce app
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+This document provides a comprehensive guide to deploying the Order Management System (OMS) application to an AWS EC2 free tier instance using Jenkins for continuous integration and deployment.
 
+## Table of Contents
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+- [Prerequisites](#prerequisites)
+- [Project Structure](#project-structure)
+- [Local Development Setup](#local-development-setup)
+- [Deployment to AWS EC2](#deployment-to-aws-ec2)
+  - [Step 1: Set up the EC2 Instance](#step-1-set-up-the-ec2-instance)
+  - [Step 2: Set up Jenkins](#step-2-set-up-jenkins)
+  - [Step 3: Create and Run the Jenkins Pipeline](#step-3-create-and-run-the-jenkins-pipeline)
+- [Accessing the Application](#accessing-the-application)
 
-## Description
+## Prerequisites
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Before you begin, ensure you have the following installed on your local machine:
 
-## Project setup
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+- [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+- An account on [Docker Hub](https://hub.docker.com/)
+- An [AWS account](https://aws.amazon.com/free/)
 
-```bash
-npm install
+## Project Structure
+
+The OMS application is a microservices-based system built with NestJS. The project is organized as a monorepo with the following structure:
+
+```
+/Users/kushalbhattacharya/Documents/PersonalProjects/OMS/
+├───apps/
+│   ├───api-gateway/
+│   ├───auth/
+│   ├───cart/
+│   ├───inventory/
+│   ├───order/
+│   └───product/
+├───libs/
+├───Dockerfile
+├───docker-compose.app.slim.yml
+├───docker-compose.infra.slim.yml
+├───Jenkinsfile
+└───deploy.sh
 ```
 
-## Compile and run the project
+## Local Development Setup
 
-```bash
-chmod +x docker-compose-up.sh
-./docker-compose-up.sh
-```
+To run the application locally for development purposes, follow these steps:
 
-### Docker Compose Structure
+1.  **Clone the repository:**
 
-The Docker Compose setup has been split into two files for better organization and flexibility:
+    ```bash
+    git clone <your-repository-url>
+    cd OMS
+    ```
 
-- `docker-compose.app.yml`: Contains the application services.
-- `docker-compose.infra.yml`: Contains the infrastructure services (databases, Kafka, etc.).
+2.  **Start the infrastructure services:**
 
-The provided scripts (`docker-compose-up.sh`, `docker-compose-down.sh`, `docker-compose-build.sh`) have been updated to use this new structure.
+    ```bash
+    docker-compose -f docker-compose.infra.slim.yml up -d
+    ```
 
-## Run tests
+3.  **Build and start the application services:**
 
-```bash
-# unit tests
-$ npm run test
+    ```bash
+    docker-compose -f docker-compose.app.slim.yml build
+    docker-compose -f docker-compose.app.slim.yml up -d
+    ```
 
-# e2e tests
-$ npm run test:e2e
+## Deployment to AWS EC2
 
-# test coverage
-$ npm run test:cov
-```
+This section describes how to set up a CI/CD pipeline with Jenkins to automatically deploy the application to an AWS EC2 free tier instance.
 
-## Resources
+### Step 1: Set up the EC2 Instance
 
-Check out a few resources that may come in handy when working with NestJS:
+1.  **Launch a Free Tier EC2 Instance:**
+    *   Go to the AWS EC2 console and launch a new instance.
+    *   Select the **Amazon Linux 2 AMI** (free tier eligible).
+    *   Choose the **t2.micro** instance type (free tier eligible).
+    *   **Security Group:** Create a new security group and add rules to allow incoming traffic on:
+        *   **SSH (port 22):** From your IP address for secure access.
+        *   **Custom TCP (ports 3000-3005):** From anywhere (0.0.0.0/0), so your services can be reached.
+    *   **Key Pair:** Create a new key pair and download the `.pem` file. You will need this to SSH into your instance.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com)
-- OMS design architechture [High level design](https://excalidraw.com/#room=a93990f157c122b0837e,tKLu7bu2QAbH2F49SqxicA)
+2.  **Connect to Your EC2 Instance:**
 
-## Support
+    ```bash
+    ssh -i /path/to/your-key.pem ec2-user@your-ec2-instance-ip
+    ```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+3.  **Install Docker and Docker Compose:**
 
-## License
+    ```bash
+    sudo yum update -y
+    sudo amazon-linux-extras install docker
+    sudo service docker start
+    sudo usermod -a -G docker ec2-user
+    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    ```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+    **Important:** Log out and log back in to apply the user group changes.
+
+4.  **Clone Your Project:**
+
+    ```bash
+    git clone <your-git-repository-url> /home/ec2-user/oms
+    ```
+
+### Step 2: Set up Jenkins
+
+1.  **Run Jenkins in a Docker Container (on your local machine):**
+
+    ```bash
+    docker run -d -p 8080:8080 -p 50000:50000 --name jenkins -v jenkins_home:/var/jenkins_home jenkins/jenkins:lts-jdk11
+    ```
+
+2.  **Initial Jenkins Setup:**
+    *   Open your browser to `http://localhost:8080`.
+    *   Get the initial admin password:
+
+        ```bash
+        docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+        ```
+
+    *   Follow the on-screen instructions to install the recommended plugins and create an admin user.
+
+3.  **Install Necessary Jenkins Plugins:**
+    *   Go to **Manage Jenkins > Manage Plugins**.
+    *   Install: `Docker Pipeline` and `SSH Agent`.
+
+4.  **Configure Jenkins Credentials:**
+    *   Go to **Manage Jenkins > Manage Credentials**.
+    *   Add the following credentials:
+        *   **Docker Hub:**
+            *   **Kind:** Username with password
+            *   **ID:** `dockerhub`
+            *   **Username:** Your Docker Hub username
+            *   **Password:** Your Docker Hub password or an access token.
+        *   **EC2 SSH Key:**
+            *   **Kind:** SSH Username with private key
+            *   **ID:** `ec2-ssh-key`
+            *   **Username:** `ec2-user`
+            *   **Private Key:** Check the "Enter directly" option and paste the entire content of your `.pem` file.
+
+### Step 3: Create and Run the Jenkins Pipeline
+
+1.  **Create the Pipeline Job:**
+    *   In Jenkins, click **New Item**.
+    *   Enter a name (e.g., `oms-deploy`), select **Pipeline**, and click **OK**.
+    *   Under the **Pipeline** section, select **Pipeline script from SCM**.
+    *   **SCM:** Git
+    *   **Repository URL:** Your Git repository URL.
+    *   **Script Path:** `Jenkinsfile`
+
+2.  **Run the Build:**
+    *   Click **Build Now**. Jenkins will now:
+        1.  Check out your code from Git.
+        2.  Build your Docker image using the `Dockerfile`.
+        3.  Push the image to your Docker Hub repository.
+        4.  SSH into your EC2 instance and run the `deploy.sh` script, which will pull the new image and restart your application containers.
+
+## Accessing the Application
+
+After the pipeline finishes successfully, your application will be running on your AWS EC2 instance. You can access the API gateway at `http://your-ec2-instance-ip:3000`.

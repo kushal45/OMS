@@ -1,5 +1,5 @@
 # Compiled output
-/dist
+/dist/*
 /node_modules
 /build
 
@@ -11,6 +11,13 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 pnpm-debug.log*
+*.js
+*.js.map
+*.d.ts
+
+# Runtime data
+pids
+
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json

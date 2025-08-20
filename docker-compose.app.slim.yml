@@ -24,196 +24,209 @@ services:
       timeout: 5s
       retries: 3
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production # Changed to production
       - PORT=3000
       - SERVICE_NAME=gateway
-    command: npm run start:debug --project api-gateway
+      - REDIS_CLIENT_TYPE=STANDALONE
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=6379
+      # Removed Kafka and Elasticsearch related environment variables
+    command: node dist/apps/api-gateway/src/main.js # Run compiled code directly
     networks:
-      - oms
-    volumes:
-      - ./:/app
+      - oms-network
+    restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.1'
+          memory: 256M # Reduced memory limit
+          cpus: '0.1' # Reduced CPU limit
         reservations:
           memory: 128M
           cpus: '0.05'
 
   auth:
     image: oms-app-base:latest
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     ports:
       - "3001:3001"
       - "9230:9229"
     environment:
-      - REDIS_HOST=redis
+      - REDIS_HOST=host.docker.internal
       - REDIS_PORT=6379
-    command: npm run start:debug --project auth
+      - DATABASE_HOST=host.docker.internal
+      - DATABASE_PORT=5433
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_NAME=oms
+      - REDIS_CLIENT_TYPE=STANDALONE
+      - NODE_ENV=production # Changed to production
+      # Removed Kafka and Elasticsearch related environment variables
+    command: node dist/apps/auth/src/main.js # Run compiled code directly
     networks:
-      - oms
-    volumes:
-      - ./:/app
+      - oms-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://auth:3001/auth/health || exit 1"]
       interval: 20s
       timeout: 10s
       retries: 3
+      start_period: 30s
+    restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.1'
+          memory: 256M # Reduced memory limit
+          cpus: '0.1' # Reduced CPU limit
         reservations:
           memory: 128M
           cpus: '0.05'
 
   order:
     image: oms-app-base:latest
-    depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
     ports:
       - "3002:3002"
       - "9231:9229"
     environment:
-        - NODE_ENV=development
-        - DATABASE_HOST=postgres
-        - DATABASE_PORT=5432
+        - NODE_ENV=production # Changed to production
+        - DATABASE_HOST=host.docker.internal
+        - DATABASE_PORT=5433
         - DATABASE_USER=postgres
         - DATABASE_PASSWORD=postgres
         - DATABASE_NAME=oms
-        - KAFKA_BROKERS=kafka:9092
-    command: npm run start:debug --project order
+        # Removed KAFKA_BROKERS
+        - REDIS_CLIENT_TYPE=STANDALONE
+        - REDIS_HOST=host.docker.internal
+        - REDIS_PORT=6379
+    command: node dist/apps/order/src/main.js # Run compiled code directly
     networks:
-      - oms
-    volumes:
-      - ./:/app
+      - oms-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://order:3002/orders/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
+      start_period: 30s
+    restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.1'
+          memory: 256M # Reduced memory limit
+          cpus: '0.1' # Reduced CPU limit
         reservations:
           memory: 128M
           cpus: '0.05'
 
   inventory:
     image: oms-app-base:latest
-    depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
     ports:
       - "3003:3003"
       - "5002:5002"
       - "9232:9229"
     environment:
-      - KAFKA_BROKERS=kafka:9092
-    command: npm run start:debug --project inventory
+      # Removed KAFKA_BROKERS
+      - DATABASE_HOST=host.docker.internal
+      - DATABASE_PORT=5433
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_NAME=oms
+      - REDIS_CLIENT_TYPE=STANDALONE
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=6379
+      - NODE_ENV=production # Changed to production
+    command: node dist/apps/inventory/src/main.js # Run compiled code directly
     networks:
-      - oms
-    volumes:
-      - ./:/app
+      - oms-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://inventory:3003/inventories || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.1'
+          memory: 256M # Reduced memory limit
+          cpus: '0.1' # Reduced CPU limit
         reservations:
           memory: 128M
           cpus: '0.05'
 
   product:
     image: oms-app-base:latest
-    depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
     ports:
       - "3004:3004"
       - "9233:9229"
     environment:
-      - NODE_ENV=development
-      - DATABASE_HOST=postgres
-      - DATABASE_PORT=5432
+      - NODE_ENV=production # Changed to production
+      - DATABASE_HOST=host.docker.internal
+      - DATABASE_PORT=5433
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=oms
       - PORT=3004
-      - KAFKA_BROKERS=kafka:9092
-      - REDIS_HOST=redis
+      # Removed KAFKA_BROKERS
+      - REDIS_HOST=host.docker.internal
       - REDIS_PORT=6379
-    command: npm run start:debug --project product
+      - REDIS_CLIENT_TYPE=STANDALONE
+    command: node dist/apps/product/src/main.js # Run compiled code directly
     networks:
-      - oms
-    volumes:
-      - ./:/app
+      - oms-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://product:3004/products || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.1'
+          memory: 256M # Reduced memory limit
+          cpus: '0.1' # Reduced CPU limit
         reservations:
           memory: 128M
           cpus: '0.05'
 
   cart:
     image: oms-app-base:latest
-    depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
     ports:
       - "3005:3005"
       - "9234:9229"
       - "5005:5005"
     environment:
-      - NODE_ENV=development
-      - DATABASE_HOST=postgres
-      - DATABASE_PORT=5432
+      - NODE_ENV=production # Changed to production
+      - DATABASE_HOST=host.docker.internal
+      - DATABASE_PORT=5433
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=oms
       - PORT=3005
       - SERVICE_NAME=cart
-      - KAFKA_BROKERS=kafka:9092
+      # Removed KAFKA_BROKERS
       - INVENTORY_RESERVE_TOPIC=reserveInventory
       - INVENTORY_RELEASE_TOPIC=releaseInventory
-    command: npm run start:debug --project cart
+      - REDIS_CLIENT_TYPE=STANDALONE
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=6379
+    command: node dist/apps/cart/src/main.js # Run compiled code directly
     networks:
-      - oms
-    volumes:
-      - ./:/app
+      - oms-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://cart:3005/cart/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
+      start_period: 30s
+    restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.1'
+          memory: 256M # Reduced memory limit
+          cpus: '0.1' # Reduced CPU limit
         reservations:
           memory: 128M
           cpus: '0.05'
 
 networks:
-  oms:
+  oms-network:
     driver: bridge
+    external: true

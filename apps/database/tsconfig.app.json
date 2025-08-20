@@ -1,11 +1,9 @@
 {
-    "extends": "../../tsconfig.json",
-    "compilerOptions": {
-      "outDir": "../../dist/apps/auth",
-      "module": "commonjs",
-      "types": ["node"]
-    },
-    "exclude": ["test", "**/*.spec.ts"],
-    "include": ["**/*.ts"],
-    "assets": ["**/*.env"],
-    }
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "outDir": "../../dist/apps/database"
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
+}

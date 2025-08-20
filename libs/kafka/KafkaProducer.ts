@@ -2,29 +2,23 @@ import { LoggerService } from '@lib/logger/src';
 import { ModuleRef } from '@nestjs/core';
 import { Kafka, KafkaConfig, Producer, RecordMetadata } from 'kafkajs';
 import { KafkaAdminClient } from './KafKaAdminClient';
-import { SchemaRegistry, SchemaType } from '@kafkajs/confluent-schema-registry';
 import { ConfigService } from '@nestjs/config';
+import { ISchemaRegistryService } from './interfaces/schema-registry-service.interface';
 
 export class KafkaProducer {
   private producer: Producer;
   private kafka: Kafka;
   private context: string = 'KafkaProducer';
-  private schemaRegistry: SchemaRegistry;
   private isConnected = false;
 
   constructor(
     config: KafkaConfig,
     private moduleRef: ModuleRef,
     private readonly logger: LoggerService,
+    private readonly schemaRegistryClient: ISchemaRegistryService,
   ) {
-    const configService = this.moduleRef.get(ConfigService, { strict: false });
-    const schemaRegistryUrl = configService.get<string>('SCHEMA_REGISTRY_URL');
     this.kafka = new Kafka(config);
     this.producer = this.kafka.producer({ idempotent: true });
-    this.schemaRegistry = new SchemaRegistry({
-      host: schemaRegistryUrl,
-      retry: { retries: 5 },
-    });
     // Remove eager connect here
     // this.producer.connect().catch(...)
   }
@@ -53,14 +47,14 @@ export class KafkaProducer {
     }
     // Always use partition 0 for robust delivery, or let Kafka assign if you want round-robin
     const assignedPartition = listPartitions[0];
-    const schemaId = await this.schemaRegistry.getLatestSchemaId(topic);
+    const schemaId = await this.schemaRegistryClient.getLatestSchemaId(topic);
     this.logger.debug(`SchemaId returned ${schemaId}`, this.context);
-    const schemaFetched = await this.schemaRegistry.getSchema(schemaId);
+    const schemaFetched = await this.schemaRegistryClient.getSchema(schemaId);
     console.info(`Schema returned: ${JSON.stringify(schemaFetched)}`);
     const encodedMessages = await Promise.all(
       messageObj.value.map(async (msg) => {
         const validMessage = this.validateMessage(schemaFetched, msg);
-        return this.schemaRegistry.encode(schemaId, validMessage);
+        return this.schemaRegistryClient.encode(schemaId, validMessage);
       })
     );
     try {

@@ -19,13 +19,16 @@ import { InventoryMonitoringController } from './monitoring/inventory-monitoring
 import { ReserveInventoryHandler } from './kafka-handlers/reserve-inventory.handler';
 import { ReleaseInventoryHandler } from './kafka-handlers/release-inventory.handler';
 import { ReplenishInventoryHandler } from './kafka-handlers/replenish-inventory.handler'; // Import the new handler
+import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-service.interface';
+import { SchemaRegistryModule, SCHEMA_REGISTRY_SERVICE_TOKEN } from '@lib/kafka/schema-registry.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: path.resolve('apps/inventory/.env'), // Loads the .env file specific to this microservice
+      envFilePath: path.join(__dirname, '../.env'), // Loads the .env file specific to this microservice
       isGlobal: true, // Makes the environment variables available globally
     }),
+    SchemaRegistryModule,
     TypeOrmModule.forRootAsync(typeOrmAsyncConfig),
     TypeOrmModule.forFeature([Inventory]),
     LoggerModule,
@@ -47,7 +50,7 @@ import { ReplenishInventoryHandler } from './kafka-handlers/replenish-inventory.
     ReplenishInventoryHandler, // Provide the new handler
     {
       provide: APP_INTERCEPTOR,
-      useExisting: 'LoggerErrorInterceptor', // Use the exported interceptor
+      useExisting: 'LoggerErrorInterceptor',
     },
     {
       provide: KafkaAdminClient,
@@ -62,13 +65,13 @@ import { ReplenishInventoryHandler } from './kafka-handlers/replenish-inventory.
     },
     {
       provide: "KafkaConsumerInstance",
-      inject: [ConfigService, LoggerService, ModuleRef], // Inject ConfigService, LoggerService, and ModuleRef
-      useFactory: (configService: ConfigService, loggerService: LoggerService, moduleRef: ModuleRef) => { // Correct factory signature
+      inject: [ConfigService, LoggerService, ModuleRef, SCHEMA_REGISTRY_SERVICE_TOKEN], // Inject ConfigService, LoggerService, and ModuleRef
+      useFactory: (configService: ConfigService, loggerService: LoggerService, moduleRef: ModuleRef, schemaRegistryService: ISchemaRegistryService) => { // Correct factory signature
         const kafkaConfig: KafkaConfig = {
           clientId: configService.get<string>('INVENTORY_CLIENT_ID'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
         };
-        return new KafkaConsumer(kafkaConfig, moduleRef, loggerService); // Pass loggerService
+        return new KafkaConsumer(kafkaConfig, moduleRef, loggerService, schemaRegistryService); // Pass loggerService
       },
     },
     TransactionService,
