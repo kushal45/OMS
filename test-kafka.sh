@@ -3,19 +3,23 @@
 # Test Kafka connectivity with enhanced error handling and connection verification
 echo "🔍 Testing Kafka connectivity..."
 
-# Function to print colored output
+# print_success prints its first positional argument to stdout prefixed with a green checkmark and ANSI green coloring.
+# The single parameter is the message text to display.
 print_success() {
     echo -e "\033[32m✅ $1\033[0m"
 }
 
+# print_error prints the given message prefixed with a red "❌" and colors the output red for emphasis.
 print_error() {
     echo -e "\033[31m❌ $1\033[0m"
 }
 
+# print_info prints an informational message (blue, prefixed with an info emoji) to stdout.
 print_info() {
     echo -e "\033[34mℹ️  $1\033[0m"
 }
 
+# print_warning prints a yellow warning message prefixed with a warning emoji to stdout.
 print_warning() {
     echo -e "\033[33m⚠️  $1\033[0m"
 }

@@ -8,25 +8,28 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m' # print_status prints an informational message with a blue `[INFO]` prefix; the message text is provided as the first argument.
 
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
+# print_success prints a success message prefixed with a green "[SUCCESS]" tag followed by the provided message.
 print_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
+# print_warning prints a warning message to stdout prefixed with a yellow "[WARNING]" tag (ANSI colored).
 print_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
+# print_error prints an error message prefixed with a red [ERROR] tag to stdout.
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Function to check if setup is already done
+# check_setup_status checks whether the one-time Docker setup has already completed by looking for the file `.docker-setup-complete`; returns 0 if present and 1 otherwise.
 check_setup_status() {
     local setup_file=".docker-setup-complete"
     if [ -f "$setup_file" ]; then
@@ -36,13 +39,13 @@ check_setup_status() {
     return 1
 }
 
-# Function to mark setup as complete
+# mark_setup_complete marks the one-time Docker setup as completed by writing a timestamped entry to .docker-setup-complete and printing a success message.
 mark_setup_complete() {
     echo "$(date): Docker setup completed successfully" > .docker-setup-complete
     print_success "Setup marked as complete"
 }
 
-# Function to handle Docker login with retry
+# handle_docker_login ensures Docker Hub authentication is available; returns 0 if already logged in or a login attempt succeeds, and returns 1 if login fails or is cancelled.
 handle_docker_login() {
     print_status "🔐 Setting up Docker authentication..."
     
@@ -64,7 +67,8 @@ handle_docker_login() {
     fi
 }
 
-# Function to pull all required images once
+# pull_all_images pulls the set of required Docker images once, printing status for each and recording any failures.
+# It prints success or warning messages per image and, if some pulls fail, warns which images will be pulled automatically when needed.
 pull_all_images() {
     print_status "📦 Pulling all required Docker images (one-time operation)..."
     
@@ -92,7 +96,7 @@ pull_all_images() {
     fi
 }
 
-# Function to build local images
+# build_local_images installs npm dependencies when needed and builds the local `oms-app-base:latest` Docker image, exiting with status 1 if the Docker build fails.
 build_local_images() {
     print_status "🔨 Building local application images..."
     
@@ -113,7 +117,8 @@ build_local_images() {
     fi
 }
 
-# Function to create image cache verification
+# create_image_cache creates or overwrites the .docker-images-cache file recording whether each required Docker image is available locally.
+# The file contains timestamped entries of the form "AVAILABLE: image" or "MISSING: image" for the set of required images.
 create_image_cache() {
     print_status "📋 Creating image cache verification..."
     
@@ -139,7 +144,7 @@ create_image_cache() {
     print_success "Image cache verification created"
 }
 
-# Function to verify all images are available
+# verify_images checks that the required Docker images are present locally and returns 0 if all are available or 1 if any are missing.
 verify_images() {
     print_status "🔍 Verifying all required images are available..."
     
@@ -167,7 +172,8 @@ verify_images() {
     fi
 }
 
-# Function to create optimized start script
+# create_optimized_start_script creates an executable `start-all-optimized.sh` that performs a fast Docker-image verification, ensures Docker is running, and starts the infrastructure, application, and Jenkins services using the slim docker-compose files.
+# The generated script is made executable.
 create_optimized_start_script() {
     print_status "🚀 Creating optimized start script..."
     
@@ -277,7 +283,7 @@ EOF
     print_success "Optimized start script created: start-all-optimized.sh"
 }
 
-# Main execution
+# main orchestrates the one-time Docker setup workflow: it checks whether setup already completed, verifies Docker is running and authentication, pulls and builds required images, creates and verifies an image cache, generates an optimized start script when all images are present, and marks the setup complete.
 main() {
     print_status "🔧 One-Time Docker Setup"
     echo "============================"
