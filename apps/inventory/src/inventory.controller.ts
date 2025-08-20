@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Res, HttpStatus, Inject } from '@nestjs/common';
 import { ApiParam } from '@nestjs/swagger'; // Added ApiParam import
 import { InventoryService } from './inventory.service';
+import { ApiOperation } from '@nestjs/swagger';
 import { Inventory } from './entity/inventory.entity';
 import { ResponseUtil } from '@app/utils/response.util';
 import { ConfigService } from '@nestjs/config';
@@ -20,6 +21,12 @@ export class InventoryController {
     private readonly logger: LoggerService,
     private moduleRef: ModuleRef
   ) {}
+
+  @Get('health')
+  @ApiOperation({ summary: 'Health check' })
+  healthCheck(@Res() response) {
+    response.status(HttpStatus.OK).send('OK');
+  }
 
   @Post()
   async createInventory(@Body() inventory: Partial<Inventory>, @Res() response) {

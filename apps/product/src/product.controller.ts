@@ -28,6 +28,12 @@ interface ProductMessage {
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
+  @Get('health')
+  @ApiOperation({ summary: 'Health check' })
+  healthCheck(@Res() response) {
+    response.status(HttpStatus.OK).send('OK');
+  }
+
   // gRPC Method Handler
   @GrpcMethod('ProductService', 'GetProductById')
   async getProductByIdGrpc(data: GetProductByIdRequest, metadata?: Metadata, call?: ServerUnaryCall<any, any>): Promise<ProductMessage> {

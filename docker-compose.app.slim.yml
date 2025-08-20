@@ -19,7 +19,7 @@ services:
       - "3000:3000"
       - "9229:9229"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://gateway:3000/api-gateway/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://gateway:3000/api-gateway/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -64,7 +64,7 @@ services:
     networks:
       - oms-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://auth:3001/auth/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://auth:3001/auth/health || exit 1"]
       interval: 20s
       timeout: 10s
       retries: 3
@@ -99,7 +99,7 @@ services:
     networks:
       - oms-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://order:3002/orders/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://order:3002/order/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -135,7 +135,7 @@ services:
     networks:
       - oms-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://inventory:3003/inventories || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://inventory:3003/inventories/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -171,7 +171,7 @@ services:
     networks:
       - oms-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://product:3004/products || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://product:3004/products/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -211,7 +211,7 @@ services:
     networks:
       - oms-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://cart:3005/cart/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://cart:3005/cart/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
