@@ -72,10 +72,9 @@ pipeline {
 
                         // Get the public IP from the stack outputs
                         def stackOutputs = sh(
-                            script:
-                                """
-                                aws cloudformation describe-stacks --stack-name ${CFN_STACK_NAME} --query 'Stacks[0].Outputs'
-                            """,
+                            script: """
+                                    aws cloudformation describe-stacks --stack-name ${CFN_STACK_NAME} --query 'Stacks[0].Outputs'
+                                """,
                             returnStdout: true
                         ).trim()
 
