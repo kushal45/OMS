@@ -3,14 +3,8 @@ pipeline {
     agent any
 
     environment {
-        // Docker Hub credentials
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub')
-
-        // EC2 SSH credentials
-        EC2_SSH_CREDENTIALS = credentials('ec2-ssh-key')
-
         // Docker image configuration
-        DOCKER_IMAGE_NAME = "${env.DOCKERHUB_USERNAME}/oms-app"
+        DOCKER_IMAGE_NAME = "kushal493/oms-app:test"
         BUILD_NUMBER = "${env.BUILD_NUMBER}"
         GIT_COMMIT_SHORT = "${env.GIT_COMMIT[0..7]}"
 
@@ -77,15 +71,13 @@ pipeline {
 
                         script {
                             try {
-                                // Build image with multiple tags
-                                def customImage = docker.build(
-                                    "${DOCKER_IMAGE_NAME}:${BUILD_NUMBER}",
-                                    "-f Dockerfile ."
-                                )
-
-                                // Tag as latest
-                                customImage.tag("latest")
-                                customImage.tag("${GIT_COMMIT_SHORT}")
+                                // Build image with multiple tags using sh commands
+                                sh """
+                                    echo "Building Docker image: ${DOCKER_IMAGE_NAME}:${BUILD_NUMBER}"
+                                    docker build -f Dockerfile -t ${DOCKER_IMAGE_NAME}:${BUILD_NUMBER} .
+                                    docker tag ${DOCKER_IMAGE_NAME}:${BUILD_NUMBER} ${DOCKER_IMAGE_NAME}:latest
+                                    docker tag ${DOCKER_IMAGE_NAME}:${BUILD_NUMBER} ${DOCKER_IMAGE_NAME}:${GIT_COMMIT_SHORT}
+                                """
 
                                 echo "✅ Docker image built successfully"
 
@@ -103,13 +95,25 @@ pipeline {
 
                         script {
                             try {
-                                // Run tests in Docker container
+                                // Run tests in Docker container with proper npm setup
                                 sh '''
                                     docker run --rm \
                                         -v $(pwd):/app \
                                         -w /app \
                                         node:21-alpine \
-                                        sh -c "npm ci && npm run test"
+                                        sh -c "
+                                            # Check if package-lock.json exists and is readable
+                                            if [ ! -f package-lock.json ]; then
+                                                echo 'package-lock.json not found, running npm install instead'
+                                                npm install
+                                            else
+                                                echo 'Using npm ci with existing package-lock.json'
+                                                npm ci
+                                            fi
+
+                                            # Run tests
+                                            npm run test
+                                        "
                                 '''
                                 echo "✅ Tests passed"
                             } catch (Exception e) {
@@ -128,16 +132,17 @@ pipeline {
 
                 script {
                     try {
-                        docker.withRegistry('https://registry.hub.docker.com', DOCKERHUB_CREDENTIALS) {
-                            def image = docker.image("${DOCKER_IMAGE_NAME}:${BUILD_NUMBER}")
-
-                            // Push all tags
-                            image.push("${BUILD_NUMBER}")
-                            image.push("latest")
-                            image.push("${GIT_COMMIT_SHORT}")
-
-                            echo "✅ Image pushed successfully to Docker Hub"
+                        // Login to Docker Hub and push images
+                        withDockerRegistry([credentialsId: 'dockerhub', url: 'https://index.docker.io/v1/']) {
+                            sh """
+                                echo "Pushing images to Docker Hub..."
+                                docker push ${DOCKER_IMAGE_NAME}:${BUILD_NUMBER}
+                                docker push ${DOCKER_IMAGE_NAME}:latest
+                                docker push ${DOCKER_IMAGE_NAME}:${GIT_COMMIT_SHORT}
+                            """
                         }
+
+                        echo "✅ Image pushed successfully to Docker Hub"
                     } catch (Exception e) {
                         echo "❌ Failed to push image: ${e.getMessage()}"
                         throw e
