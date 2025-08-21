@@ -48,7 +48,7 @@ pipeline {
             steps {
                 echo "🚀 Deploying CloudFormation stack..."
 
-                withCredentials([aws(credentials: 'aws-credentials')]) {
+                withCredentials([usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
                         export AWS_REGION=${env.AWS_REGION}
                         aws cloudformation deploy \
@@ -168,7 +168,7 @@ pipeline {
         }
         cleanup {
             echo "🗑️ Tearing down CloudFormation stack..."
-            withCredentials([aws(credentials: 'aws-credentials')]) {
+            withCredentials([usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                 sh "export AWS_REGION=${env.AWS_REGION} && aws cloudformation delete-stack --stack-name ${env.CFN_STACK_NAME}"
             }
         }
