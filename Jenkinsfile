@@ -126,7 +126,9 @@ pipeline {
 
                         try {
                             sh """
-                                ssh -o StrictHostKeyChecking=no -o ConnectTimeout=20 -i $KEY_FILE ${EC2_USER}@${env.EC2_HOST} 'echo "SSH connection successful"'
+                                sh """
+                                    ssh -o StrictHostKeyChecking=no -o ConnectTimeout=20 -i $KEY_FILE ${EC2_USER}@${env.EC2_HOST} 'echo "SSH connection successful"'
+                                """
 
                                 ssh -o StrictHostKeyChecking=no -i $KEY_FILE ${EC2_USER}@${env.EC2_HOST} '
                                     set -e
