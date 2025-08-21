@@ -10,19 +10,22 @@ services:
       - "5433:5432"
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: oms
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
     networks:
       - oms-network
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./logs:/var/log/postgresql
+    restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.1'
+          memory: 300M
+          cpus: '0.15'
         reservations:
-          memory: 128M
+          memory: 150M
           cpus: '0.05'
 
   kafka:
@@ -125,20 +128,28 @@ services:
       - "6379:6379"
     networks:
       - oms-network
+    volumes:
+      - redis_data:/data
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
     healthcheck:
       test: ["CMD", "redis-cli", "-h", "localhost", "-p", "6379", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
     deploy:
       resources:
         limits:
           memory: 256M
+          cpus: '0.1'
         reservations:
           memory: 128M
+          cpus: '0.05'
 
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   oms-network:
