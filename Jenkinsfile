@@ -65,19 +65,21 @@ pipeline {
                     echo "⏳ Waiting for stack completion..."
 
                     // Get the public IP from the stack outputs
-                    def stackOutputs = sh(
-                        script: 'aws cloudformation describe-stacks --stack-name ' + env.CFN_STACK_NAME + ' --query \'Stacks[0].Outputs\'',
-                        returnStdout: true
-                    ).trim()
+                    script {
+                        def stackOutputs = sh(
+                            script: "aws cloudformation describe-stacks --stack-name ${env.CFN_STACK_NAME} --query 'Stacks[0].Outputs'",
+                            returnStdout: true
+                        ).trim()
 
-                    def outputs = readJSON text: stackOutputs
-                    def publicIpOutput = outputs.find { it.OutputKey == 'PublicIP' }
+                        def outputs = readJSON text: stackOutputs
+                        def publicIpOutput = outputs.find { it.OutputKey == 'PublicIP' }
 
-                    if (publicIpOutput && publicIpOutput.OutputValue) {
-                        env.EC2_HOST = publicIpOutput.OutputValue
-                        echo "✅ EC2 instance is ready at: ${env.EC2_HOST}"
-                    } else {
-                        error "❌ Could not retrieve PublicIP from CloudFormation stack outputs."
+                        if (publicIpOutput && publicIpOutput.OutputValue) {
+                            env.EC2_HOST = publicIpOutput.OutputValue
+                            echo "✅ EC2 instance is ready at: ${env.EC2_HOST}"
+                        } else {
+                            error "❌ Could not retrieve PublicIP from CloudFormation stack outputs."
+                        }
                     }
                 }
             }
