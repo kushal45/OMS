@@ -48,11 +48,9 @@ pipeline {
             steps {
                 echo "🚀 Deploying CloudFormation stack..."
 
-                // Ensure jq is installed on the agent
-                sh "command -v jq >/dev/null 2>&1 || { echo >&2 'jq is not installed. Aborting.'; exit 1; }"
-
-                withAWS(credentials: 'aws-credentials', region: "${env.AWS_REGION}") {
+                withCredentials([aws(credentials: 'aws-credentials')]) {
                     sh """
+                        export AWS_REGION=${env.AWS_REGION}
                         aws cloudformation deploy \
                             --template-file aws-setup/cloudformation-template.yaml \
                             --stack-name ${env.CFN_STACK_NAME} \
@@ -170,8 +168,8 @@ pipeline {
         }
         cleanup {
             echo "🗑️ Tearing down CloudFormation stack..."
-            withAWS(credentials: 'aws-credentials', region: "${env.AWS_REGION}") {
-                sh "aws cloudformation delete-stack --stack-name ${env.CFN_STACK_NAME}"
+            withCredentials([aws(credentials: 'aws-credentials')]) {
+                sh "export AWS_REGION=${env.AWS_REGION} && aws cloudformation delete-stack --stack-name ${env.CFN_STACK_NAME}"
             }
         }
     }
