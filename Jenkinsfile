@@ -4,7 +4,7 @@ pipeline {
 
     environment {
         // Docker image configuration
-        DOCKER_IMAGE_NAME = "kushal493/oms-app:test"
+        DOCKER_IMAGE_NAME = "kushal493/oms-app"
         BUILD_NUMBER = "${env.BUILD_NUMBER}"
         GIT_COMMIT_SHORT = "${env.GIT_COMMIT[0..7]}"
 
