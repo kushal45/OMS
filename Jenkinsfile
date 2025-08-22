@@ -49,6 +49,9 @@ pipeline {
         }
 
         stage('Deploy Infrastructure') {
+            agent {
+                docker { image 'amazon/aws-cli:latest' }
+            }
             steps {
                 echo "🚀 Deploying CloudFormation stack..."
 
@@ -153,6 +156,25 @@ pipeline {
                 }
             }
         }
+
+        stage('Cleanup') {
+            when {
+                anyOf {
+                    success()
+                    failure()
+                    unstable()
+                }
+            }
+            agent {
+                docker { image 'amazon/aws-cli:latest' }
+            }
+            steps {
+                echo "🗑️ Tearing down CloudFormation stack..."
+                withCredentials([usernamePassword(credentialsId: params.AWS_CREDENTIALS_ID, usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    sh "export AWS_REGION=${env.AWS_REGION} && aws cloudformation delete-stack --stack-name ${env.CFN_STACK_NAME}"
+                }
+            }
+        }
     }
 
     post {
@@ -169,12 +191,6 @@ pipeline {
         }
         unstable {
             echo "⚠️ Pipeline completed with warnings"
-        }
-        cleanup {
-            echo "🗑️ Tearing down CloudFormation stack..."
-            withCredentials([usernamePassword(credentialsId: params.AWS_CREDENTIALS_ID, usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-                sh "export AWS_REGION=${env.AWS_REGION} && aws cloudformation delete-stack --stack-name ${env.CFN_STACK_NAME}"
-            }
         }
     }
 }
