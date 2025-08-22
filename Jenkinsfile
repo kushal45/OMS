@@ -34,7 +34,6 @@ pipeline {
             steps {
                 echo "🔄 Checking out source code..."
                 stash(name: 'source', includes: '**/*')
-
                 script {
                     env.GIT_COMMIT_SHORT = sh(
                         script: "git rev-parse --short HEAD",
@@ -97,32 +96,36 @@ pipeline {
             }
         }
 
-        stage('Build and Test') {
-            parallel {
-                stage('Build Docker Image') {
-                    agent {
-                        docker { image 'golang:1.18' }
-                    }
-                    steps {
-                        echo "🏗️ Building Docker image..."
-                        // Insert your docker build commands here
-                    }
-                }
-                stage('Run Tests') {
-                    agent {
-                        docker { image 'golang:1.18' }
-                    }
-                    steps {
-                        echo "🧪 Running application tests..."
-                        // Insert your test commands here
-                    }
-                }
+        stage('Build Docker Image') {
+            agent any
+            options {
+                skipDefaultCheckout()
+            }
+            steps {
+                unstash('source')
+                echo "🏗️ Building Docker image..."
+                // Insert your docker build commands here
+            }
+        }
+        stage('Run Tests') {
+            agent any
+            options {
+                skipDefaultCheckout()
+            }
+            steps {
+                unstash('source')
+                echo "🧪 Running application tests..."
+                // Insert your test commands here
             }
         }
 
         stage('Push to Registry') {
             agent any
+            options {
+                skipDefaultCheckout()
+            }
             steps {
+                unstash('source')
                 echo "📤 Pushing Docker image to registry..."
                 // Insert your docker push commands here
             }
@@ -130,7 +133,11 @@ pipeline {
 
         stage('Deploy to EC2') {
             agent any
+            options {
+                skipDefaultCheckout()
+            }
             steps {
+                unstash('source')
                 echo "🚀 Deploying to EC2 instance at ${env.EC2_HOST}..."
 
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'KEY_FILE')]) {
