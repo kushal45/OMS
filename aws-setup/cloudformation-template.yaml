@@ -263,9 +263,6 @@ Resources:
 
           # Signal completion
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource OMSEC2Instance --region ${AWS::Region}
-      CreationPolicy:
-        ResourceSignal:
-          Timeout: PT10M
       Tags:
         - Key: Name
           Value: OMS-Application-Server
