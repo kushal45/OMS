@@ -101,6 +101,9 @@ pipeline {
             parallel {
                 stage('Build Docker Image') {
                     agent any
+                    options {
+                        skipDefaultCheckout()
+                    }
                     steps {
                         unstash('source')
                         echo "🏗️ Building Docker image..."
@@ -109,6 +112,9 @@ pipeline {
                 }
                 stage('Run Tests') {
                     agent any
+                    options {
+                        skipDefaultCheckout()
+                    }
                     steps {
                         unstash('source')
                         echo "🧪 Running application tests..."
@@ -120,6 +126,9 @@ pipeline {
 
         stage('Push to Registry') {
             agent any
+            options {
+                skipDefaultCheckout()
+            }
             steps {
                 unstash('source')
                 echo "📤 Pushing Docker image to registry..."
@@ -129,6 +138,9 @@ pipeline {
 
         stage('Deploy to EC2') {
             agent any
+            options {
+                skipDefaultCheckout()
+            }
             steps {
                 unstash('source')
                 echo "🚀 Deploying to EC2 instance at ${env.EC2_HOST}..."
