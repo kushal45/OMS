@@ -95,15 +95,16 @@ pipeline {
         }
 
         stage('Build and Test') {
-            agent any
             parallel {
                 stage('Build Docker Image') {
+                    agent any
                     steps {
                         echo "🏗️ Building Docker image..."
                         // Insert your docker build commands here
                     }
                 }
                 stage('Run Tests') {
+                    agent any
                     steps {
                         echo "🧪 Running application tests..."
                         // Insert your test commands here
