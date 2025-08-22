@@ -1,15 +1,7 @@
 services:
-  app-base:
-    image: ${DOCKER_IMAGE_NAME:-oms-app-base:latest}
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: echo "Base image built successfully"
-    profiles:
-      - build-only
-
+ 
   gateway:
-    image: ${DOCKER_IMAGE_NAME:-oms-app-base:latest}
+    image: kushal493/oms-app-base
     depends_on:
       auth:
         condition: service_healthy
@@ -46,7 +38,7 @@ services:
           cpus: '0.05'
 
   auth:
-    image: oms-app-base:latest
+    image: kushal493/oms-app-base
     ports:
       - "3001:3001"
       - "9230:9229"
@@ -89,7 +81,7 @@ services:
           cpus: '0.05'
 
   order:
-    image: oms-app-base:latest
+    image: kushal493/oms-app-base
     depends_on:
       kafka:
         condition: service_healthy
@@ -143,7 +135,7 @@ services:
           cpus: '0.05'
 
   inventory:
-    image: oms-app-base:latest
+    image: kushal493/oms-app-base
     depends_on:
       kafka:
         condition: service_healthy
@@ -196,7 +188,7 @@ services:
           cpus: '0.05'
 
   product:
-    image: oms-app-base:latest
+    image: kushal493/oms-app-base
     ports:
       - "3004:3004"
       - "9233:9229"
@@ -238,7 +230,7 @@ services:
           cpus: '0.05'
 
   cart:
-    image: oms-app-base:latest
+    image: kushal493/oms-app-base
     depends_on:
       kafka:
         condition: service_healthy

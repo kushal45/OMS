@@ -86,7 +86,7 @@ services:
 
   # Database Migration and Seeding Service
   db-migrate:
-    image: oms-app-base:latest
+    image: kushal493/oms-app-base
     container_name: oms-db-migrate
     depends_on:
       postgres:
