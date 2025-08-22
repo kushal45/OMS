@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent none
 
     parameters {
         string(name: 'AWS_CREDENTIALS_ID', defaultValue: 'aws-credentials', description: 'The ID of the AWS credentials (Username/Password) stored in Jenkins.')
@@ -30,6 +30,7 @@ pipeline {
 
     stages {
         stage('Checkout') {
+            agent any
             steps {
                 echo "🔄 Checking out source code..."
                 checkout scm
@@ -94,6 +95,7 @@ pipeline {
         }
 
         stage('Build and Test') {
+            agent any
             parallel {
                 stage('Build Docker Image') {
                     steps {
@@ -111,6 +113,7 @@ pipeline {
         }
 
         stage('Push to Registry') {
+            agent any
             steps {
                 echo "📤 Pushing Docker image to registry..."
                 // Insert your docker push commands here
@@ -118,6 +121,7 @@ pipeline {
         }
 
         stage('Deploy to EC2') {
+            agent any
             steps {
                 echo "🚀 Deploying to EC2 instance at ${env.EC2_HOST}..."
 
@@ -182,7 +186,7 @@ pipeline {
             script {
                 docker.image('amazon/aws-cli:latest').inside('--entrypoint=""') {
                     withCredentials([usernamePassword(credentialsId: params.AWS_CREDENTIALS_ID, usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-                        sh "export AWS_REGION=${env.AWS_REGION} && aws cloudformation delete-stack --stack-name ${env.CFN_STACK_NAME}"
+                        sh "export AWS_REGION=us-east-1 && aws cloudformation delete-stack --stack-name ${env.CFN_STACK_NAME}"
                     }
                 }
             }
