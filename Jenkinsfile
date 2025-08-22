@@ -33,7 +33,7 @@ pipeline {
             agent any
             steps {
                 echo "🔄 Checking out source code..."
-                checkout scm
+                stash(name: 'source', includes: '**/*')
 
                 script {
                     env.GIT_COMMIT_SHORT = sh(
@@ -102,6 +102,7 @@ pipeline {
                 stage('Build Docker Image') {
                     agent any
                     steps {
+                        unstash('source')
                         echo "🏗️ Building Docker image..."
                         // Insert your docker build commands here
                     }
@@ -109,6 +110,7 @@ pipeline {
                 stage('Run Tests') {
                     agent any
                     steps {
+                        unstash('source')
                         echo "🧪 Running application tests..."
                         // Insert your test commands here
                     }
@@ -119,6 +121,7 @@ pipeline {
         stage('Push to Registry') {
             agent any
             steps {
+                unstash('source')
                 echo "📤 Pushing Docker image to registry..."
                 // Insert your docker push commands here
             }
@@ -127,6 +130,7 @@ pipeline {
         stage('Deploy to EC2') {
             agent any
             steps {
+                unstash('source')
                 echo "🚀 Deploying to EC2 instance at ${env.EC2_HOST}..."
 
                 sshagent (credentials: ['ec2-ssh-key']) {
