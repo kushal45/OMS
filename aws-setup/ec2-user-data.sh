@@ -79,13 +79,12 @@ docker-compose -f docker-compose.app.slim.yml down || true
 docker-compose -f docker-compose.infra.slim.yml down || true
 
 # Start infrastructure first
-docker-compose -f docker-compose.infra.slim.yml up -d
+docker-compose -f docker-compose.infra.slim.yml  -f docker-compose.app.slim.yml up -d
 
 # Wait for infrastructure to be ready
 sleep 30
 
-# Start application services
-docker-compose -f docker-compose.app.slim.yml up -d
+
 
 # Clean up unused images
 docker image prune -f

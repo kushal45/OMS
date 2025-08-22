@@ -147,34 +147,39 @@ pipeline {
                         eval \$(ssh-agent -s)
                         ssh-add \$KEY_FILE
 
+                        echo "Creating selective deployment archive..."
+                        tar -czf deployment.tar.gz $(find . -maxdepth 1 -type f) apps libs
+
                         # Wait for SSH to be ready
                         sleep 60
 
-                        # Test SSH connectivity
-                        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=20 ${env.EC2_USER}@${env.EC2_HOST} 'echo "SSH connection successful"'
+                        # Create directory on EC2 and test connectivity
+                        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=20 ${env.EC2_USER}@${env.EC2_HOST} "mkdir -p /home/${env.EC2_USER}/oms && echo 'SSH connection successful'"
 
-                        # Deployment to EC2
+                        # Copy archive to EC2
+                        scp -o StrictHostKeyChecking=no deployment.tar.gz ${env.EC2_USER}@${env.EC2_HOST}:/home/${env.EC2_USER}/oms/
+
+                        # Extract archive and run docker-compose commands on EC2
                         ssh -o StrictHostKeyChecking=no ${env.EC2_USER}@${env.EC2_HOST} '
                             set -e
-                            echo "📁 Creating application directory if it does not exist..."
-                            if [ ! -d "/home/${env.EC2_USER}/oms" ]; then
-                                echo "Creating directory /home/${env.EC2_USER}/oms"
-                                mkdir -p "/home/${env.EC2_USER}/oms"
-                            fi
-                            echo "📁 Navigating to application directory..."
+                            echo "Navigating to application directory..."
                             cd /home/${env.EC2_USER}/oms
-                            echo "📋 Setting environment variables..."
+                            echo "Extracting deployment archive..."
+                            tar -xzf deployment.tar.gz
+                            rm deployment.tar.gz
+
+                            echo "Setting environment variables..."
                             export DOCKER_IMAGE_NAME=${env.DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}
                             export NODE_ENV=production
-                            echo "🛑 Stopping existing services..."
+                            echo "Stopping existing services..."
                             docker-compose -f docker-compose.app.slim.yml -f docker-compose.infra.slim.yml down || true
-                            echo "📥 Pulling latest images..."
+                            echo "Pulling latest images..."
                             docker-compose -f docker-compose.infra.slim.yml -f docker-compose.app.slim.yml pull || true
-                            echo "🚀 Starting all services (infra and app)..."
+                            echo "Starting all services (infra and app)..."
                             docker-compose -f docker-compose.infra.slim.yml -f docker-compose.app.slim.yml up -d --remove-orphans
-                            echo "🧹 Cleaning up old images..."
+                            echo "Cleaning up old images..."
                             docker image prune -f || true
-                            echo "✅ Deployment completed successfully!"
+                            echo "Deployment completed successfully!"
                         '
                     """
                     echo "✅ Deployment to EC2 completed successfully"
