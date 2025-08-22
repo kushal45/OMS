@@ -15,7 +15,7 @@ pipeline {
         
         // CloudFormation configuration
         CFN_STACK_NAME = "oms-stack-${env.BUILD_NUMBER}"
-        CFN_KEY_PAIR_NAME = "your-key-pair-name" // IMPORTANT: Configure this in Jenkins or as a job parameter
+        CFN_KEY_PAIR_NAME = "kushal_ec2" // IMPORTANT: Configure this in Jenkins or as a job parameter
         CFN_EXPOSE_ALL_SERVICES = "true"
         AWS_REGION = "us-east-1"
         // Application configuration
