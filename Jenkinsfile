@@ -51,7 +51,10 @@ pipeline {
 
         stage('Deploy Infrastructure') {
             agent {
-                docker { image 'amazon/aws-cli:latest' }
+                docker {
+                    image 'amazon/aws-cli:latest'
+                    args '--entrypoint=""'
+                }
             }
             options {
                 skipDefaultCheckout()
@@ -170,7 +173,9 @@ pipeline {
     post {
         always {
             echo "🧹 Cleaning up workspace..."
-            cleanWs()
+            node {
+                cleanWs()
+            }
         }
         success {
             echo "🎉 Pipeline completed successfully!"
