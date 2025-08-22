@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    parameters {
+        string(name: 'AWS_CREDENTIALS_ID', defaultValue: 'aws-credentials', description: 'The ID of the AWS credentials (Username/Password) stored in Jenkins.')
+    }
+
     environment {
         // Docker image configuration
         DOCKER_IMAGE_NAME = "kushal493/oms-app"
@@ -48,7 +52,7 @@ pipeline {
             steps {
                 echo "🚀 Deploying CloudFormation stack..."
 
-                withCredentials([usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                withCredentials([usernamePassword(credentialsId: params.AWS_CREDENTIALS_ID, usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
                         export AWS_REGION=${env.AWS_REGION}
                         aws cloudformation deploy \
@@ -168,7 +172,7 @@ pipeline {
         }
         cleanup {
             echo "🗑️ Tearing down CloudFormation stack..."
-            withCredentials([usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+            withCredentials([usernamePassword(credentialsId: params.AWS_CREDENTIALS_ID, usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                 sh "export AWS_REGION=${env.AWS_REGION} && aws cloudformation delete-stack --stack-name ${env.CFN_STACK_NAME}"
             }
         }
