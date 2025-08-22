@@ -52,6 +52,9 @@ pipeline {
             agent {
                 docker { image 'amazon/aws-cli:latest' }
             }
+            options {
+                skipDefaultCheckout()
+            }
             steps {
                 echo "🚀 Deploying CloudFormation stack..."
 
@@ -177,7 +180,7 @@ pipeline {
         cleanup {
             echo "🗑️ Tearing down CloudFormation stack..."
             script {
-                docker.image('amazon/aws-cli:latest').inside {
+                docker.image('amazon/aws-cli:latest').inside('--entrypoint=""') {
                     withCredentials([usernamePassword(credentialsId: params.AWS_CREDENTIALS_ID, usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                         sh "export AWS_REGION=${env.AWS_REGION} && aws cloudformation delete-stack --stack-name ${env.CFN_STACK_NAME}"
                     }
