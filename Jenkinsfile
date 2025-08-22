@@ -17,7 +17,7 @@ pipeline {
         CFN_STACK_NAME = "oms-stack-${env.BUILD_NUMBER}"
         CFN_KEY_PAIR_NAME = "kushal_ec2" // IMPORTANT: Configure this in Jenkins or as a job parameter
         CFN_EXPOSE_ALL_SERVICES = "true"
-        AWS_REGION = "eu-north-1"
+        AWS_REGION = "us-east-1"
         // Application configuration
         NODE_ENV = 'production'
     }
@@ -100,23 +100,19 @@ pipeline {
         stage('Build and Test') {
             parallel {
                 stage('Build Docker Image') {
-                    agent any
-                    options {
-                        skipDefaultCheckout()
+                    agent {
+                        docker { image 'golang:1.18' }
                     }
                     steps {
-                        unstash('source')
                         echo "🏗️ Building Docker image..."
                         // Insert your docker build commands here
                     }
                 }
                 stage('Run Tests') {
-                    agent any
-                    options {
-                        skipDefaultCheckout()
+                    agent {
+                        docker { image 'golang:1.18' }
                     }
                     steps {
-                        unstash('source')
                         echo "🧪 Running application tests..."
                         // Insert your test commands here
                     }
@@ -126,11 +122,7 @@ pipeline {
 
         stage('Push to Registry') {
             agent any
-            options {
-                skipDefaultCheckout()
-            }
             steps {
-                unstash('source')
                 echo "📤 Pushing Docker image to registry..."
                 // Insert your docker push commands here
             }
@@ -138,24 +130,23 @@ pipeline {
 
         stage('Deploy to EC2') {
             agent any
-            options {
-                skipDefaultCheckout()
-            }
             steps {
-                unstash('source')
                 echo "🚀 Deploying to EC2 instance at ${env.EC2_HOST}..."
 
-                sshagent (credentials: ['ec2-ssh-key']) {
-                    // Wait for SSH to be ready
-                    sh "sleep 60"
-
-                    // Test SSH connectivity
+                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'KEY_FILE')]) {
                     sh """
+                        set -e
+                        # Start ssh-agent and add key
+                        eval \$(ssh-agent -s)
+                        ssh-add \$KEY_FILE
+
+                        # Wait for SSH to be ready
+                        sleep 60
+
+                        # Test SSH connectivity
                         ssh -o StrictHostKeyChecking=no -o ConnectTimeout=20 ${env.EC2_USER}@${env.EC2_HOST} 'echo "SSH connection successful"'
-                    """
 
-                    // Deployment to EC2
-                    sh """
+                        # Deployment to EC2
                         ssh -o StrictHostKeyChecking=no ${env.EC2_USER}@${env.EC2_HOST} '
                             set -e
                             echo "📁 Creating application directory if it does not exist..."
