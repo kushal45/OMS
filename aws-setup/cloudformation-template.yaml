@@ -226,7 +226,7 @@ Resources:
   OMSEC2Instance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: ami-042b4708b1d05f512  # ubuntu image (update as needed)
+      ImageId: ami-01637463b2cbe7cb6  # ubuntu image (update as needed)
       InstanceType: t2.micro
       KeyName: !Ref KeyPairName
       SubnetId: !Ref OMSPublicSubnet
@@ -240,7 +240,7 @@ Resources:
           yum install -y docker git
           systemctl start docker
           systemctl enable docker
-          usermod -a -G docker ec2-user
+          usermod -a -G docker ubuntu
 
           # Install Docker Compose
           curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
@@ -294,7 +294,7 @@ Outputs:
 
   SSHCommand:
     Description: SSH command to connect to the instance
-    Value: !Sub "ssh -i your-key.pem ec2-user@${OMSEC2Instance.PublicIp}"
+    Value: !Sub "ssh -i your-key.pem ubuntu@${OMSEC2Instance.PublicIp}"
 
   ApplicationURL:
     Description: URL to access the OMS application (API Gateway)

@@ -12,7 +12,7 @@ yum update -y
 yum install -y docker
 systemctl start docker
 systemctl enable docker
-usermod -a -G docker ec2-user
+usermod -a -G docker ubuntu
 
 # Install Docker Compose
 curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
@@ -27,17 +27,17 @@ curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
 yum install -y nodejs
 
 # Create application directory
-mkdir -p /home/ec2-user/oms
-chown ec2-user:ec2-user /home/ec2-user/oms
+mkdir -p /home/ubuntu/oms
+chown ubuntu:ubuntu /home/ubuntu/oms
 
 # Create Docker network for the application
 docker network create oms-network || true
 
 # Create directories for persistent data
-mkdir -p /home/ec2-user/oms/data/postgres
-mkdir -p /home/ec2-user/oms/data/redis
-mkdir -p /home/ec2-user/oms/logs
-chown -R ec2-user:ec2-user /home/ec2-user/oms
+mkdir -p /home/ubuntu/oms/data/postgres
+mkdir -p /home/ubuntu/oms/data/redis
+mkdir -p /home/ubuntu/oms/logs
+chown -R ubuntu:ubuntu /home/ubuntu/oms
 
 # Install CloudWatch agent for monitoring
 wget https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
@@ -52,23 +52,23 @@ echo '/swapfile swap swap defaults 0 0' >> /etc/fstab
 
 # Set up log rotation
 cat > /etc/logrotate.d/docker-containers << EOF
-/home/ec2-user/oms/logs/*.log {
+/home/ubuntu/oms/logs/*.log {
     daily
     rotate 7
     compress
     delaycompress
     missingok
     notifempty
-    create 644 ec2-user ec2-user
+    create 644 ubuntu ubuntu
 }
 EOF
 
 # Create deployment script
-cat > /home/ec2-user/deploy-oms.sh << 'EOF'
+cat > /home/ubuntu/deploy-oms.sh << 'EOF'
 #!/bin/bash
 set -e
 
-cd /home/ec2-user/oms
+cd /home/ubuntu/oms
 
 # Pull latest images
 docker-compose -f docker-compose.infra.slim.yml pull
@@ -93,11 +93,11 @@ docker image prune -f
 echo "Deployment completed successfully!"
 EOF
 
-chmod +x /home/ec2-user/deploy-oms.sh
-chown ec2-user:ec2-user /home/ec2-user/deploy-oms.sh
+chmod +x /home/ubuntu/deploy-oms.sh
+chown ubuntu:ubuntu /home/ubuntu/deploy-oms.sh
 
 # Create health check script
-cat > /home/ec2-user/health-check.sh << 'EOF'
+cat > /home/ubuntu/health-check.sh << 'EOF'
 #!/bin/bash
 
 # Health check script for OMS services
@@ -118,7 +118,7 @@ echo "=== Docker Container Status ==="
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 EOF
 
-chmod +x /home/ec2-user/health-check.sh
-chown ec2-user:ec2-user /home/ec2-user/health-check.sh
+chmod +x /home/ubuntu/health-check.sh
+chown ubuntu:ubuntu /home/ubuntu/health-check.sh
 
 echo "EC2 setup completed successfully!"

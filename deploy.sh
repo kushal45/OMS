@@ -31,8 +31,8 @@ warning() {
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="/home/ec2-user/oms"
-BACKUP_DIR="/home/ec2-user/oms-backups"
+APP_DIR="/home/ubuntu/oms"
+BACKUP_DIR="/home/ubuntu/oms-backups"
 MAX_BACKUPS=5
 
 # Default values
