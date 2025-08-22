@@ -148,7 +148,7 @@ pipeline {
                         ssh-add \$KEY_FILE
 
                         echo "Creating selective deployment archive..."
-                        tar -czf deployment.tar.gz $(find . -maxdepth 1 -type f) apps libs
+                        tar -czf deployment.tar.gz \$(find . -maxdepth 1 -type f) apps libs
 
                         # Wait for SSH to be ready
                         sleep 60
