@@ -294,7 +294,7 @@ Outputs:
 
   SSHCommand:
     Description: SSH command to connect to the instance
-    Value: !Sub "ssh -i your-key.pem ubuntu@${OMSEC2Instance.PublicIp}"
+    Value: !Sub "ssh -i kushal_ec2.pem ubuntu@${OMSEC2Instance.PublicIp}"
 
   ApplicationURL:
     Description: URL to access the OMS application (API Gateway)
