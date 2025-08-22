@@ -62,9 +62,9 @@ update_system() {
     echo "Checking for system updates..."
 
     # Only update if last update was more than 7 days ago
-    if [[ $(find /var/lib/yum/history -name "history-*" -mtime -7 | wc -l) -eq 0 ]]; then
+    if [[ $(find /var/lib/apt/history -name "history-*" -mtime -7 | wc -l) -eq 0 ]]; then
         echo "Updating system packages..."
-        sudo yum update -y
+        sudo apt update -y
     else
         echo "System packages are up to date"
     fi

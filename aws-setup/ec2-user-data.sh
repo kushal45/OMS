@@ -6,10 +6,10 @@
 set -e
 
 # Update system
-yum update -y
+apt update -y
 
 # Install Docker
-yum install -y docker
+apt install -y docker
 systemctl start docker
 systemctl enable docker
 usermod -a -G docker ubuntu
@@ -20,11 +20,11 @@ chmod +x /usr/local/bin/docker-compose
 ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 # Install Git
-yum install -y git
+apt install -y git
 
 # Install Node.js (for any local operations if needed)
 curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
-yum install -y nodejs
+apt install -y nodejs
 
 # Create application directory
 mkdir -p /home/ubuntu/oms

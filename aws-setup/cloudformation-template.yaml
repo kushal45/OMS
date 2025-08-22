@@ -227,7 +227,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: ami-01637463b2cbe7cb6  # ubuntu image (update as needed)
-      InstanceType: t2.micro
+      InstanceType: t3.micro
       KeyName: !Ref KeyPairName
       SubnetId: !Ref OMSPublicSubnet
       SecurityGroupIds:
@@ -236,8 +236,8 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          yum update -y
-          yum install -y docker git
+          apt update -y
+          apt install -y docker.io git
           systemctl start docker
           systemctl enable docker
           usermod -a -G docker ubuntu
