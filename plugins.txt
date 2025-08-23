@@ -1,0 +1,23 @@
+# Jenkins Plugins Configuration for OMS Deployment
+# Minimal essential plugins for latest Jenkins LTS
+# Focused on core functionality to avoid dependency conflicts
+
+# Essential Pipeline Support
+workflow-aggregator
+
+# Docker Integration (Essential for OMS)
+docker-workflow
+
+# Source Control Management
+git
+
+# Build and Deployment Tools
+build-timeout
+timestamper
+ws-cleanup
+
+# Blue Ocean (Modern UI)
+blueocean
+
+# Configuration Management
+configuration-as-code

@@ -46,6 +46,7 @@ export class OrderController implements OnModuleInit {
     private readonly orderService: OrderService,
     @Inject('CART_PACKAGE') private readonly cartClient: ClientGrpc,
     private readonly moduleRef: ModuleRef,
+    @Inject('ISchemaRegistryService') private readonly schemaRegistryService: any,
   ) {}
 
   @Post('orders')
@@ -174,11 +175,6 @@ export class OrderController implements OnModuleInit {
     });
   }
 
-  @Get('user/:userId')
-  async getOrders(@Param('userId') userId: number): Promise<Order[]> {
-    return await this.orderService.getOrders(userId);
-  }
-
   @Put(':aliasId')
   @ApiParam({ name: 'aliasId', required: true })
   @ApiResponse(
@@ -274,6 +270,6 @@ export class OrderController implements OnModuleInit {
     const configService = this.moduleRef.get(ConfigService, { strict: false });
     const topic = configService.get<string>('REPLENISH_INVENTORY_TOPIC');
     const schemaJsonString = configService.get<string>('REPLENISH_INVENTORY_SCHEMA_JSON');
-    await handleInventoryProcessTypeRegistration(topic, schemaJsonString, this.moduleRef);
+  await handleInventoryProcessTypeRegistration(topic, schemaJsonString, this.moduleRef, this.schemaRegistryService);
   }
 }

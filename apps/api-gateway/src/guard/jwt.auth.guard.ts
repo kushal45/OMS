@@ -33,6 +33,8 @@ export class JwtAuthGuard implements CanActivate {
       (route) => route.method === method && route.pathRegex.test(path),
     );
 
+    console.log("isPublic:: ->",isPublic);
+
     if (isPublic) {
       return true; // Bypass JWT validation for public routes
     }
@@ -44,15 +46,17 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
+      const jwtSecret = this.configService.get<string>('JWT_SECRET');
+      console.log("JWT_SECRET configured:", !!jwtSecret);
+
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: this.configService.get<string>('JWT_SECRET'),
+        secret: jwtSecret,
       });
       console.log("Payload from JWT verification:", payload);
       request.user = payload; // Attach payload to request object
       return true;
     } catch (error) {
-      // Log the error for debugging if needed
-      // this.logger.error('Token validation error:', error.message);
+      console.error('Token validation error:', error.message);
       throw new UnauthorizedException('Invalid or expired token');
     }
   }

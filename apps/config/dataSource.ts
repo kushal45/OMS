@@ -13,11 +13,16 @@ export const dataSourceOptions: DataSourceOptions = {
   username: process.env.DATABASE_USER || 'postgres',
   password: process.env.DATABASE_PASSWORD || 'postgres',
   database: process.env.DATABASE_NAME || 'postgres',
-  entities: [
+  entities: process.env.NODE_ENV === 'production' ? [
+    path.resolve(__dirname, '../**/src/entity/*.entity.js'),
+    path.resolve(__dirname, '../../libs/**/src/entity/*.entity.js')
+  ] : [
     '../**/entity/*.entity.ts',
     '../**/libs/**/entity/*.entity.ts'
   ],
-  migrations: [path.resolve(__dirname, '../database/migrations/*.ts')],
+  migrations: process.env.NODE_ENV === 'production' ?
+    [path.resolve(__dirname, '../database/migrations/*.js')] :
+    [path.resolve(__dirname, '../database/migrations/*.ts')],
   synchronize: false,
   logging: process.env.NODE_ENV !== 'production',
 };

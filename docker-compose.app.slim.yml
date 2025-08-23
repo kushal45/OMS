@@ -1,0 +1,294 @@
+services:
+ 
+  gateway:
+    image: kushal493/oms-app-base
+    depends_on:
+      auth:
+        condition: service_healthy
+      order:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+      - "9229:9229"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://gateway:3000/api-gateway/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=3000
+      - SERVICE_NAME=gateway
+      - JWT_SECRET=${JWT_SECRET:-sec1234}
+      - REDIS_CLIENT_TYPE=STANDALONE
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # Removed Kafka and Elasticsearch related environment variables
+    command: node dist/apps/api-gateway/src/main.js # Run compiled code directly
+    networks:
+      - oms-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M # Reduced memory limit
+          cpus: '0.1' # Reduced CPU limit
+        reservations:
+          memory: 128M
+          cpus: '0.05'
+
+  auth:
+    image: kushal493/oms-app-base
+    ports:
+      - "3001:3001"
+      - "9230:9229"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=oms
+      - JWT_SECRET=sec1234
+      - REDIS_CLIENT_TYPE=STANDALONE
+      - NODE_ENV=production # Changed to production
+      # Removed Kafka and Elasticsearch related environment variables
+    command: >
+      sh -c "
+        echo '⏳ Auth service waiting for database migrations...' &&
+        chmod +x /app/scripts/wait-for-migrations.sh &&
+        sh /app/scripts/wait-for-migrations.sh &&
+        echo '🚀 Starting Auth service...' &&
+        node dist/apps/auth/src/main.js
+      "
+    networks:
+      - oms-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://auth:3001/auth/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M # Reduced memory limit
+          cpus: '0.1' # Reduced CPU limit
+        reservations:
+          memory: 128M
+          cpus: '0.05'
+
+  order:
+    image: kushal493/oms-app-base
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3002:3002"
+      - "9231:9229"
+    environment:
+        - NODE_ENV=production # Changed to production
+        - DB_HOST=postgres
+        - DB_PORT=5432
+        - DB_USERNAME=postgres
+        - DB_PASSWORD=postgres
+        - DB_NAME=oms
+        - DATABASE_HOST=postgres
+        - DATABASE_PORT=5432
+        - DATABASE_USER=postgres
+        - DATABASE_PASSWORD=postgres
+        - DATABASE_NAME=oms
+        - KAFKA_BROKERS=kafka:9092
+        - CART_SERVICE_GRPC_URL=cart:5005
+        - INVENTORY_SERVICE_GRPC_URL=inventory:5002
+        - REDIS_CLIENT_TYPE=STANDALONE
+        - REDIS_HOST=redis
+        - REDIS_PORT=6379
+    command: >
+      sh -c "
+        echo '⏳ Order service waiting for database migrations...' &&
+        chmod +x /app/scripts/wait-for-migrations.sh &&
+        sh /app/scripts/wait-for-migrations.sh &&
+        echo '🚀 Starting Order service...' &&
+        node dist/apps/order/src/main.js
+      "
+    networks:
+      - oms-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://order:3002/order/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M # Reduced memory limit
+          cpus: '0.1' # Reduced CPU limit
+        reservations:
+          memory: 128M
+          cpus: '0.05'
+
+  inventory:
+    image: kushal493/oms-app-base
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3003:3003"
+      - "5002:5002"
+      - "9232:9229"
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=oms
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_NAME=oms
+      - REDIS_CLIENT_TYPE=STANDALONE
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NODE_ENV=production # Changed to production
+    command: >
+      sh -c "
+        echo '⏳ Inventory service waiting for database migrations...' &&
+        chmod +x /app/scripts/wait-for-migrations.sh &&
+        sh /app/scripts/wait-for-migrations.sh &&
+        echo '🚀 Starting Inventory service...' &&
+        node dist/apps/inventory/src/main.js
+      "
+    networks:
+      - oms-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://inventory:3003/inventories/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M # Reduced memory limit
+          cpus: '0.1' # Reduced CPU limit
+        reservations:
+          memory: 128M
+          cpus: '0.05'
+
+  product:
+    image: kushal493/oms-app-base
+    ports:
+      - "3004:3004"
+      - "9233:9229"
+    environment:
+      - NODE_ENV=production # Changed to production
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=oms
+      - PORT=3004
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_CLIENT_TYPE=STANDALONE
+    command: >
+      sh -c "
+        echo '⏳ Product service waiting for database migrations...' &&
+        chmod +x /app/scripts/wait-for-migrations.sh &&
+        sh /app/scripts/wait-for-migrations.sh &&
+        echo '🚀 Starting Product service...' &&
+        node dist/apps/product/src/main.js
+      "
+    networks:
+      - oms-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://product:3004/products/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M # Reduced memory limit
+          cpus: '0.1' # Reduced CPU limit
+        reservations:
+          memory: 128M
+          cpus: '0.05'
+
+  cart:
+    image: kushal493/oms-app-base
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3005:3005"
+      - "9234:9229"
+      - "5005:5005"
+    environment:
+      - NODE_ENV=production # Changed to production
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=oms
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_NAME=oms
+      - PORT=3005
+      - SERVICE_NAME=cart
+      - KAFKA_BROKERS=kafka:9092
+      - INVENTORY_RESERVE_TOPIC=reserveInventory
+      - INVENTORY_RELEASE_TOPIC=releaseInventory
+      - INVENTORY_SERVICE_URL=inventory:5002
+      - PRODUCT_SERVICE_URL=product:5001
+      - REDIS_CLIENT_TYPE=STANDALONE
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    command: >
+      sh -c "
+        echo '⏳ Cart service waiting for database migrations...' &&
+        chmod +x /app/scripts/wait-for-migrations.sh &&
+        sh /app/scripts/wait-for-migrations.sh &&
+        echo '🚀 Starting Cart service...' &&
+        node dist/apps/cart/src/main.js
+      "
+    networks:
+      - oms-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://cart:3005/cart/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M # Reduced memory limit
+          cpus: '0.1' # Reduced CPU limit
+        reservations:
+          memory: 128M
+          cpus: '0.05'
+
+networks:
+  oms-network:
+    driver: bridge
+    external: true

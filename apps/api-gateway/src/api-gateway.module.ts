@@ -16,11 +16,7 @@ import { ThrottlerGuard, ThrottlerModule,ThrottlerModuleOptions } from '@nestjs/
     HttpModule,
     LoggerModule,
     ConfigModule.forRoot({
-      // Assuming api-gateway might have its own .env or relies on a global one
-      // For now, let's assume it might have 'apps/api-gateway/.env'
-      // If JWT_SECRET is global, this might not need a specific envFilePath here
-      // but it's good practice for the module to manage its config scope.
-      envFilePath: path.resolve(process.cwd(), 'apps/api-gateway/.env'),
+      envFilePath: path.join(__dirname, '../.env'),
       isGlobal: true, // Make ConfigService available globally within this app context
       ignoreEnvFile: process.env.NODE_ENV === 'production', // In prod, expect env vars from environment
     }),

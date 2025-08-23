@@ -3,8 +3,7 @@
   "collection": "@nestjs/schematics",
   "compilerOptions": {
     "deleteOutDir": true,
-    "webpack": true,
-    "assets": ["**/*.proto"]
+    "webpack": false
   },
   "monorepo": true,
   "projects": {
@@ -15,7 +14,12 @@
       "sourceRoot": "apps/auth/src",
       "compilerOptions": {
         "tsConfigPath": "apps/auth/tsconfig.app.json"
-      }
+      },
+      "assets": [
+    { "include": "proto/*.proto", "outDir": "proto" },
+    { "include": "apps/auth/.env", "outDir": "./" },
+    { "include": "apps/auth/.env.example", "outDir": "./" }
+      ]
     },
     "order": {
       "type": "application",
@@ -24,7 +28,12 @@
       "sourceRoot": "apps/order/src",
       "compilerOptions": {
         "tsConfigPath": "apps/order/tsconfig.app.json"
-      }
+      },
+      "assets": [
+    { "include": "proto/*.proto", "outDir": "proto" },
+    { "include": "apps/order/.env", "outDir": "./" },
+    { "include": "apps/order/.env.example", "outDir": "./" }
+      ]
     },
     "config": {
       "type": "library",
@@ -42,7 +51,12 @@
       "sourceRoot": "apps/api-gateway/src",
       "compilerOptions": {
         "tsConfigPath": "apps/api-gateway/tsconfig.app.json"
-      }
+      },
+      "assets": [
+    { "include": "proto/*.proto", "outDir": "src/proto" },
+    { "include": "apps/api-gateway/.env", "outDir": "./" },
+    { "include": "apps/api-gateway/.env.example", "outDir": "./" }
+      ]
     },
     "address": {
       "type": "library",
@@ -60,7 +74,12 @@
       "sourceRoot": "apps/inventory/src",
       "compilerOptions": {
         "tsConfigPath": "apps/inventory/tsconfig.app.json"
-      }
+      },
+      "assets": [
+    { "include": "proto/*.proto", "outDir": "proto" },
+    { "include": "apps/inventory/.env", "outDir": "./" },
+    { "include": "apps/inventory/.env.example", "outDir": "./" }
+      ]
     },
     "product": {
       "type": "application",
@@ -69,15 +88,20 @@
       "sourceRoot": "apps/product/src",
       "compilerOptions": {
         "tsConfigPath": "apps/product/tsconfig.app.json"
-      }
+      },
+      "assets": [
+    { "include": "proto/*.proto", "outDir": "proto" },
+    { "include": "apps/product/.env", "outDir": "./" },
+    { "include": "apps/product/.env.example", "outDir": "./" }
+      ]
     },
-    "log": {
+    "logger": {
       "type": "library",
-      "root": "libs/log",
+      "root": "libs/logger",
       "entryFile": "index",
-      "sourceRoot": "libs/log/src",
+      "sourceRoot": "libs/logger/src",
       "compilerOptions": {
-        "tsConfigPath": "libs/log/tsconfig.lib.json"
+        "tsConfigPath": "libs/logger/tsconfig.lib.json"
       }
     },
     "cart": {
@@ -87,7 +111,12 @@
       "sourceRoot": "apps/cart/src",
       "compilerOptions": {
         "tsConfigPath": "apps/cart/tsconfig.app.json"
-      }
+      },
+      "assets": [
+    { "include": "proto/*.proto", "outDir": "proto" },
+    { "include": "apps/cart/.env", "outDir": "./" },
+    { "include": "apps/cart/.env.example", "outDir": "./" }
+      ]
     }
   }
 }

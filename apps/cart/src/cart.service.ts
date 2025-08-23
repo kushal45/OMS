@@ -106,11 +106,11 @@ export class CartService {
 
 
   async getActiveCartByUserId( // Renamed for clarity if needed, or keep as getCartByUserId
-    data: { userId: number }, // Input from gRPC call
+    data: { userId: string }, // Input from gRPC call - changed to string to match proto
     // metadata?: any, // Optional gRPC metadata
     // callOptions?: any, // Optional gRPC call options
   ): Promise<CartResponseDto> {
-    const { userId } = data;
+    const userId = parseInt(data.userId, 10); // Convert string to number
     // Assuming traceId might come from metadata or be generated
     const traceId = `grpc-getActiveCart-${Date.now()}-${userId}`; // Placeholder for traceId
     this.serviceLocator

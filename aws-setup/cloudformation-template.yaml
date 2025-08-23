@@ -1,0 +1,326 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'OMS Application Infrastructure - EC2 Free Tier Setup'
+
+Parameters:
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair
+
+  AllowedSSHCIDR:
+    Type: String
+    Default: '0.0.0.0/0'
+    Description: CIDR block allowed for SSH access (restrict this in production)
+    AllowedPattern: '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'
+
+  ExposeAllServices:
+    Type: String
+    Default: 'false'
+    Description: 'Expose all service ports (3000-3005) for direct access. Set to true for development, false for production (API Gateway only)'
+    AllowedValues: ['true', 'false']
+
+  AllowedApplicationCIDR:
+    Type: String
+    Default: '0.0.0.0/0'
+    Description: CIDR block allowed for application access (restrict this in production)
+    AllowedPattern: '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'
+
+Conditions:
+  ExposeAllServicesCondition: !Equals [!Ref ExposeAllServices, 'true']
+
+Resources:
+  # VPC and Networking
+  OMSVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: OMS-VPC
+
+  OMSInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: OMS-IGW
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref OMSVPC
+      InternetGatewayId: !Ref OMSInternetGateway
+
+  OMSPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref OMSVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: OMS-Public-Subnet
+
+  OMSRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref OMSVPC
+      Tags:
+        - Key: Name
+          Value: OMS-Route-Table
+
+  OMSRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref OMSRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref OMSInternetGateway
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref OMSPublicSubnet
+      RouteTableId: !Ref OMSRouteTable
+
+  # Security Groups
+  OMSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for OMS application
+      VpcId: !Ref OMSVPC
+      SecurityGroupIngress:
+        # SSH access
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AllowedSSHCIDR
+          Description: SSH access
+
+        # API Gateway (Always exposed)
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: !Ref AllowedApplicationCIDR
+          Description: API Gateway HTTP
+
+        # Auth Service (Conditional)
+        - !If
+          - ExposeAllServicesCondition
+          - IpProtocol: tcp
+            FromPort: 3001
+            ToPort: 3001
+            CidrIp: !Ref AllowedApplicationCIDR
+            Description: Auth Service HTTP
+          - !Ref AWS::NoValue
+
+        # Order Service (Conditional)
+        - !If
+          - ExposeAllServicesCondition
+          - IpProtocol: tcp
+            FromPort: 3002
+            ToPort: 3002
+            CidrIp: !Ref AllowedApplicationCIDR
+            Description: Order Service HTTP
+          - !Ref AWS::NoValue
+
+        # Inventory Service (Conditional)
+        - !If
+          - ExposeAllServicesCondition
+          - IpProtocol: tcp
+            FromPort: 3003
+            ToPort: 3003
+            CidrIp: !Ref AllowedApplicationCIDR
+            Description: Inventory Service HTTP
+          - !Ref AWS::NoValue
+
+        # Product Service (Conditional)
+        - !If
+          - ExposeAllServicesCondition
+          - IpProtocol: tcp
+            FromPort: 3004
+            ToPort: 3004
+            CidrIp: !Ref AllowedApplicationCIDR
+            Description: Product Service HTTP
+          - !Ref AWS::NoValue
+
+        # Cart Service (Conditional)
+        - !If
+          - ExposeAllServicesCondition
+          - IpProtocol: tcp
+            FromPort: 3005
+            ToPort: 3005
+            CidrIp: !Ref AllowedApplicationCIDR
+            Description: Cart Service HTTP
+          - !Ref AWS::NoValue
+
+        # Database access (for debugging - Conditional)
+        - !If
+          - ExposeAllServicesCondition
+          - IpProtocol: tcp
+            FromPort: 5433
+            ToPort: 5433
+            CidrIp: !Ref AllowedApplicationCIDR
+            Description: PostgreSQL Database (External Port)
+          - !Ref AWS::NoValue
+
+        # Redis access (for debugging - Conditional)
+        - !If
+          - ExposeAllServicesCondition
+          - IpProtocol: tcp
+            FromPort: 6379
+            ToPort: 6379
+            CidrIp: !Ref AllowedApplicationCIDR
+            Description: Redis Cache
+          - !Ref AWS::NoValue
+
+        # HTTPS access (if needed later)
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref AllowedApplicationCIDR
+          Description: HTTPS access
+
+        # HTTP access (if needed for load balancer)
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref AllowedApplicationCIDR
+          Description: HTTP access
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: All outbound traffic
+      Tags:
+        - Key: Name
+          Value: OMS-Security-Group
+
+  # IAM Role for EC2 instance (for CloudWatch and other AWS services)
+  OMSEC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Name
+          Value: OMS-EC2-Role
+
+  OMSEC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref OMSEC2Role
+
+  # EC2 Instance
+  OMSEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-01637463b2cbe7cb6  # ubuntu image (update as needed)
+      InstanceType: t3.micro
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref OMSPublicSubnet
+      SecurityGroupIds:
+        - !Ref OMSSecurityGroup
+      IamInstanceProfile: !Ref OMSEC2InstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          apt update -y
+          apt install -y docker.io git
+          systemctl start docker
+          systemctl enable docker
+          usermod -a -G docker ubuntu
+
+          # Install Docker Compose
+          curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
+          ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+          # Create application directory
+          mkdir -p /home/ubuntu/oms
+          chown ubuntu:ubuntu /home/ubuntu/oms
+
+          # Create Docker network
+          docker network create oms-network || true
+
+          # Create swap file for better memory management
+          dd if=/dev/zero of=/swapfile bs=1024 count=1048576
+          chmod 600 /swapfile
+          mkswap /swapfile
+          swapon /swapfile
+          echo '/swapfile swap swap defaults 0 0' >> /etc/fstab
+
+          # Signal completion
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource OMSEC2Instance --region ${AWS::Region}
+      Tags:
+        - Key: Name
+          Value: OMS-Application-Server
+
+Outputs:
+  InstanceId:
+    Description: Instance ID of the OMS EC2 instance
+    Value: !Ref OMSEC2Instance
+    Export:
+      Name: !Sub "${AWS::StackName}-InstanceId"
+
+  PublicIP:
+    Description: Public IP address of the OMS EC2 instance
+    Value: !GetAtt OMSEC2Instance.PublicIp
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicIP"
+
+  PublicDNS:
+    Description: Public DNS name of the OMS EC2 instance
+    Value: !GetAtt OMSEC2Instance.PublicDnsName
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicDNS"
+
+  SecurityGroupId:
+    Description: Security Group ID for the OMS application
+    Value: !Ref OMSSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-SecurityGroupId"
+
+  SSHCommand:
+    Description: SSH command to connect to the instance
+    Value: !Sub "ssh -i kushal_ec2.pem ubuntu@${OMSEC2Instance.PublicIp}"
+
+  ApplicationURL:
+    Description: URL to access the OMS application (API Gateway)
+    Value: !Sub "http://${OMSEC2Instance.PublicIp}:3000"
+
+  ServiceURLs:
+    Description: URLs for all services (if ExposeAllServices is true)
+    Value: !If
+      - ExposeAllServicesCondition
+      - !Sub |
+        API Gateway: http://${OMSEC2Instance.PublicIp}:3000
+        Auth Service: http://${OMSEC2Instance.PublicIp}:3001
+        Order Service: http://${OMSEC2Instance.PublicIp}:3002
+        Inventory Service: http://${OMSEC2Instance.PublicIp}:3003
+        Product Service: http://${OMSEC2Instance.PublicIp}:3004
+        Cart Service: http://${OMSEC2Instance.PublicIp}:3005
+        Database: ${OMSEC2Instance.PublicIp}:5433
+        Redis: ${OMSEC2Instance.PublicIp}:6379
+      - "Only API Gateway exposed: http://${OMSEC2Instance.PublicIp}:3000"
+
+  HealthCheckURLs:
+    Description: Health check endpoints for all services
+    Value: !Sub |
+      API Gateway: http://${OMSEC2Instance.PublicIp}:3000/api-gateway/health
+      Auth Service: http://${OMSEC2Instance.PublicIp}:3001/auth/health
+      Order Service: http://${OMSEC2Instance.PublicIp}:3002/order/health
+      Inventory Service: http://${OMSEC2Instance.PublicIp}:3003/inventories/health
+      Product Service: http://${OMSEC2Instance.PublicIp}:3004/products/health
+      Cart Service: http://${OMSEC2Instance.PublicIp}:3005/cart/health

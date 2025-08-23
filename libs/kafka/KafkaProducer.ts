@@ -2,31 +2,58 @@ import { LoggerService } from '@lib/logger/src';
 import { ModuleRef } from '@nestjs/core';
 import { Kafka, KafkaConfig, Producer, RecordMetadata } from 'kafkajs';
 import { KafkaAdminClient } from './KafKaAdminClient';
-import { SchemaRegistry, SchemaType } from '@kafkajs/confluent-schema-registry';
-import { ConfigService } from '@nestjs/config';
+
+import { ISchemaRegistryService } from './interfaces/schema-registry-service.interface';
 
 export class KafkaProducer {
   private producer: Producer;
   private kafka: Kafka;
   private context: string = 'KafkaProducer';
-  private schemaRegistry: SchemaRegistry;
   private isConnected = false;
 
   constructor(
     config: KafkaConfig,
     private moduleRef: ModuleRef,
     private readonly logger: LoggerService,
+    private readonly schemaRegistryClient: ISchemaRegistryService,
   ) {
-    const configService = this.moduleRef.get(ConfigService, { strict: false });
-    const schemaRegistryUrl = configService.get<string>('SCHEMA_REGISTRY_URL');
-    this.kafka = new Kafka(config);
-    this.producer = this.kafka.producer({ idempotent: true });
-    this.schemaRegistry = new SchemaRegistry({
-      host: schemaRegistryUrl,
-      retry: { retries: 5 },
+    // Enhanced Kafka configuration with proper retry and connection settings
+    const enhancedConfig: KafkaConfig = {
+      ...config,
+      retry: {
+        initialRetryTime: 300,
+        retries: 8,
+        maxRetryTime: 30000,
+        multiplier: 2,
+        factor: 0.2,
+        ...config.retry,
+      },
+      connectionTimeout: 10000,
+      requestTimeout: 30000,
+    };
+
+    this.kafka = new Kafka(enhancedConfig);
+    this.producer = this.kafka.producer({
+      idempotent: true,
+      retry: {
+        retries: 5,
+        initialRetryTime: 300,
+        maxRetryTime: 30000,
+      },
     });
-    // Remove eager connect here
-    // this.producer.connect().catch(...)
+  }
+
+  async connect(): Promise<void> {
+    try {
+      if (!this.isConnected) {
+        await this.producer.connect();
+        this.isConnected = true;
+        this.logger.info('Producer connected successfully', this.context);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to connect producer: ${error.message}`, this.context);
+      throw error;
+    }
   }
 
   async send(
@@ -37,6 +64,12 @@ export class KafkaProducer {
     },
   ): Promise<RecordMetadata[]> {
     this.logger.info(`Sending message to topic: ${topic}`, this.context);
+
+    // Ensure producer is connected
+    if (!this.isConnected) {
+      await this.connect();
+    }
+
     const kafkaAdminClient = this.moduleRef.get<KafkaAdminClient>(
       'KafkaAdminInstance',
       { strict: false },
@@ -53,28 +86,17 @@ export class KafkaProducer {
     }
     // Always use partition 0 for robust delivery, or let Kafka assign if you want round-robin
     const assignedPartition = listPartitions[0];
-    const schemaId = await this.schemaRegistry.getLatestSchemaId(topic);
+    const schemaId = await this.schemaRegistryClient.getLatestSchemaId(topic);
     this.logger.debug(`SchemaId returned ${schemaId}`, this.context);
-    const schemaFetched = await this.schemaRegistry.getSchema(schemaId);
+    const schemaFetched = await this.schemaRegistryClient.getSchema(schemaId);
     console.info(`Schema returned: ${JSON.stringify(schemaFetched)}`);
     const encodedMessages = await Promise.all(
       messageObj.value.map(async (msg) => {
         const validMessage = this.validateMessage(schemaFetched, msg);
-        return this.schemaRegistry.encode(schemaId, validMessage);
+        return this.schemaRegistryClient.encode(schemaId, validMessage);
       })
     );
     try {
-      if (!this.isConnected) {
-        this.logger.info('KafkaProducer: Attempting to connect to broker...', this.context);
-        const connectPromise = this.producer.connect();
-        // Monitor for connection timeout (e.g., 10s)
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('KafkaProducer: Connection to broker timed out')), 10000)
-        );
-        await Promise.race([connectPromise, timeoutPromise]);
-        this.isConnected = true;
-        this.logger.info('KafkaProducer: Successfully connected to broker.', this.context);
-      }
       const recordMetaData = await this.producer.send({
         topic,
         acks: -1, // Wait for all in-sync replicas to acknowledge
@@ -115,27 +137,17 @@ export class KafkaProducer {
   }
 
   async disconnect(): Promise<void> {
-    if (this.isConnected) {
-      this.logger.info('KafkaProducer: Disconnecting from broker...', this.context);
-      try {
-        const disconnectPromise = this.producer.disconnect();
-        // Monitor for disconnect timeout (e.g., 10s)
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('KafkaProducer: Disconnect from broker timed out')), 10000)
-        );
-        await Promise.race([disconnectPromise, timeoutPromise]);
-        this.logger.info('KafkaProducer: Successfully disconnected from broker.', this.context);
-      } catch (error) {
-        this.logger.error(
-          JSON.stringify({
-            message: 'KafkaProducer: Error during disconnect',
-            error: error.message,
-            stack: error.stack,
-          }),
-          this.context,
-        );
+    try {
+      if (this.isConnected) {
+        this.logger.info('Producer disconnecting from broker...', this.context);
+        await this.producer.disconnect();
+        this.isConnected = false;
+        this.logger.info('Producer disconnected successfully', this.context);
       }
-      this.isConnected = false;
+    } catch (error) {
+      this.logger.error(`Failed to disconnect producer: ${error.message}`, this.context);
+      this.isConnected = false; // Reset state even on error
+      throw error;
     }
   }
 }

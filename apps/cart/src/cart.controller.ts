@@ -36,6 +36,7 @@ export class CartController {
   constructor(
     private readonly cartService: CartService,
     private readonly moduleRef: ModuleRef,
+    @Inject('ISchemaRegistryService') private readonly schemaRegistryService: any,
   ) {}
 
   @Get('health')
@@ -215,7 +216,7 @@ export class CartController {
   // gRPC method to fetch active cart and its items for a user
   @GrpcMethod('CartService', 'getActiveCartByUserId')
   async getActiveCartByUserIdGrpc(
-    data: { userId: number },
+    data: { userId: string },
     _metadata?: any,
   ): Promise<CartResponseDto | null> {
     const cart = await this.cartService.getActiveCartByUserId(data); // Calls the gRPC handler in service
@@ -249,12 +250,12 @@ export class CartController {
     const schemaReleaseJsonString = configService.get<string>(
       'INVENTORY_RELEASE_SCHEMA_JSON',
     );
-    await handleInventoryProcessTypeRegistration(topic, schemaJsonString,this.moduleRef);
+  await handleInventoryProcessTypeRegistration(topic, schemaJsonString, this.moduleRef, this.schemaRegistryService);
     await handleInventoryProcessTypeRegistration(
       releaseTopic,
       schemaReleaseJsonString,
       this.moduleRef,
-      'release',
+      this.schemaRegistryService,
     );
   }
 }

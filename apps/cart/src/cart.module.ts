@@ -21,13 +21,16 @@ import { OutboxWorkerService } from './outbox/outbox-worker.service';
 import { OutboxAdminService } from './outbox/outbox-admin.service';
 import { OutboxAdminController } from './outbox/outbox-admin.controller';
 import { ServiceLocator } from './service.locator';
+import { SchemaRegistryModule, SCHEMA_REGISTRY_SERVICE_TOKEN } from '@lib/kafka/schema-registry.module';
+import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-service.interface';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: path.resolve('apps/cart/.env'),
+      envFilePath: path.join(__dirname, '../.env'),
       isGlobal: true,
     }),
+    SchemaRegistryModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) =>
@@ -43,7 +46,7 @@ import { ServiceLocator } from './service.locator';
           transport: Transport.GRPC,
           options: {
             package: 'INVENTORY_PACKAGE', // Package name from inventory.proto
-            protoPath: path.resolve('apps/inventory/src/proto/inventory.proto'),
+                        protoPath: path.join(__dirname,"../../inventory/src/proto/inventory.proto"),
             url: configService.get<string>('INVENTORY_SERVICE_URL', 'inventory:5002'),
           },
         }),
@@ -56,7 +59,7 @@ import { ServiceLocator } from './service.locator';
           transport: Transport.GRPC,
           options: {
             package: 'product', // Package name from product.proto
-            protoPath: path.resolve('apps/product/src/proto/product.proto'), // Path to the new product.proto
+            protoPath: path.join(__dirname, '../../product/src/proto/product.proto'), // Path to the new product.proto
             url: configService.get<string>('PRODUCT_SERVICE_URL', 'product:5001'), // URL for Product service
           },
         }),
@@ -89,17 +92,25 @@ import { ServiceLocator } from './service.locator';
     },
     {
       provide: 'KafkaProducerInstance',
-      inject: [ModuleRef, ConfigService, LoggerService],
+      inject: [ModuleRef, ConfigService, LoggerService, SCHEMA_REGISTRY_SERVICE_TOKEN],
       useFactory: (
         moduleRef: ModuleRef,
         configService: ConfigService,
         logger: LoggerService,
+        schemaRegistryService: ISchemaRegistryService,
       ) => {
         const kafkaConfig = {
           clientId: configService.get<string>('CART_CLIENT_ID', 'cart-service'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
+          retry: {
+            initialRetryTime: 300,
+            retries: 8,
+            maxRetryTime: 30000,
+            multiplier: 2,
+            factor: 0.2,
+          },
         };
-        return new KafkaProducer(kafkaConfig, moduleRef, logger);
+        return new KafkaProducer(kafkaConfig, moduleRef, logger, schemaRegistryService);
       },
     },
     {
@@ -109,10 +120,17 @@ import { ServiceLocator } from './service.locator';
         const kafkaConfig = {
           clientId: configService.get<string>('CART_CLIENT_ID', 'cart-service'),
           brokers: configService.get<string>('KAFKA_BROKERS').split(','),
+          retry: {
+            initialRetryTime: 300,
+            retries: 8,
+            maxRetryTime: 30000,
+            multiplier: 2,
+            factor: 0.2,
+          },
         };
         return new KafkaAdminClient(kafkaConfig, moduleRef, logger);
       },
     },
   ],
 })
-export class CartModule {}
+export class CartModule {} 
