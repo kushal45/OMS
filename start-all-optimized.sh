@@ -44,25 +44,28 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m' # print_status prints an informational message prefixed with `[INFO]` (colored blue) to stdout.
 
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
+# print_success prints a success message prefixed with [SUCCESS] in green.
 print_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
+# print_warning prints a warning message prefixed with `[WARNING]` in yellow.
 print_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
+# print_error prints an error message prefixed with `[ERROR]` in red.
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Function to check if Docker is running
+# check_docker checks that the Docker daemon is reachable. If Docker is not running it prints an error and exits with status 1; on success it prints a success message.
 check_docker() {
     if ! docker info >/dev/null 2>&1; then
         print_error "Docker is not running. Please start Docker Desktop first."
@@ -71,7 +74,7 @@ check_docker() {
     print_success "Docker is running"
 }
 
-# Function to create external network
+# create_network ensures a Docker network named 'oms-network' exists, creating it if absent and logging the action.
 create_network() {
     print_status "🌐 Creating external network..."
     
@@ -83,7 +86,7 @@ create_network() {
     fi
 }
 
-# Function to check if required images exist locally
+# check_images ensures required Docker images are present locally, attempts to pull missing public images and builds the local `oms-app-base:latest` image when needed, exiting with code 1 on pull/build failure.
 check_images() {
     print_status "🔍 Checking required Docker images..."
     
@@ -128,7 +131,8 @@ check_images() {
     fi
 }
 
-# Function to generate a hash of source files for change detection
+# generate_source_hash generates a SHA-256 hash of key source files (apps, libs .ts/.js/.json/.proto and selected config files) and writes the resulting hash to a temporary file, then echoes that temp file path.
+# generate_source_hash falls back to a timestamp-based fallback when hashing tools are unavailable; it only produces the temp hash file and does not update `.build-hash` (caller is responsible for storing the hash).
 generate_source_hash() {
     local hash_file=".build-hash"
     local temp_hash_file="/tmp/oms-current-hash"
@@ -154,7 +158,7 @@ generate_source_hash() {
     echo "$temp_hash_file"
 }
 
-# Function to check if source hash has changed
+# check_source_hash_changed checks if the current source hash differs from the stored `.build-hash`; returns 0 when the hash changed or no stored hash exists, and 1 when the hash is unchanged.
 check_source_hash_changed() {
     local hash_file=".build-hash"
     local current_hash_file=$(generate_source_hash)
@@ -170,7 +174,7 @@ check_source_hash_changed() {
     fi
 }
 
-# Function to store current source hash
+# store_source_hash stores the current source hash produced by generate_source_hash into the .build-hash file so subsequent runs can detect source changes.
 store_source_hash() {
     local hash_file=".build-hash"
     local current_hash_file=$(generate_source_hash)
@@ -182,7 +186,18 @@ store_source_hash() {
     fi
 }
 
-# Function to check if application code has changed and rebuild if necessary
+# check_and_rebuild_if_needed checks whether the application source or build inputs have changed and, if so, rebuilds the local `oms-app-base:latest` Docker image.
+# 
+# Honors global flags:
+# - SKIP_REBUILD_CHECK: skip all checks and return immediately.
+# - FORCE_REBUILD: force a rebuild regardless of checks.
+#
+# Detection methods (in order): source-hash comparison, image existence, uncommitted Git changes in source files, file timestamp comparisons (apps, libs, package.json, package-lock.json, tsconfig.json, nest-cli.json, Dockerfile), and explicit checks of package-lock.json and Dockerfile timestamps.
+#
+# Side effects:
+# - May remove the existing `oms-app-base:latest` image and build a new one with `docker build --no-cache`.
+# - On successful rebuild, calls `store_source_hash` to persist the new source hash.
+# - On build failure, prints guidance and exits with status 1.
 check_and_rebuild_if_needed() {
     local image_name="oms-app-base:latest"
     local rebuild_needed=false
@@ -317,7 +332,7 @@ check_and_rebuild_if_needed() {
     fi
 }
 
-# Function to clean up any existing containers
+# cleanup_existing stops and removes containers defined in the infra, app, and Jenkins compose files (removes orphans) and ignores any errors.
 cleanup_existing() {
     print_status "🧹 Cleaning up existing containers..."
     
@@ -329,7 +344,10 @@ cleanup_existing() {
     print_success "Cleanup completed"
 }
 
-# Function to wait for service health with better error handling
+# wait_for_service waits for a named service in docker-compose.infra.slim.yml to report "healthy".
+# It polls every 5 seconds for up to 60 attempts. Returns 0 when the service becomes healthy,
+# or 1 if the timeout is reached. If the container is running but not yet healthy, the function
+# reports that status; if the container is not running, it reports that instead.
 wait_for_service() {
     local service_name=$1
     local max_attempts=60
@@ -358,7 +376,7 @@ wait_for_service() {
     return 1
 }
 
-# Function to wait for Kafka to be fully ready
+# wait_for_kafka waits for the Kafka container to accept connections by ensuring the Kafka container is running and attempting to list or create a lightweight test topic; returns 0 when Kafka is ready, or 1 after a timeout (script continues despite timeout).
 wait_for_kafka() {
     print_status "⏳ Waiting for Kafka to be fully ready..."
     
@@ -397,7 +415,7 @@ wait_for_kafka() {
     return 1
 }
 
-# Function to start infrastructure services
+# start_infrastructure starts Postgres, Kafka, and Redis via docker-compose; exits with status 1 if the compose up fails. It then waits for service readiness: performs health checks for Postgres and Redis (logs a warning and continues on their failure) and runs the Kafka-specific readiness probe.
 start_infrastructure() {
     print_status "🏗️  Starting infrastructure services (Postgres, Kafka, Redis)..."
     
@@ -426,7 +444,7 @@ start_infrastructure() {
     wait_for_kafka
 }
 
-# Function to start application services with retry logic
+# start_applications starts application services using docker-compose.app.slim.yml, retries once after a 30s wait if the initial start fails (exits with code 1 on persistent failure), and then waits 20s for stabilization.
 start_applications() {
     print_status "🚀 Starting application services..."
     
@@ -454,7 +472,7 @@ start_applications() {
     sleep 20
 }
 
-# Function to start Jenkins
+# start_jenkins starts the Jenkins container via docker-compose and logs success; on failure it emits a warning but continues (Jenkins is optional).
 start_jenkins() {
     print_status "🔧 Starting Jenkins..."
     
@@ -465,7 +483,7 @@ start_jenkins() {
     fi
 }
 
-# Function to show service status
+# show_status prints the docker-compose service status for infrastructure, application, and Jenkins using their respective compose files.
 show_status() {
     print_status "Service Status:"
     echo "=================="
@@ -482,7 +500,8 @@ show_status() {
     docker-compose -f docker-compose.jenkins.yml ps
 }
 
-# Function to check for failed services
+# check_failed_services checks the infra and app Compose stacks for services that exited and returns 1 if any failures are detected, 0 otherwise.
+# If failures are found, it prints a warning listing which stack(s) contain failed services and suggests a logs command for investigation.
 check_failed_services() {
     print_status "🔍 Checking for failed services..."
     
@@ -509,6 +528,7 @@ check_failed_services() {
 }
 
 
+# start_infra_app starts infrastructure services via docker-compose, waits for Kafka to become ready (polling up to 30 attempts), and then starts application services using both the infra and app compose files; exits with a non-zero status on failure.
 start_infra_app(){
     print_status "Starting Infrastructure services first..."
     if docker-compose -f docker-compose.infra.slim.yml up -d; then
@@ -553,7 +573,7 @@ start_infra_app(){
 
 
 
-# Main execution
+# main starts the OMS application stack in Optimized Mode: it verifies Docker and required images, optionally rebuilds the application image if sources changed, creates the Docker network, cleans up existing containers, starts infrastructure and application services (and Jenkins), checks for failures, and prints status and useful commands.
 main() {
     print_status "🚀 Starting OMS Application Stack (Optimized Mode)"
     echo "====================================================="

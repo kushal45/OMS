@@ -19,7 +19,7 @@ WAIT_INTERVAL=5
 echo "🔍 Waiting for database migrations to complete..."
 echo "Database: $DB_HOST:$DB_PORT/$DB_NAME"
 
-# Function to check if required tables exist
+# check_tables returns the number (0–5) of required tables present in the public schema (`product`, `inventory`, `customer`, `order`, `carts`); psql errors are suppressed and the function outputs nothing on failure.
 check_tables() {
     # Check if key tables exist (product and inventory are created by migrations)
     PGPASSWORD=$DB_PASSWORD psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_NAME" -t -c "
@@ -29,7 +29,7 @@ check_tables() {
     " 2>/dev/null | tr -d ' ' | tr -d '\n'
 }
 
-# Function to check if seed data exists
+# check_seed_data returns the number of rows in the `product` table (trimmed string) or an empty string on query failure, used to detect whether seed data has been applied.
 check_seed_data() {
     # Check if products table has data (indicates seeding completed)
     PGPASSWORD=$DB_PASSWORD psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_NAME" -t -c "

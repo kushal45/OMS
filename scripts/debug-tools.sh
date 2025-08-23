@@ -12,24 +12,28 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Function to print colored output
+# print_status prints an informational message prefixed with `[INFO]` in green; accepts a single string message argument.
 print_status() {
     echo -e "${GREEN}[INFO]${NC} $1"
 }
 
+# print_warning prints a yellow "[WARN]"-prefixed warning message to stdout.
 print_warning() {
     echo -e "${YELLOW}[WARN]${NC} $1"
 }
 
+# print_error prints an error message prefixed with `[ERROR]` in red to stdout.
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# print_header prints a blue header line containing the provided text surrounded by `===` and resets terminal color.
 print_header() {
     echo -e "${BLUE}=== $1 ===${NC}"
 }
 
-# Function to check if container is running
+# check_container checks whether a Docker container with the exact name is currently running.
+# Returns 0 if the container is running, 1 otherwise.
 check_container() {
     local container_name=$1
     if docker ps --format "table {{.Names}}" | grep -q "^${container_name}$"; then
@@ -39,13 +43,14 @@ check_container() {
     fi
 }
 
-# Function to get container status
+# get_container_status prints to stdout a table of containers matching the given name pattern, showing each container's Name, Status, and Ports.
 get_container_status() {
     local container_name=$1
     docker ps -a --filter "name=${container_name}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 }
 
-# Function to check service health
+# check_service_health checks an HTTP health endpoint for a local service and reports the result.
+# check_service_health attempts a GET to http://localhost:<port><endpoint> (default endpoint "/health"), prints a colored status message, and returns 0 if the request succeeds (HTTP 2xx/3xx), otherwise returns 1.
 check_service_health() {
     local service_name=$1
     local port=$2
@@ -62,7 +67,7 @@ check_service_health() {
     fi
 }
 
-# Function to show container logs
+# show_logs prints the last N lines of the specified container's logs (defaults to 50 lines) using `docker logs --tail`.
 show_logs() {
     local container_name=$1
     local lines=${2:-50}
@@ -71,21 +76,21 @@ show_logs() {
     docker logs --tail "$lines" "$container_name"
 }
 
-# Function to follow logs
+# follow_logs streams and follows the Docker logs for the specified container name until interrupted (e.g., Ctrl+C).
 follow_logs() {
     local container_name=$1
     print_header "Following logs for $container_name (Ctrl+C to stop)"
     docker logs -f "$container_name"
 }
 
-# Function to check environment variables
+# check_env_vars prints environment variables inside the specified container that match DATABASE, JWT, REDIS, NODE, or PORT.
 check_env_vars() {
     local container_name=$1
     print_header "Environment Variables for $container_name"
     docker exec "$container_name" env | grep -E "(DATABASE|JWT|REDIS|NODE|PORT)" | sort
 }
 
-# Function to test database connectivity
+# test_database checks the OMS PostgreSQL container: verifies the container is running and accepting connections, confirms the 'oms' database exists, and reports the number of tables in its public schema.
 test_database() {
     print_header "Testing Database Connectivity"
     
@@ -114,7 +119,7 @@ test_database() {
     fi
 }
 
-# Function to test Redis connectivity
+# test_redis checks that the oms-redis-1 container is running and that `redis-cli PING` returns `PONG`, printing formatted status messages.
 test_redis() {
     print_header "Testing Redis Connectivity"
     
@@ -131,7 +136,12 @@ test_redis() {
     fi
 }
 
-# Function to test inter-service connectivity
+# test_connectivity checks reachability between core OMS services and prints pass/fail status.
+# It verifies specific TCP endpoints by running `nc -zv` inside relevant containers:
+# - API Gateway -> Auth (auth:3001)
+# - API Gateway -> Order (order:3002)
+# - Auth -> Database (postgres:5432)
+# The function skips a check if the involved containers are not running and emits colored status messages.
 test_connectivity() {
     print_header "Testing Inter-Service Connectivity"
     
@@ -163,7 +173,9 @@ test_connectivity() {
     fi
 }
 
-# Function to show system overview
+# show_overview displays an overview of OMS containers, resource usage, and service health.
+# It prints a table of oms-* container names, statuses, and ports, shows current docker resource
+# usage (CPU, memory, network), and runs health checks for API Gateway, Auth, Order, and Cart.
 show_overview() {
     print_header "OMS System Overview"
     
@@ -180,7 +192,8 @@ show_overview() {
     check_service_health "Cart Service" 3003 "/cart/health"
 }
 
-# Function to collect debug information
+# collect_debug_info creates a timestamped directory (debug-YYYYMMDD-HHMMSS) and gathers container, image, compose, system, network and service logs into files within that directory.
+# The directory will contain: containers.txt, images.txt, all-services.log, postgres.log, redis.log, system-usage.txt, networks.txt, and compose-config.yml.
 collect_debug_info() {
     local debug_dir="debug-$(date +%Y%m%d-%H%M%S)"
     mkdir -p "$debug_dir"
@@ -206,7 +219,8 @@ collect_debug_info() {
     print_status "Debug information collected in $debug_dir"
 }
 
-# Function to run JWT token test
+# test_jwt checks whether the oms-auth-1 container has JWT_SECRET configured and attempts to sign and verify a short-lived test JWT, printing success or error messages.
+# Requires the auth container to be running and Node with the `jsonwebtoken` package available inside that container.
 test_jwt() {
     print_header "Testing JWT Token Generation and Validation"
     
@@ -238,7 +252,7 @@ test_jwt() {
     fi
 }
 
-# Main menu
+# show_menu displays the interactive main menu for the OMS Debug Tools, listing numbered actions (system overview, health checks, database/Redis tests, connectivity, JWT test, logs, env inspection, debug collection, service restart, and exit).
 show_menu() {
     echo -e "\n${BLUE}OMS Debug Tools${NC}"
     echo "=================="
@@ -257,7 +271,7 @@ show_menu() {
     echo
 }
 
-# Function to restart services
+# restart_services presents an interactive menu to restart all or individual OMS services (api-gateway, auth, order, cart) via docker-compose or return to the main menu.
 restart_services() {
     print_header "Restarting Services"
     echo "1. Restart All Services"

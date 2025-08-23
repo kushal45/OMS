@@ -5,7 +5,19 @@ import { ConfigService } from '@nestjs/config';
 import { setupSwagger } from '@lib/swagger/swagger.controller';
 import { Transport, MicroserviceOptions } from '@nestjs/microservices';
 import * as path from 'path'; // Import path
-import { LoggerService } from '@lib/logger/src'; // Import LoggerService
+import { LoggerService } from '@lib/logger/src'; /**
+ * Bootstraps the Product application: creates the Nest app, configures middleware and microservices, then starts HTTP and gRPC servers.
+ *
+ * Sets a global validation pipe, connects and starts the gRPC microservice (package "product") using the proto at `proto/product.proto` (resolved relative to this file), sets up Swagger at "product/docs", and listens for HTTP requests on the configured port.
+ *
+ * Configuration keys used:
+ * - `PORT` (defaults to 3004) — HTTP listening port
+ * - `PRODUCT_GRPC_URL` (defaults to `0.0.0.0:5001`) — gRPC listening address
+ *
+ * Side effects:
+ * - Starts the HTTP server and a gRPC microservice.
+ * - Logs startup information via the application's LoggerService.
+ */
 
 async function bootstrap() {
   const app = await NestFactory.create(ProductModule);
