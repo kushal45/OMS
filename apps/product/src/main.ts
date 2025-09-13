@@ -28,11 +28,15 @@ async function bootstrap() {
   const logger = app.get(LoggerService); // Get LoggerService instance
 
   // Setup gRPC microservice
+
+  const resolvedPath = process.env.NODE_ENV === 'production'
+      ? path.resolve(__dirname, '../')
+      : path.resolve(process.cwd(), 'apps/product/src');
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.GRPC,
     options: {
       package: 'product', // Must match the package name in product.proto
-      protoPath: path.join(__dirname, 'proto/product.proto'), // Path to the .proto file
+      protoPath: path.join(resolvedPath, 'proto/product.proto'), // Path to the .proto file
       url: configService.get<string>('PRODUCT_GRPC_URL', '0.0.0.0:5001'), // gRPC listening address
     },
   });

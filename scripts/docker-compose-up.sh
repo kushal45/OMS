@@ -17,7 +17,10 @@ echo "Pruning Docker build cache and dangling images..."
 docker builder prune -af
 docker image prune -f
 
-echo "Restarting containers without rebuilding (unless Dockerfile or dependencies have changed)..."
+echo "Building the base application image..."
+docker compose --profile build-only -f docker-compose.infra.yml  -f docker-compose.app.yml build app-base
+
+echo "Starting infrastructure and application services..."
 docker compose -f docker-compose.infra.yml -f docker-compose.app.yml up -d --remove-orphans
 
 echo "Watching for changes to docker-compose files..."

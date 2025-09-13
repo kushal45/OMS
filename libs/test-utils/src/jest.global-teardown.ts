@@ -1,4 +1,3 @@
-import { Client } from 'pg';
 
 module.exports = async () => {
   const client = new Client({

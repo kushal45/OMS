@@ -11,8 +11,8 @@
     "^@lib/(.*)$": "<rootDir>/../../../libs/$1",
     "^@app/config$": "<rootDir>/../../../libs/config/src",
     "^@app/config/(.*)$": "<rootDir>/../../../libs/config/src/$1",
-    "^@app/address$": "<rootDir>/../../../libs/address/src",
-    "^@app/address/(.*)$": "<rootDir>/../../../libs/address/src/$1",
+        "^@lib/address$": "<rootDir>/../../../libs/address/src",
+    "^@lib/address/(.*)$": "<rootDir>/../../../libs/address/src/$1",
     "^@app/databaseMigration/(.*)$": "<rootDir>/../../../apps/database/migrations/$1",
     "^@libs/http$": "<rootDir>/../../../libs/http",
     "^@libs/constants$": "<rootDir>/../../../libs/constants",
@@ -20,9 +20,5 @@
     "^@libs/dtos$": "<rootDir>/../../../libs/dtos",
     "^@app/log$": "<rootDir>/../../../libs/logger/src",
     "^@app/log/(.*)$": "<rootDir>/../../../libs/logger/src/$1"
-  },
-  "setupFiles": ["<rootDir>/setup-env.ts"],
-  "globalSetup": "<rootDir>/../../../libs/test-utils/src/jest.global-setup.ts",
-  "globalTeardown": "<rootDir>/../../../libs/test-utils/src/jest.global-teardown.ts",
-  "testTimeout": 50000
+  }
 }

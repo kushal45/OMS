@@ -7,6 +7,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: development
     command: echo "Base image built successfully"
     profiles:
       - build-only
@@ -22,7 +23,7 @@ services:
         condition: service_healthy
     ports:
       - "3000:3000"
-      - "9229:9229" # Debug port for gateway (host:container)
+      - "9229:9229"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://gateway:3000/api-gateway/health || exit 1"]
       interval: 10s
@@ -30,11 +31,11 @@ services:
       retries: 3
     environment:
       - NODE_ENV=development
+      - MODE=dev
       - PORT=3000
-      # Point to both ES nodes for redundancy
       - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200
       - SERVICE_NAME=gateway
-    command: npm run start:debug --project api-gateway
+    command: npm run start:dev --project api-gateway
     networks:
       - oms
     volumes:
@@ -64,13 +65,14 @@ services:
         condition: service_healthy
     ports:
       - "3001:3001"
-      - "9230:9229" # Debug port for auth (host:container)
-    environment: # Ensure this service also uses the ES cluster
+      - "9230:9229"
+    environment:
+      - NODE_ENV=development
+      - MODE=dev
       - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200
       - REDIS_SENTINEL_ADDRESSES=redis-sentinel-1:26379,redis-sentinel-2:26379,redis-sentinel-3:26379
       - REDIS_SENTINEL_MASTER_NAME=omsredisprimary
-      # - REDIS_PASSWORD=yoursecuremasterpassword # Uncomment if Redis password is set
-    command: npm run start:debug --project auth
+    command: npm run start:dev --project auth
     networks:
       - oms
     volumes:
@@ -98,7 +100,7 @@ services:
         condition: service_healthy
       es02:
         condition: service_healthy
-      kafka1: # Depend on both Kafka brokers
+      kafka1:
         condition: service_healthy
       kafka2:
         condition: service_healthy
@@ -106,17 +108,17 @@ services:
         condition: service_healthy
     ports:
       - "3002:3002"
-      - "9231:9229" # Debug port for order (host:container)
+      - "9231:9229"
     environment:
-        - NODE_ENV=development
-        - DATABASE_HOST=postgres
-        - DATABASE_PORT=5432
-        - DATABASE_USER=postgres
-        - DATABASE_PASSWORD=postgres
-        - DATABASE_NAME=oms
-        # Point to all Kafka brokers for redundancy
-        - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
-    command: npm run start:debug --project order
+      - NODE_ENV=development
+      - MODE=dev
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_NAME=oms
+      - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
+    command: npm run start:dev --project order
     networks:
       - oms
     volumes:
@@ -150,16 +152,16 @@ services:
         condition: service_healthy
       kafka3:
         condition: service_healthy
-
     ports:
-      - "3003:3003" # App port
-      - "5002:5002" # gRPC port
-      - "9232:9229" # Debug port for inventory (host:container)
-
-    environment: # Ensure this service also uses the ES and Kafka clusters
+      - "3003:3003"
+      - "5002:5002"
+      - "9232:9229"
+    environment:
+      - NODE_ENV=development
+      - MODE=dev
       - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9092
       - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
-    command: npm run start:debug --project inventory
+    command: npm run start:dev --project inventory
     networks:
       - oms
     volumes:
@@ -188,23 +190,21 @@ services:
         condition: service_healthy
     ports:
       - "3004:3004"
-      - "9233:9229" # Debug port for product/cart (host:container)
+      - "9233:9229"
     environment:
       - NODE_ENV=development
+      - MODE=dev
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=oms
       - PORT=3004
-      # Ensure this service also uses the ES and Kafka clusters
       - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9092
       - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
       - REDIS_SENTINEL_ADDRESSES=redis-sentinel-1:26379,redis-sentinel-2:26379,redis-sentinel-3:26379
       - REDIS_SENTINEL_MASTER_NAME=omsredisprimary
-      # - REDIS_PASSWORD=yoursecuremasterpassword # Uncomment if Redis password is set
-
-    command: npm run start:debug --project product
+    command: npm run start:dev --project product
     networks:
       - oms
     volumes:
@@ -233,25 +233,23 @@ services:
         condition: service_healthy
     ports:
       - "3005:3005"
-      - "9234:9229" # Debug port for cart (host:container)
-      - "5005:5005" # gRPC port for cart
+      - "9234:9229"
+      - "5005:5005"
     environment:
       - NODE_ENV=development
+      - MODE=dev
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=oms
       - PORT=3005
-      # Point to both ES nodes
       - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200
       - SERVICE_NAME=cart
-      # Point to all Kafka brokers
       - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
       - INVENTORY_RESERVE_TOPIC=reserveInventory
       - INVENTORY_RELEASE_TOPIC=releaseInventory
-
-    command: npm run start:debug --project cart
+    command: npm run start:dev --project cart
     networks:
       - oms
     volumes:

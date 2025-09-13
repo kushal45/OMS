@@ -8,7 +8,7 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { RegisterCustomerResponseDto } from './dto/register-customer-response.dto';
 import { ValidateTokenResponseDto } from './dto/validate-token-response.dto';
 import { LoggerService } from '@lib/logger/src/logger.service';
-import { AddressService } from '@lib/address/src';
+import { AddressService } from '@lib/address';
 import { CreateAddressDto } from './dto/create-address.dto';
 import { CreateAddrDataResponseDto } from './dto/create-addr-response.dto';
 import { RedisClientService } from '@lib/redis-client'; // Import RedisClientService

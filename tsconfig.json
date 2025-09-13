@@ -17,7 +17,7 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
-    "types": ["node"],
+  "types": ["node", "jest"],
     "paths": {
       "@app/*": [
         "apps/*"
@@ -25,43 +25,43 @@
       "@lib/*": [
         "libs/*"
       ],
-      "@lib/redis-client": [ // New path alias
+      "@lib/redis-client": [
         "libs/redis-client/src"
       ],
-      "@lib/redis-client/*": [ // New path alias
+      "@lib/redis-client/*": [
         "libs/redis-client/src/*"
       ],
-      "@app/config": [
+      "@lib/config": [
         "libs/config/src"
       ],
-      "@app/config/*": [
+      "@lib/config/*": [
         "libs/config/src/*"
       ],
-      "@app/address": [
+      "@lib/address": [
         "libs/address/src"
       ],
-      "@app/address/*": [
+      "@lib/address/*": [
         "libs/address/src/*"
       ],
       "@app/databaseMigration/*": [
         "apps/database/migrations/*"
       ],
-      "@libs/http": [
+      "@lib/http": [
         "libs/http"
       ],
-      "@libs/constants": [
+      "@lib/constants": [
         "libs/constants"
       ],
-      "@libs/swagger": [
+      "@lib/swagger": [
         "libs/swagger"
       ],
-      "@libs/dtos": [
+      "@lib/dtos": [
         "libs/dtos"
       ],
-      "@app/log": [
+      "@lib/log": [
         "libs/logger/src"
       ],
-      "@app/log/*": [
+      "@lib/log/*": [
         "libs/logger/src/*"
       ]
     }

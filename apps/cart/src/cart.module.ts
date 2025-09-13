@@ -24,10 +24,14 @@ import { ServiceLocator } from './service.locator';
 import { SchemaRegistryModule, SCHEMA_REGISTRY_SERVICE_TOKEN } from '@lib/kafka/schema-registry.module';
 import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-service.interface';
 
+const resolvedPath = process.env.NODE_ENV === 'production'
+  ? path.resolve(__dirname, '../')
+  : path.resolve(process.cwd(), 'apps/cart');
+const resolvedEnvPath = `${resolvedPath}/.env`;
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: path.join(__dirname, '../.env'),
+      envFilePath: resolvedEnvPath,
       isGlobal: true,
     }),
     SchemaRegistryModule,
@@ -46,7 +50,7 @@ import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-se
           transport: Transport.GRPC,
           options: {
             package: 'INVENTORY_PACKAGE', // Package name from inventory.proto
-                        protoPath: path.join(__dirname,"../../inventory/src/proto/inventory.proto"),
+            protoPath: path.join(resolvedEnvPath, "../../inventory/src/proto/inventory.proto"),
             url: configService.get<string>('INVENTORY_SERVICE_URL', 'inventory:5002'),
           },
         }),
@@ -59,7 +63,7 @@ import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-se
           transport: Transport.GRPC,
           options: {
             package: 'product', // Package name from product.proto
-            protoPath: path.join(__dirname, '../../product/src/proto/product.proto'), // Path to the new product.proto
+            protoPath: path.join(resolvedEnvPath, '../../product/src/proto/product.proto'), // Path to the new product.proto
             url: configService.get<string>('PRODUCT_SERVICE_URL', 'product:5001'), // URL for Product service
           },
         }),

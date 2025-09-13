@@ -7,8 +7,8 @@ import { OrderItems } from '@app/order/src/entity/orderItems.entity';
 import { Customer } from '@app/auth/src/entity/customer.entity';
 import { Product } from '@app/product/src/entity/product.entity';
 import { Inventory } from '@app/inventory/src/entity/inventory.entity';
-import { Address } from '@lib/address/src/entity/address.entity';
-import { CustomerAddress } from '@lib/address/src/entity/customerAdress.entity'; // Note: filename is customerAdress.entity.ts
+import { Address } from '@lib/address/entity/address.entity';
+import { CustomerAddress } from '@lib/address/entity/customerAdress.entity'; // Note: filename is customerAdress.entity.ts
 
 @Injectable()
 class GlobalTestOrmConfigService implements TypeOrmOptionsFactory {

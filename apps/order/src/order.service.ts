@@ -6,7 +6,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { Order, OrderStatus } from './entity/order.entity';
-import { AddressService } from '@lib/address/src';
+import { AddressService } from '@lib/address';
 import { OrderRequestDto } from './dto/create-order-req';
 import { getOrderInfo } from './util/calculateOrderInfo';
 import { PercentageDeliveryChargeStrategy } from './strategy/percentage-delivercharge.strategy';

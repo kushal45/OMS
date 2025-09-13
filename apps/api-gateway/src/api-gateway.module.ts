@@ -16,9 +16,9 @@ import { ThrottlerGuard, ThrottlerModule,ThrottlerModuleOptions } from '@nestjs/
     HttpModule,
     LoggerModule,
     ConfigModule.forRoot({
-      envFilePath: path.join(__dirname, '../.env'),
-      isGlobal: true, // Make ConfigService available globally within this app context
-      ignoreEnvFile: process.env.NODE_ENV === 'production', // In prod, expect env vars from environment
+      envFilePath: require('path').resolve(__dirname, '../.env'),
+      isGlobal: true,
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
     }),
     JwtModule.registerAsync({
       imports: [ConfigModule], // Ensure ConfigModule is imported to use ConfigService

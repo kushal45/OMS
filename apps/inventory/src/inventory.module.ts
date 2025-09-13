@@ -25,8 +25,8 @@ import { SchemaRegistryModule, SCHEMA_REGISTRY_SERVICE_TOKEN } from '@lib/kafka/
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: path.join(__dirname, '../.env'), // Loads the .env file specific to this microservice
-      isGlobal: true, // Makes the environment variables available globally
+      envFilePath: require('path').resolve(__dirname, '../.env'),
+      isGlobal: true,
     }),
     SchemaRegistryModule,
     TypeOrmModule.forRootAsync(typeOrmAsyncConfig),
