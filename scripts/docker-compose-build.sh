@@ -11,7 +11,7 @@ else
 fi
 
 # Build the app-base service with the build-only profile
-$DOCKER_COMPOSE -f docker-compose.infra.yml -f docker-compose.app.yml --profile build-only build app-base
+docker build -t oms-app-base -f ./Dockerfile
 
 echo "Base image built successfully!"
 echo ""

@@ -31,8 +31,7 @@ COPY apps/inventory/src/proto/*.proto dist/apps/inventory/src/proto/
 COPY apps/product/src/proto/*.proto dist/apps/product/src/proto/
 
 
-# Prune development dependencies
-# RUN npm prune --production
+
 
 # Stage 2: Create the production image
 FROM node:21-alpine AS production

@@ -3,7 +3,7 @@ services:
   # Base service definition for shared build
   # This service won't run, it's just for building the shared image
   app-base:
-    image: oms-app-base:latest
+    image: oms-app-base
     build:
       context: .
       dockerfile: Dockerfile
@@ -14,7 +14,7 @@ services:
   # Keep these largely the same as the previous optimized version,
   # but adjust environment variables to reflect the 2-node clusters.
   gateway:
-    image: oms-app-base:latest
+    image: oms-app-base
     depends_on:
       auth:
         condition: service_healthy
@@ -54,7 +54,7 @@ services:
           target: /app
 
   auth:
-    image: oms-app-base:latest
+    image: oms-app-base
     depends_on:
       postgres:
         condition: service_healthy
@@ -90,7 +90,7 @@ services:
           cpus: '0.1'
 
   order:
-    image: oms-app-base:latest
+    image: oms-app-base
     depends_on:
       postgres:
         condition: service_healthy
@@ -136,7 +136,7 @@ services:
           cpus: '0.1'
 
   inventory:
-    image: oms-app-base:latest
+    image: oms-app-base
     depends_on:
       postgres:
         condition: service_healthy
@@ -174,7 +174,7 @@ services:
           cpus: '0.1'
 
   product:
-    image: oms-app-base:latest
+    image: oms-app-base
     depends_on:
       postgres:
         condition: service_healthy
@@ -219,7 +219,7 @@ services:
           cpus: '0.1'
 
   cart:
-    image: oms-app-base:latest
+    image: oms-app-base
     depends_on:
       postgres:
         condition: service_healthy
