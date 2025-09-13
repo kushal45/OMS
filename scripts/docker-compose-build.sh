@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Build the base image first
-echo "Building the shared base image..."
+# This script builds the development image using the configuration from docker-compose.app.yml.
+echo "Building the shared development base image..."
 
 # Check if docker-compose or docker compose should be used
 if command -v docker-compose &> /dev/null; then
@@ -10,16 +10,16 @@ else
     DOCKER_COMPOSE="docker compose"
 fi
 
-# Build the app-base service with the build-only profile
-docker build -t oms-app-base -f ./Dockerfile
+# Build the app-base service defined in the compose file.
+# This command specifically targets the 'app-base' service in the 'docker-compose.app.yml' file.
+# That service is configured to build the 'development' stage of our multi-stage Dockerfile.
+$DOCKER_COMPOSE -f docker-compose.app.yml build app-base
 
-echo "Base image built successfully!"
+echo "Development base image built successfully!"
 echo ""
-echo "You can now start the services with:"
-echo "  ./docker-compose-up.sh"
+echo "To build the production image, you can run a similar command:"
+echo "  $DOCKER_COMPOSE -f docker-compose.app.slim.yml build app-base"
 echo ""
-echo "Or start specific services:"
-echo "  $DOCKER_COMPOSE up -d gateway auth order inventory product cart"
+echo "You can now start the development services with:"
+echo "  ./scripts/docker-compose-up.sh"
 echo ""
-echo "The base image will be reused for all Node.js services,"
-echo "avoiding multiple npm install runs."

@@ -1,7 +1,18 @@
 services:
- 
+  # This service builds the production-ready image from the Dockerfile's "production" stage.
+  # It won't run, it's just for building the shared image.
+  app-base:
+    image: oms-app-production
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    command: echo "Production base image built successfully"
+    profiles:
+      - build-only
+
   gateway:
-    image: kushal493/oms-app-base
+    image: oms-app-production # Use the locally built production image
     depends_on:
       auth:
         condition: service_healthy
@@ -23,22 +34,21 @@ services:
       - REDIS_CLIENT_TYPE=STANDALONE
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      # Removed Kafka and Elasticsearch related environment variables
-    command: node dist/apps/api-gateway/src/main.js # Run compiled code directly
+    command: node dist/apps/api-gateway/src/main.js
     networks:
       - oms-network
     restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 256M # Reduced memory limit
-          cpus: '0.1' # Reduced CPU limit
+          memory: 256M
+          cpus: '0.1'
         reservations:
           memory: 128M
           cpus: '0.05'
 
   auth:
-    image: kushal493/oms-app-base
+    image: oms-app-production # Use the locally built production image
     ports:
       - "3001:3001"
       - "9230:9229"
@@ -52,8 +62,7 @@ services:
       - DB_NAME=oms
       - JWT_SECRET=sec1234
       - REDIS_CLIENT_TYPE=STANDALONE
-      - NODE_ENV=production # Changed to production
-      # Removed Kafka and Elasticsearch related environment variables
+      - NODE_ENV=production
     command: >
       sh -c "
         echo '⏳ Auth service waiting for database migrations...' &&
@@ -74,14 +83,14 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M # Reduced memory limit
-          cpus: '0.1' # Reduced CPU limit
+          memory: 256M
+          cpus: '0.1'
         reservations:
           memory: 128M
           cpus: '0.05'
 
   order:
-    image: kushal493/oms-app-base
+    image: oms-app-production # Use the locally built production image
     depends_on:
       kafka:
         condition: service_healthy
@@ -91,7 +100,7 @@ services:
       - "3002:3002"
       - "9231:9229"
     environment:
-        - NODE_ENV=production # Changed to production
+        - NODE_ENV=production
         - DB_HOST=postgres
         - DB_PORT=5432
         - DB_USERNAME=postgres
@@ -128,14 +137,14 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M # Reduced memory limit
-          cpus: '0.1' # Reduced CPU limit
+          memory: 256M
+          cpus: '0.1'
         reservations:
           memory: 128M
           cpus: '0.05'
 
   inventory:
-    image: kushal493/oms-app-base
+    image: oms-app-production # Use the locally built production image
     depends_on:
       kafka:
         condition: service_healthy
@@ -160,7 +169,7 @@ services:
       - REDIS_CLIENT_TYPE=STANDALONE
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - NODE_ENV=production # Changed to production
+      - NODE_ENV=production
     command: >
       sh -c "
         echo '⏳ Inventory service waiting for database migrations...' &&
@@ -181,19 +190,19 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M # Reduced memory limit
-          cpus: '0.1' # Reduced CPU limit
+          memory: 256M
+          cpus: '0.1'
         reservations:
           memory: 128M
           cpus: '0.05'
 
   product:
-    image: kushal493/oms-app-base
+    image: oms-app-production # Use the locally built production image
     ports:
       - "3004:3004"
       - "9233:9229"
     environment:
-      - NODE_ENV=production # Changed to production
+      - NODE_ENV=production
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USERNAME=postgres
@@ -223,14 +232,14 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M # Reduced memory limit
-          cpus: '0.1' # Reduced CPU limit
+          memory: 256M
+          cpus: '0.1'
         reservations:
           memory: 128M
           cpus: '0.05'
 
   cart:
-    image: kushal493/oms-app-base
+    image: oms-app-production # Use the locally built production image
     depends_on:
       kafka:
         condition: service_healthy
@@ -241,7 +250,7 @@ services:
       - "9234:9229"
       - "5005:5005"
     environment:
-      - NODE_ENV=production # Changed to production
+      - NODE_ENV=production
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USERNAME=postgres
@@ -282,8 +291,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M # Reduced memory limit
-          cpus: '0.1' # Reduced CPU limit
+          memory: 256M
+          cpus: '0.1'
         reservations:
           memory: 128M
           cpus: '0.05'

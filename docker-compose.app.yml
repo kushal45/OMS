@@ -7,6 +7,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: development
     command: echo "Base image built successfully"
     profiles:
       - build-only
