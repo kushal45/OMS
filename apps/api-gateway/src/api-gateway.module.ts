@@ -9,7 +9,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import * as path from 'path';
 import { ThrottlerGuard, ThrottlerModule,ThrottlerModuleOptions } from '@nestjs/throttler';
- import { APP_GUARD } from '@nestjs/core'; 
+ import { APP_GUARD } from '@nestjs/core';
+import { WebSocketModule } from './websocket/websocket.module';
 
  const resolvedPath = process.env.NODE_ENV === 'production'
    ? path.resolve(__dirname, '../')
@@ -19,6 +20,7 @@ import { ThrottlerGuard, ThrottlerModule,ThrottlerModuleOptions } from '@nestjs/
   imports: [
     HttpModule,
     LoggerModule,
+    WebSocketModule,
     ConfigModule.forRoot({
       envFilePath: resolvedEnvPath,
       isGlobal: true,

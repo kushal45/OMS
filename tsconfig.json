@@ -75,6 +75,12 @@
       ],
       "@lib/notifications/*": [
         "libs/notifications/src/*"
+      ],
+      "@lib/websocket-client": [
+        "libs/websocket-client/src"
+      ],
+      "@lib/websocket-client/*": [
+        "libs/websocket-client/src/*"
       ]
     }
   }
