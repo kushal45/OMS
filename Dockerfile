@@ -1,6 +1,6 @@
 # ----------------- BASE -----------------
 # This stage sets up the basic environment and installs common dependencies.
-FROM node:21-alpine AS base
+FROM node:20-alpine AS base
 WORKDIR /app
 
 # Install base OS packages needed for both development and production.

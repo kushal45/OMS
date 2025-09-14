@@ -20,6 +20,9 @@ import { DefaultOrderConfigService } from './util/orderConfig.service'; // Impor
 import { SchemaRegistryModule, SCHEMA_REGISTRY_SERVICE_TOKEN } from '@lib/kafka/schema-registry.module';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
 import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-service.interface';
+import { SentryModule } from '@lib/sentry';
+import { NotificationsModule } from '@lib/notifications';
+import { SentryWebhookController } from './webhooks/sentry-webhook.controller';
 
 
 const resolvedPath = process.env.NODE_ENV === 'production'
@@ -64,6 +67,8 @@ console.log("resolvedPath",resolvedEnvPath);
     ]),
     AddressModule,
     LoggerModule, // Kept LoggerModule here
+    SentryModule, // Add Sentry module for alerting
+    NotificationsModule, // Add Notifications module for email
     TypeOrmModule.forFeature([Order, OrderItems]),
     ElasticsearchModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
@@ -76,7 +81,7 @@ console.log("resolvedPath",resolvedEnvPath);
       inject: [ConfigService],
     }),
   ],
-  controllers: [OrderController],
+  controllers: [OrderController, SentryWebhookController],
   providers: [
     OrderService,
     OrderItemsRepository,

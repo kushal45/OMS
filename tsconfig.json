@@ -63,6 +63,18 @@
       ],
       "@lib/log/*": [
         "libs/logger/src/*"
+      ],
+      "@lib/sentry": [
+        "libs/sentry/src"
+      ],
+      "@lib/sentry/*": [
+        "libs/sentry/src/*"
+      ],
+      "@lib/notifications": [
+        "libs/notifications/src"
+      ],
+      "@lib/notifications/*": [
+        "libs/notifications/src/*"
       ]
     }
   }
