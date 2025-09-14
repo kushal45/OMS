@@ -9,16 +9,22 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import * as path from 'path';
 import { ThrottlerGuard, ThrottlerModule,ThrottlerModuleOptions } from '@nestjs/throttler';
- import { APP_GUARD } from '@nestjs/core'; 
+ import { APP_GUARD } from '@nestjs/core';
+import { WebSocketModule } from './websocket/websocket.module';
 
+ const resolvedPath = process.env.NODE_ENV === 'production'
+   ? path.resolve(__dirname, '../')
+   : path.resolve(process.cwd(), 'apps/api-gateway');
+ const resolvedEnvPath = `${resolvedPath}/.env`;
 @Module({
   imports: [
     HttpModule,
     LoggerModule,
+    WebSocketModule,
     ConfigModule.forRoot({
-      envFilePath: path.join(__dirname, '../.env'),
-      isGlobal: true, // Make ConfigService available globally within this app context
-      ignoreEnvFile: process.env.NODE_ENV === 'production', // In prod, expect env vars from environment
+      envFilePath: resolvedEnvPath,
+      isGlobal: true,
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
     }),
     JwtModule.registerAsync({
       imports: [ConfigModule], // Ensure ConfigModule is imported to use ConfigService

@@ -6,7 +6,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { Order, OrderStatus } from './entity/order.entity';
-import { AddressService } from '@lib/address/src';
+import { AddressService } from '@lib/address';
 import { OrderRequestDto } from './dto/create-order-req';
 import { getOrderInfo } from './util/calculateOrderInfo';
 import { PercentageDeliveryChargeStrategy } from './strategy/percentage-delivercharge.strategy';
@@ -23,6 +23,7 @@ import { ConfigService } from '@nestjs/config';
 import { OutboxEvent, OutboxEventStatus } from '../../cart/src/entity/outbox-event.entity'; // Ensure this path is correct
 import { EntityManager } from 'typeorm';
 import type { CartResponseDto__Output } from '../../cart/src/proto/cart/CartResponseDto';
+import { SentryAlertService, OrderCreatedAlert } from '@lib/sentry';
 
 interface InventoryService {
   validate(
@@ -65,6 +66,7 @@ export class OrderService {
     private readonly addressService: AddressService, // Inject AddressService
     @Inject('CART_PACKAGE') private readonly cartClient: ClientGrpc,
     private readonly configService: ConfigService, // Injected ConfigService
+    private readonly sentryAlertService: SentryAlertService, // Inject SentryAlertService
   ) {}
 
   onModuleInit() {
@@ -83,6 +85,7 @@ export class OrderService {
         addressId,
       );
       if (!isValid) throw new BadRequestException('Address not valid');
+      
 
       // Fetch active cart and build orderItems
       const cart: CartResponseDto__Output = await firstValueFrom(
@@ -166,8 +169,14 @@ export class OrderService {
         `Order ${orderResponse.aliasId} created successfully. Outbox event for inventory removal queued.`,
         traceId,
       );
+      
+      // Trigger Sentry alert for order creation notification (fire-and-forget)
+      this.triggerOrderCreationAlert(orderResponse, orderItems, userId, traceId);
+      
       return this.filterOrderResponse(orderResponse);
     } catch (error) {
+      // Capture order creation error in Sentry (fire-and-forget)
+      this.captureOrderCreationError(error, { userId }, traceId);
       throw error;
     }
   }
@@ -386,5 +395,78 @@ export class OrderService {
   async fetchActiveCartForUser(userId: string): Promise<any> {
     // Optionally type as CartResponseDto
     return firstValueFrom(this.cartServiceGrpc.getActiveCartByUserId({ userId }));
+  }
+
+  /**
+   * Triggers Sentry alert for successful order creation (fire-and-forget)
+   * This will send an alert to Sentry which can trigger email notifications via webhook
+   */
+  private triggerOrderCreationAlert(
+    order: Order,
+    orderItems: OrderQueryInterface.OrderItemInput[],
+    userId: number,
+    traceId: string,
+  ): void {
+    (async () => {
+      try {
+        const alertData: OrderCreatedAlert = {
+          orderId: order.id.toString(),
+          aliasId: order.aliasId,
+          userId: userId,
+          totalAmount: order.totalAmount,
+          orderItems: orderItems.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          // These could be fetched from user service if needed
+          userEmail: undefined, // Could be fetched from user service
+          customerName: undefined, // Could be fetched from user service
+        };
+
+        await this.sentryAlertService.captureOrderCreatedAlert(alertData);
+        
+        const logger = this.serviceLocator.getLoggerService();
+        logger.info(
+          `Sentry order creation alert triggered for order ${order.aliasId}`,
+          traceId,
+        );
+      } catch (error) {
+        const logger = this.serviceLocator.getLoggerService();
+        logger.error(
+          `Failed to trigger Sentry alert for order ${order.aliasId}: ${error?.message || error}`,
+          traceId,
+        );
+        // Don't throw - alerting failure shouldn't break the order creation flow
+      }
+    })();
+  }
+
+  /**
+   * Captures order creation errors in Sentry (fire-and-forget)
+   */
+  private captureOrderCreationError(
+    error: Error,
+    orderData: Partial<OrderCreatedAlert>,
+    traceId: string,
+  ): void {
+    (async () => {
+      try {
+        await this.sentryAlertService.captureOrderCreationError(error, orderData);
+        
+        const logger = this.serviceLocator.getLoggerService();
+        logger.info(
+          `Sentry error captured for order creation failure: ${error.message}`,
+          traceId,
+        );
+      } catch (captureError) {
+        const logger = this.serviceLocator.getLoggerService();
+        logger.error(
+          `Failed to capture Sentry error for order creation: ${captureError?.message || captureError}`,
+          traceId,
+        );
+        // Don't throw - error capturing failure shouldn't break the flow
+      }
+    })();
   }
 }

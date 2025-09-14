@@ -5,7 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import { OrderRepository } from './repository/order.repository';
 import { OrderItemsRepository } from './repository/orderItems.repository';
-import { AddressModule } from '@lib/address/src';
+import { AddressModule } from '@lib/address';
 import { TransactionService } from '@app/utils/transaction.service';
 import { LoggerModule, LoggerService } from '@lib/logger/src'; // Removed LoggerService from here
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -20,12 +20,21 @@ import { DefaultOrderConfigService } from './util/orderConfig.service'; // Impor
 import { SchemaRegistryModule, SCHEMA_REGISTRY_SERVICE_TOKEN } from '@lib/kafka/schema-registry.module';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
 import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-service.interface';
+import { SentryModule } from '@lib/sentry';
+import { NotificationsModule } from '@lib/notifications';
+import { SentryWebhookController } from './webhooks/sentry-webhook.controller';
 
+
+const resolvedPath = process.env.NODE_ENV === 'production'
+  ? path.resolve(__dirname, '../')
+  : path.resolve(process.cwd(), 'apps/order');
+const resolvedEnvPath = `${resolvedPath}/.env`;
+console.log("resolvedPath",resolvedEnvPath);
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: path.join(__dirname, '../.env'), // Loads the .env file specific to this microservice
-      isGlobal: true, // Makes the environment variables available globally
+      envFilePath: resolvedEnvPath,
+      isGlobal: true,
     }),
     SchemaRegistryModule,
     ClientsModule.registerAsync([
@@ -36,7 +45,7 @@ import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-se
           transport: Transport.GRPC,
           options: {
             package: 'INVENTORY_PACKAGE', // Matches package in inventory.proto
-            protoPath: path.join(__dirname, "../../inventory/src/proto/inventory.proto"),
+            protoPath: path.join(resolvedEnvPath, "../../inventory/src/proto/inventory.proto"),
             url: configService.get<string>('INVENTORY_SERVICE_GRPC_URL', 'inventory:5002'),
           },
         }),
@@ -49,7 +58,7 @@ import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-se
           transport: Transport.GRPC,
           options: {
             package: 'cart', // Matches package in cart.proto
-            protoPath: path.join(__dirname, "../../cart/src/proto/cart.proto"),
+            protoPath: path.join(resolvedPath, "../cart/src/proto/cart.proto"),
             url: configService.get<string>('CART_SERVICE_GRPC_URL', 'cart:5005'), // Use env var, default to 5005
           },
         }),
@@ -58,6 +67,8 @@ import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-se
     ]),
     AddressModule,
     LoggerModule, // Kept LoggerModule here
+    SentryModule, // Add Sentry module for alerting
+    NotificationsModule, // Add Notifications module for email
     TypeOrmModule.forFeature([Order, OrderItems]),
     ElasticsearchModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
@@ -70,7 +81,7 @@ import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-se
       inject: [ConfigService],
     }),
   ],
-  controllers: [OrderController],
+  controllers: [OrderController, SentryWebhookController],
   providers: [
     OrderService,
     OrderItemsRepository,

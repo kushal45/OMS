@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { OrderRepository } from './repository/order.repository';
 import { OrderItemsRepository } from './repository/orderItems.repository';
-import { AddressService } from '@lib/address/src';
+import { AddressService } from '@lib/address';
 import { TransactionService } from '@app/utils/transaction.service';
 import { ClientGrpc } from '@nestjs/microservices';
 import { LoggerService } from '@lib/logger/src';

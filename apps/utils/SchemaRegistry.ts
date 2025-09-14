@@ -20,8 +20,6 @@ export async function handleInventoryProcessTypeRegistration(
   processType: 'reserve' | 'release' | 'replenish' = 'reserve',
 ) {
   try {
-    console.log(`Registering schema for topic: ${topic}`);
-    await schemaRegistryService.deleteSchema(topic); // Use injected service
     if (!schemaJsonString) {
       console.error(
         `Schema JSON string not found in config for topic: ${topic}. Ensure  ${processType} json is set in the .env file.`,
@@ -44,7 +42,22 @@ export async function handleInventoryProcessTypeRegistration(
     console.log(
       `Schema definition for topic ${topic}: ${JSON.stringify(parsedSchema)}`,
     );
-    await schemaRegistryService.registerSchema(topic, parsedSchema); // Use injected service
+    const subject = topic;
+    try {
+      await schemaRegistryService.deleteSchema(subject);
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        console.warn(`Subject ${subject} does not exist, skipping delete.`);
+      } else {
+        throw error;
+      }
+    }
+    await schemaRegistryService.registerSchema(subject, parsedSchema);
+
+    const schemaResponse =
+      await schemaRegistryService.getLatestSchemaId(subject);
+    return schemaResponse;
+
   } catch (error) {
     console.error(
       `Error during schema registration for topic ${topic}:`,

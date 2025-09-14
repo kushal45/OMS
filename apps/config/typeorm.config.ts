@@ -3,8 +3,8 @@ import { Inventory } from '@app/inventory/src/entity/inventory.entity';
 import { Order } from '@app/order/src/entity/order.entity';
 import { OrderItems } from '@app/order/src/entity/orderItems.entity';
 import { Product } from '@app/product/src/entity/product.entity';
-import { Address } from '@lib/address/src/entity/address.entity';
-import { CustomerAddress } from '@lib/address/src/entity/customerAdress.entity';
+import { Address } from '@lib/address/entity/address.entity';
+import { CustomerAddress } from '@lib/address/entity/customerAdress.entity';
 import { Cart } from '@app/cart/src/entity/cart.entity';
 import { CartItem } from '@app/cart/src/entity/cart-item.entity';
 import { OutboxEvent } from '@app/cart/src/entity/outbox-event.entity';
@@ -19,7 +19,7 @@ export const typeOrmAsyncConfig: TypeOrmModuleAsyncOptions = {
   imports: [ConfigModule],
   inject: [ConfigService],
   useFactory: async (configService: ConfigService): Promise<TypeOrmModuleOptions> => {
-    console.log("DB_USERNAME",configService.get<string>('DB_USERNAME'));
+    console.log("DB_USERNAME",configService);
     console.log("DB_HOST",configService.get<string>('DB_HOST'));
     console.log("DB_PORT",configService.get<string>('DB_PORT'));
     console.log("DB_PASSWORD",configService.get<string>('DB_PASSWORD'));

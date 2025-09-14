@@ -1,60 +1,87 @@
-# Base Dockerfile for OMS applications
-# Stage 1: Build the application
-FROM node:21-alpine AS builder
-
-# Install curl and other necessary packages
-RUN apk add --no-cache curl
-
+# ----------------- BASE -----------------
+# This stage sets up the basic environment and installs common dependencies.
+FROM node:20-alpine AS base
 WORKDIR /app
 
-# Copy package files first for better caching
+# Install base OS packages needed for both development and production.
+# curl is used in dev, wget and postgresql-client in prod. Installing all in base is simpler.
+RUN apk add --no-cache curl postgresql-client wget
+
+# Copy package files to leverage Docker layer caching.
 COPY package*.json ./
-COPY nest-cli.json ./
 
-# Install all dependencies including dev dependencies
+# ----------------- DEVELOPMENT -----------------
+# This stage is for local development. It includes all source code and devDependencies.
+# Target this stage in docker-compose.dev.yml.
+# Example: docker build --target development -t my-app-dev .
+FROM base AS development
+
+ENV NODE_ENV=development
 RUN npm install
-# Install NestJS CLI globally for the nest command
-RUN npm install -g @nestjs/cli
+# Ensure local binaries (tsc, ts-node, etc.) are available in PATH
+ENV PATH="./node_modules/.bin:$PATH"
 
-# Copy TypeScript configuration files
-COPY tsconfig*.json ./
-
-# Copy all source code
+# Copy the rest of the application source code
 COPY . .
 
-# Pre-build all applications to ensure TypeScript compilation works
+# Default command for development. This will be overridden by docker-compose.
+CMD ["npm", "run", "start:dev"]
+
+
+# ----------------- BUILDER -----------------
+# This stage builds the application, creating production-ready artifacts.
+# It includes devDependencies because they are needed for the build process.
+FROM base AS builder
+
+# Install all dependencies, including devDependencies, which are required for building and testing.
+RUN npm install
+RUN npm install -g @nestjs/cli
+RUN npm install -g dotenv-cli
+
+# Copy the entire source code to have everything for the build.
+COPY . .
+
+# Run the build scripts to compile the application.
 RUN rm -rf dist && npm run build:all && npm run postbuild:all
 
-# Explicitly copy .proto files to their respective dist directories
+# The original Dockerfile.production had these COPY commands. They might be redundant
+# if the build process handles them, but we include them for safety to ensure .proto files are present.
 COPY apps/cart/src/proto/*.proto dist/apps/cart/src/proto/
 COPY apps/inventory/src/proto/*.proto dist/apps/inventory/src/proto/
 COPY apps/product/src/proto/*.proto dist/apps/product/src/proto/
 
+# After building, remove the devDependencies from node_modules to reduce the size
+# of the final production image.
+RUN npm prune --production
 
-# Prune development dependencies
-# RUN npm prune --production
 
-# Stage 2: Create the production image
+# ----------------- PRODUCTION -----------------
+# This is the final, lean production image. It only contains the compiled app and runtime dependencies.
+# Target this stage for production builds.
+# Example: docker build --target production -t my-app-prod .
 FROM node:21-alpine AS production
-
-# Install PostgreSQL client and wget for database operations and health checks
-RUN apk add --no-cache postgresql-client wget
 
 WORKDIR /app
 
-# Copy only the necessary files from the builder stage
+# Install only production-necessary OS packages.
+RUN apk add --no-cache postgresql-client wget
+
+# Copy the pruned node_modules from the builder stage.
 COPY --from=builder /app/node_modules ./node_modules
+
+# Copy the compiled application code from the builder stage.
 COPY --from=builder /app/dist ./dist
+
+# Copy other necessary files like package.json for runtime, and scripts for migrations.
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/nest-cli.json ./nest-cli.json
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/tsconfig.build.json ./tsconfig.build.json
-
-# Copy scripts directory for database migrations and utilities
 COPY --from=builder /app/scripts ./scripts
-
-# Copy database seeder data files to the correct location
 COPY --from=builder /app/apps/database/seeders/data ./dist/apps/database/seeders/data
 
-# Expose the default port
 EXPOSE 3000
+
+# The command to run the application will be specified in the docker-compose.prod.yml
+# or a similar file, as different services run different main files.
+# Example CMD: CMD ["node", "dist/apps/api-gateway/src/main.js"]

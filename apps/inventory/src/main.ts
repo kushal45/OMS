@@ -44,6 +44,9 @@ async function bootStrapRestServer() {
  */
 async function bootStrapGrpcServer() {
   try {
+    const resolvedPath = process.env.NODE_ENV === 'production'
+          ? path.resolve(__dirname, '../')
+          : path.resolve(process.cwd(), 'apps/inventory/src');
     console.log('🚀 Starting Inventory gRPC server...');
     const grpcApp = await NestFactory.createMicroservice<MicroserviceOptions>(
       InventoryModule,
@@ -52,7 +55,7 @@ async function bootStrapGrpcServer() {
         options: {
           url: '0.0.0.0:5002',
           package: 'INVENTORY_PACKAGE',
-          protoPath: path.join(__dirname, 'proto/inventory.proto'),
+          protoPath: path.join(resolvedPath, 'proto/inventory.proto'),
         },
       },
     );
