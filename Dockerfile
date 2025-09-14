@@ -36,6 +36,7 @@ FROM base AS builder
 # Install all dependencies, including devDependencies, which are required for building and testing.
 RUN npm install
 RUN npm install -g @nestjs/cli
+RUN npm install -g dotenv-cli
 
 # Copy the entire source code to have everything for the build.
 COPY . .

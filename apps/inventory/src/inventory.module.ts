@@ -22,10 +22,15 @@ import { ReplenishInventoryHandler } from './kafka-handlers/replenish-inventory.
 import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-service.interface';
 import { SchemaRegistryModule, SCHEMA_REGISTRY_SERVICE_TOKEN } from '@lib/kafka/schema-registry.module';
 
+const resolvedPath = process.env.NODE_ENV === 'production'
+  ? path.resolve(__dirname, '../')
+  : path.resolve(process.cwd(), 'apps/inventory');
+const resolvedEnvPath = `${resolvedPath}/.env`;
+
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: require('path').resolve(__dirname, '../.env'),
+      envFilePath: resolvedEnvPath,
       isGlobal: true,
     }),
     SchemaRegistryModule,

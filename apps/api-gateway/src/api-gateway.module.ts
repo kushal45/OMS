@@ -11,12 +11,16 @@ import * as path from 'path';
 import { ThrottlerGuard, ThrottlerModule,ThrottlerModuleOptions } from '@nestjs/throttler';
  import { APP_GUARD } from '@nestjs/core'; 
 
+ const resolvedPath = process.env.NODE_ENV === 'production'
+   ? path.resolve(__dirname, '../')
+   : path.resolve(process.cwd(), 'apps/api-gateway');
+ const resolvedEnvPath = `${resolvedPath}/.env`;
 @Module({
   imports: [
     HttpModule,
     LoggerModule,
     ConfigModule.forRoot({
-      envFilePath: require('path').resolve(__dirname, '../.env'),
+      envFilePath: resolvedEnvPath,
       isGlobal: true,
       ignoreEnvFile: process.env.NODE_ENV === 'production',
     }),

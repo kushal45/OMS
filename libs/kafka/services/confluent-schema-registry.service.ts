@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { SchemaRegistry, SchemaType, COMPATIBILITY } from '@kafkajs/confluent-schema-registry';
 import axios from 'axios';
 import { ISchemaRegistryService } from '../interfaces/schema-registry-service.interface';
+import { error } from 'console';
 
 @Injectable()
 export class ConfluentSchemaRegistryService implements ISchemaRegistryService {
@@ -17,7 +18,42 @@ export class ConfluentSchemaRegistryService implements ISchemaRegistryService {
       throw new Error('SCHEMA_REGISTRY_URL is not defined.');
     }
     this.schemaRegistry = new SchemaRegistry({ host: this.schemaRegistryUrl });
+  this.validateConnection().then((isValid) => {
+  }).catch(error=>{
+      console.log(error);
+  });
+  console.log('Schema registration succeeded.');
   }
+
+  async validateConnection(): Promise<boolean> {
+  try {
+    // Ping the registry
+    const response = await axios.get(`${this.schemaRegistryUrl}/subjects`);
+    this.logger.log(`Schema Registry at ${this.schemaRegistryUrl} is reachable.`);
+
+    // Register a minimal test schema
+    const testSchema = {
+      type: 'record',
+      name: 'TestValidationRecord',
+      namespace: 'com.oms.test',
+      fields: [{ name: 'id', type: 'string' }]
+    };
+
+    await this.schemaRegistry.register({
+      type: SchemaType.AVRO,
+      schema: JSON.stringify(testSchema)
+    });
+    this.logger.log('Test schema registration succeeded.');
+    return true;
+  } catch (error: any) {
+    this.logger.error(`Schema Registry validation failed: ${error.message}`);
+    if (error.isAxiosError) {
+      this.logger.error(`Axios error details: ${JSON.stringify(error.response?.data)}`);
+    }
+    return false;
+    
+  }
+}
 
   async registerSchema(topic: string, schemaDefinition: any): Promise<void> {
     this.logger.log(`Attempting to register schema for topic: ${topic}`);

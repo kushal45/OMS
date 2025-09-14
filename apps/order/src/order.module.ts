@@ -26,6 +26,7 @@ const resolvedPath = process.env.NODE_ENV === 'production'
   ? path.resolve(__dirname, '../')
   : path.resolve(process.cwd(), 'apps/order');
 const resolvedEnvPath = `${resolvedPath}/.env`;
+console.log("resolvedPath",resolvedEnvPath);
 @Module({
   imports: [
     ConfigModule.forRoot({

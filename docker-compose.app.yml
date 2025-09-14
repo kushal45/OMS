@@ -35,7 +35,7 @@ services:
       - PORT=3000
       - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200
       - SERVICE_NAME=gateway
-    command: npm run start:dev --project api-gateway
+    command: npm run start:debug --project api-gateway
     networks:
       - oms
     volumes:
@@ -72,7 +72,7 @@ services:
       - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9200
       - REDIS_SENTINEL_ADDRESSES=redis-sentinel-1:26379,redis-sentinel-2:26379,redis-sentinel-3:26379
       - REDIS_SENTINEL_MASTER_NAME=omsredisprimary
-    command: npm run start:dev --project auth
+    command: npm run start:debug --project auth
     networks:
       - oms
     volumes:
@@ -118,7 +118,7 @@ services:
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=oms
       - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
-    command: npm run start:dev --project order
+    command: npm run start:debug --project order
     networks:
       - oms
     volumes:
@@ -161,7 +161,7 @@ services:
       - MODE=dev
       - ELASTICSEARCH_HOST=http://es01:9200,http://es02:9092
       - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
-    command: npm run start:dev --project inventory
+    command: npm run start:debug --project inventory
     networks:
       - oms
     volumes:
@@ -204,7 +204,7 @@ services:
       - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
       - REDIS_SENTINEL_ADDRESSES=redis-sentinel-1:26379,redis-sentinel-2:26379,redis-sentinel-3:26379
       - REDIS_SENTINEL_MASTER_NAME=omsredisprimary
-    command: npm run start:dev --project product
+    command: npm run start:debug --project product
     networks:
       - oms
     volumes:
@@ -249,7 +249,7 @@ services:
       - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
       - INVENTORY_RESERVE_TOPIC=reserveInventory
       - INVENTORY_RELEASE_TOPIC=releaseInventory
-    command: npm run start:dev --project cart
+    command: npm run start:debug --project cart
     networks:
       - oms
     volumes:

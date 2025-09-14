@@ -1,6 +1,17 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { Customer } from '../auth/src/entity/customer.entity';
+import { Order } from '../order/src/entity/order.entity';
+import { OrderItems } from '../order/src/entity/orderItems.entity';
+import { Product } from '../product/src/entity/product.entity';
+import { Inventory } from '../inventory/src/entity/inventory.entity';
+import { Cart } from '../cart/src/entity/cart.entity';
+import { CartItem } from '../cart/src/entity/cart-item.entity';
+import { OutboxEvent } from '../cart/src/entity/outbox-event.entity';
+import { Address } from '../../libs/address/src/entity/address.entity';
+
+
 
 // Load environment variables specifically for database migrations
 // from .env.db at the project root.
@@ -13,21 +24,17 @@ export const dataSourceOptions: DataSourceOptions = {
   username: process.env.DATABASE_USER || 'postgres',
   password: process.env.DATABASE_PASSWORD || 'postgres',
   database: process.env.DATABASE_NAME || 'postgres',
-  entities: process.env.NODE_ENV === 'production' ? [
-    path.resolve(__dirname, '../**/src/entity/*.entity.js'),
-    path.resolve(__dirname, '../../libs/**/src/entity/*.entity.js')
-  ] : [
-    '../**/entity/*.entity.ts',
-    '../**/libs/**/entity/*.entity.ts'
-  ],
+  entities: [Address,Customer,Order, OrderItems, Product, Inventory, Cart, CartItem, OutboxEvent],
   migrations: process.env.NODE_ENV === 'production' ?
-    [path.resolve(__dirname, '../database/migrations/*.js')] :
-    [path.resolve(__dirname, '../database/migrations/*.ts')],
+    [path.join(process.cwd(), 'dist', 'apps', 'database', 'migrations', '*.js')] :
+    [path.join(process.cwd(), 'apps', 'database', 'migrations', '*.ts')],
   synchronize: false,
   logging: process.env.NODE_ENV !== 'production',
 };
 
 const dataSource = new DataSource(dataSourceOptions);
+
+console.log(dataSource);
 
 async function initializeAndMigrate() {
   try {

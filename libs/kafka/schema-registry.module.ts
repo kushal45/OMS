@@ -9,7 +9,9 @@ export const SCHEMA_REGISTRY_SERVICE_TOKEN = 'ISchemaRegistryService'; // Define
 const schemaRegistryServiceProvider: Provider = {
   provide: SCHEMA_REGISTRY_SERVICE_TOKEN, // Use the string token
   useFactory: (configService: ConfigService) => {
+    console.log(configService);
     const isSchemaRegistryEnabled = configService.get<boolean>('SCHEMA_REGISTRY_ENABLED', false);
+
     if (isSchemaRegistryEnabled) {
       return new ConfluentSchemaRegistryService(configService);
     } else {
@@ -17,6 +19,7 @@ const schemaRegistryServiceProvider: Provider = {
     }
   },
   inject: [ConfigService],
+  
 };
 
 @Global() // Make it global if many modules need it, or import it specifically

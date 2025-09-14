@@ -71,21 +71,12 @@
     "uuid": "^11.0.3",
     "uuidv4": "^6.2.13",
     "winston": "^3.17.0",
-    "winston-elasticsearch": "^0.11.0"
+    "winston-elasticsearch": "^0.11.0",
+    "dotenv-cli": "^8.0.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.10",
-    "@nestjs/schematics": "^10.0.0",
-    "@nestjs/testing": "^10.0.0",
-    "@types/express": "^5.0.0",
-    "@types/jest": "^29.5.2",
-    "@types/node": "^20.3.1",
-    "@types/redlock": "^4.0.7",
-    "@types/supertest": "^6.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
     "copyfiles": "^2.4.1",
-    "dotenv-cli": "^8.0.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.0",
