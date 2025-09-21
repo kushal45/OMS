@@ -1,0 +1,4 @@
+{
+  "/auth": "http://auth:3001",
+  "/order": "http://order:3002"
+}

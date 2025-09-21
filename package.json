@@ -83,6 +83,7 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.10",
+    "@nestjs/testing": "^10.4.20",
     "copyfiles": "^2.4.1",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.0.0",
@@ -97,31 +98,5 @@
     "ts-proto": "^2.7.7",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.2"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "rootDir": ".",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "coverageDirectory": "./coverage",
-    "testEnvironment": "node",
-    "roots": [
-      "<rootDir>/apps/",
-      "<rootDir>/libs/"
-    ],
-    "moduleNameMapper": {
-      "^@app/config(|/.*)$": "<rootDir>/libs/config/src/$1",
-      "^@app/address(|/.*)$": "<rootDir>/libs/address/src/$1",
-      "^@app/log(|/.*)$": "<rootDir>/libs/log/src/$1"
-    }
   }
 }
