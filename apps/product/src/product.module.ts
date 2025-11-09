@@ -9,7 +9,9 @@ import { ConfigModule } from '@nestjs/config';
 import * as path from 'path';
 import { LoggerModule } from '@lib/logger/src'; // Added LoggerModule
 import { RedisClientModule } from '@lib/redis-client'; // Import RedisClientModule
-
+import { ProductResolver } from './graphql/product.resolver';
+import { GraphQLModule } from '@nestjs/graphql';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 
 const resolvedPath = process.env.NODE_ENV === 'production'
   ? path.resolve(__dirname, '../')
@@ -25,8 +27,15 @@ const resolvedEnvPath = `${resolvedPath}/.env`;
     TypeOrmModule.forFeature([Product]),
     LoggerModule, // Added LoggerModule to imports
     RedisClientModule, // Add RedisClientModule
+    GraphQLModule.forRoot<ApolloDriverConfig>({
+      driver: ApolloDriver,
+      autoSchemaFile: true,
+      playground: true,
+      path: '/product/graphql',
+      introspection: true, // Enable introspection in all environments
+    }),
   ],
   controllers: [ProductController],
-  providers: [ProductService,ProductRepository], // LoggerService is typically provided by LoggerModule
+  providers: [ProductService,ProductRepository, ProductResolver], // LoggerService is typically provided by LoggerModule
 })
 export class ProductModule {}
