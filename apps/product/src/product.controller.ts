@@ -66,25 +66,45 @@ export class ProductController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Fetch Products' })
+  @ApiOperation({ 
+    summary: '[DEPRECATED] Fetch Products',
+    description: 'This endpoint is deprecated and will be removed. Please use the GraphQL endpoint instead.'
+  })
   async getProducts(@Res() response) {
+    const message = 'DEPRECATED: Please use the GraphQL endpoint: /graphql\n' +
+                   'Example query:\n' +
+                   '{\n  products { id name description price sku }\n}';
+    
+    response.setHeader('Warning', '299 - "This endpoint is deprecated"');
+    response.setHeader('Sunset', new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString());
+    
     ResponseUtil.success({
       response,
-      message: 'Successfully fetched products',
+      message,
       data: await this.productService.getProducts(),
-      statusCode:HttpStatus.OK
-    })
+      statusCode: HttpStatus.OK
+    });
   }
 
   // HTTP GET /products/:id - This can coexist with the gRPC method
   @Get(':id')
-  async getProductByIdHttp(@Param('id') id: number,@Res() response) {
-    // Note: productService.getProductById might throw NotFoundException which is fine for HTTP
+  @ApiOperation({ 
+    summary: '[DEPRECATED] Fetch Product by ID',
+    description: 'This endpoint is deprecated and will be removed. Please use the GraphQL endpoint instead.'
+  })
+  async getProductByIdHttp(@Param('id') id: number, @Res() response) {
+    const message = 'DEPRECATED: Please use the GraphQL endpoint: /graphql\n' +
+                   'Example query:\n' +
+                   '{\n  product(id: ' + id + ') { id name description price sku }\n}';
+
+    response.setHeader('Warning', '299 - "This endpoint is deprecated"');
+    response.setHeader('Sunset', new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString());
+    
     ResponseUtil.success({
       response,
-      message: 'Successfully fetched product',
+      message,
       data: await this.productService.getProductById(id),
-      statusCode:HttpStatus.OK
+      statusCode: HttpStatus.OK
     })
   }
 

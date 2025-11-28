@@ -94,6 +94,7 @@ describe('CartService', () => {
         { provide: LoggerService, useValue: mockLoggerService },
         { provide: 'KafkaProducerInstance', useValue: mockKafkaProducer },
         { provide: 'INVENTORY_PACKAGE', useValue: mockInventoryClientGrpc },
+        { provide: 'PRODUCT_PACKAGE', useValue: mockInventoryClientGrpc }, // Re-using mockInventoryClientGrpc as it has getService
         { provide: TransactionService, useValue: mockTransactionService },
       ],
     }).compile();

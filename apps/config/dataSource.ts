@@ -28,7 +28,7 @@ export const dataSourceOptions: DataSourceOptions = {
   migrations: process.env.NODE_ENV === 'production' ?
     [path.join(process.cwd(), 'dist', 'apps', 'database', 'migrations', '*.js')] :
     [path.join(process.cwd(), 'apps', 'database', 'migrations', '*.ts')],
-  synchronize: false,
+  synchronize: process.env.NODE_ENV !== 'production',
   logging: process.env.NODE_ENV !== 'production',
 };
 

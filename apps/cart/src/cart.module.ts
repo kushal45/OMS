@@ -20,7 +20,7 @@ import { OutboxEvent } from './entity/outbox-event.entity';
 import { OutboxWorkerService } from './outbox/outbox-worker.service';
 import { OutboxAdminService } from './outbox/outbox-admin.service';
 import { OutboxAdminController } from './outbox/outbox-admin.controller';
-import { ServiceLocator } from './service.locator';
+// import { ServiceLocator } from './service.locator';
 import { SchemaRegistryModule, SCHEMA_REGISTRY_SERVICE_TOKEN } from '@lib/kafka/schema-registry.module';
 import { ISchemaRegistryService } from '@lib/kafka/interfaces/schema-registry-service.interface';
 
@@ -89,7 +89,7 @@ const resolvedEnvPath = `${resolvedPath}/.env`;
     TransactionService,
     OutboxWorkerService,
     OutboxAdminService,
-    ServiceLocator,
+    // ServiceLocator, // Removed
     {
       provide: APP_INTERCEPTOR,
       useExisting: 'LoggerErrorInterceptor',

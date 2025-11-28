@@ -14,8 +14,8 @@ else
 fi
 
 echo "Pruning Docker build cache and dangling images..."
-docker builder prune -af
-docker image prune -f
+echo "Pruning only dangling Docker images..."
+docker image prune -f --filter "dangling=true"
 
 # Check if the base application image exists
 if ! docker image inspect oms-app-base >/dev/null 2>&1; then

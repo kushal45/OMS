@@ -6,8 +6,12 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ClientGrpc, RpcException } from '@nestjs/microservices'; // Added RpcException and GrpcMethod
-import { ServiceLocator } from './service.locator'; // Import ServiceLocator from local file
+// import { ServiceLocator } from './service.locator'; // Removed
 import { firstValueFrom, Observable, catchError, throwError } from 'rxjs'; // Added catchError, throwError
+import { LoggerService } from '@lib/logger/src';
+import { CartDataService } from './repository/cart-data.repository';
+import { CartItemRepository } from './repository/cart-item.repository';
+import { TransactionService } from '@app/utils/transaction.service';
 import { Cart, CartStatus } from './entity/cart.entity';
 import {
   AddItemToCartDto,
@@ -47,7 +51,10 @@ export class CartService {
   private productService: ProductService;
 
   constructor(
-    private readonly serviceLocator: ServiceLocator,
+    private readonly loggerService: LoggerService,
+    private readonly cartDataService: CartDataService,
+    private readonly cartItemRepository: CartItemRepository,
+    private readonly transactionService: TransactionService,
     @Inject('INVENTORY_PACKAGE') private readonly inventoryClient: ClientGrpc,
     @Inject('PRODUCT_PACKAGE') private readonly productClient: ClientGrpc,
   ) {}
@@ -64,8 +71,7 @@ export class CartService {
     items: { productId: number; quantity: number }[],
     traceId: string,
   ): Promise<void> {
-    this.serviceLocator
-      .getLoggerService()
+    this.loggerService
       .info(
         `[${traceId}] Validating cart items: ${JSON.stringify(items)}`,
         this.context,
@@ -79,8 +85,7 @@ export class CartService {
       const validationResponse = await firstValueFrom(
         this.inventoryService.validate({ orderItems: items }),
       );
-      this.serviceLocator
-        .getLoggerService()
+      this.loggerService
         .info(
           `[${traceId}] Inventory validation response: ${JSON.stringify(validationResponse)}`,
           this.context,
@@ -91,8 +96,7 @@ export class CartService {
         );
       }
     } catch (error) {
-      this.serviceLocator
-        .getLoggerService()
+      this.loggerService
         .error(
           `[${traceId}] Error validating items with inventory service: ${error.message}`,
           error.stack,
@@ -113,29 +117,24 @@ export class CartService {
     const userId = parseInt(data.userId, 10); // Convert string to number
     // Assuming traceId might come from metadata or be generated
     const traceId = `grpc-getActiveCart-${Date.now()}-${userId}`; // Placeholder for traceId
-    this.serviceLocator
-      .getLoggerService()
+    this.loggerService
       .info(`[${traceId}] gRPC: Fetching active cart for user ID: ${userId}`, this.context);
     try {
-      const cart = await this.serviceLocator
-        .getCartDataService()
+      const cart = await this.cartDataService
         .findByUserId(userId);
       if (!cart) {
-        this.serviceLocator
-          .getLoggerService()
+        this.loggerService
           .info(
             `[${traceId}] gRPC: No cart found for user ID: ${userId}, creating a new one.`,
             this.context,
           );
-        const newCart = await this.serviceLocator
-          .getCartDataService()
+        const newCart = await this.cartDataService
           .create({ userId, status: CartStatus.ACTIVE }); // Ensure status is set
         return this.mapCartToResponseDto(newCart);
       }
       return this.mapCartToResponseDto(cart);
     } catch (error) {
-      this.serviceLocator
-        .getLoggerService()
+      this.loggerService
         .error(
           `[${traceId}] gRPC: Error fetching cart for user ID ${userId}: ${error.message}`,
           error.stack,
@@ -151,21 +150,17 @@ export class CartService {
     userId: number,
     traceId?: string,
   ): Promise<CartResponseDto> {
-    this.serviceLocator
-      .getLoggerService()
+    this.loggerService
       .info(`[${traceId}] HTTP: Fetching cart for user ID: ${userId}`, this.context);
-    const cart = await this.serviceLocator
-      .getCartDataService()
+    const cart = await this.cartDataService
       .findByUserId(userId);
     if (!cart) {
-      this.serviceLocator
-        .getLoggerService()
+      this.loggerService
         .info(
           `[${traceId}] HTTP: No cart found for user ID: ${userId}, creating a new one.`,
           this.context,
         );
-      const newCart = await this.serviceLocator
-        .getCartDataService()
+      const newCart = await this.cartDataService
         .create({ userId, status: CartStatus.ACTIVE });
       return this.mapCartToResponseDto(newCart);
     }
@@ -178,8 +173,7 @@ export class CartService {
     traceId: string,
   ): Promise<CartResponseDto> {
     try {
-      this.serviceLocator
-        .getLoggerService()
+      this.loggerService
         .info(
           `[${traceId}] Adding item to cart for user ID: ${userId}, item: ${JSON.stringify(itemData)}`,
           this.context,
@@ -203,8 +197,7 @@ export class CartService {
       );
 
       // Transactional DB update + outbox event
-      return this.serviceLocator
-        .getTransactionService()
+      return this.transactionService
         .executeInTransaction(async (entityManager: EntityManager) => {
           const updatedCart = await this.persistCartAnditsItem({
             entityManager,
@@ -233,8 +226,7 @@ export class CartService {
           return this.mapCartToResponseDto(updatedCart);
         });
     } catch (error) {
-      this.serviceLocator
-        .getLoggerService()
+      this.loggerService
         .error(
           `[${traceId}] Error adding item to cart for user ID: ${userId}, item: ${JSON.stringify(itemData)}: ${error.message}`,
           error.stack,
@@ -263,17 +255,14 @@ export class CartService {
     userId: number;
     traceId: string;
   }): Promise<Cart> {
-    this.serviceLocator
-      .getLoggerService()
+    this.loggerService
       .info(
         `Persisting cart item for, product ID: ${productId}, quantity: ${quantity}`,
         this.context,
       );
-    const cartRepo = this.serviceLocator
-      .getCartDataService()
+    const cartRepo = this.cartDataService
       .getRepository(entityManager);
-    const cartItemRepo = this.serviceLocator
-      .getCartItemRepository()
+    const cartItemRepo = this.cartItemRepository
       .getRepository(entityManager);
 
     // Use only custom repository methods
@@ -283,8 +272,7 @@ export class CartService {
         userId,
         status: CartStatus.ACTIVE,
       });
-      this.serviceLocator
-        .getLoggerService()
+      this.loggerService
         .info(
           `[${traceId}] Created new cart for user ID: ${userId}, cartId: ${cart.id}`,
           this.context,
@@ -303,8 +291,7 @@ export class CartService {
         quantity: cartItem.quantity,
         // price is not updated here, only quantity
       });
-      this.serviceLocator
-        .getLoggerService()
+      this.loggerService
         .info(
           `[${traceId}] Updated item quantity in cart: ${cartItem.id}`,
           this.context,
@@ -317,8 +304,7 @@ export class CartService {
         quantity: itemData.quantity,
         price: productPrice,
       });
-      this.serviceLocator
-        .getLoggerService()
+      this.loggerService
         .info(
           `[${traceId}] Added new item to cart: ${cartItem.id}`,
           this.context,
@@ -334,17 +320,14 @@ export class CartService {
     updateData: UpdateCartItemDto,
     traceId: string,
   ): Promise<CartResponseDto> {
-    this.serviceLocator
-      .getLoggerService()
+    this.loggerService
       .info(
         `[${traceId}] Updating cart item ID: ${cartItemId} for user ID: ${userId} with data: ${JSON.stringify(updateData)}`,
         this.context,
       );
-    return this.serviceLocator
-      .getTransactionService()
+    return this.transactionService
       .executeInTransaction(async (entityManager: EntityManager) => {
-        const cartRepo = this.serviceLocator
-          .getCartDataService()
+        const cartRepo = this.cartDataService
           .getRepository(entityManager);
         // Use the generic, entityManager-independent findOne
         const cart = await cartRepo.findByUserId(userId);
@@ -354,8 +337,7 @@ export class CartService {
           );
         }
 
-        const cartItem = await this.serviceLocator
-          .getCartItemRepository()
+        const cartItem = await this.cartItemRepository
           .findOne({ id: cartItemId, cartId: cart.id });
         if (!cartItem) {
           throw new NotFoundException(
@@ -369,8 +351,7 @@ export class CartService {
         }
         const diffQuantity = updateData.quantity - cartItem.quantity;
         if (diffQuantity === 0) {
-          this.serviceLocator
-            .getLoggerService()
+          this.loggerService
             .info(
               `[${traceId}] No change in quantity for item ID: ${cartItemId}, skipping update.`,
               this.context,
@@ -392,8 +373,7 @@ export class CartService {
         );
 
         // Use custom repository update method (still transactional)
-        await this.serviceLocator
-          .getCartItemRepository()
+        await this.cartItemRepository
           .getRepository(entityManager)
           .update(cartItem.id, { quantity: updateData.quantity });
         await this.recalculateCartTotals(cart, entityManager);
@@ -425,20 +405,16 @@ export class CartService {
     cartItemId: number, // Accept as number from controller
     traceId: string,
   ): Promise<CartResponseDto> {
-    this.serviceLocator
-      .getLoggerService()
+    this.loggerService
       .info(
         `[${traceId}] Removing item ID: ${cartItemId} from cart for user ID: ${userId}`,
         this.context,
       );
-    return this.serviceLocator
-      .getTransactionService()
+    return this.transactionService
       .executeInTransaction(async (entityManager: EntityManager) => {
-        const cartRepo = this.serviceLocator
-          .getCartDataService()
+        const cartRepo = this.cartDataService
           .getRepository(entityManager);
-        const cartItemRepo = this.serviceLocator
-          .getCartItemRepository()
+        const cartItemRepo = this.cartItemRepository
           .getRepository(entityManager);
 
         const cart = await cartRepo.findByUserId(userId);
@@ -490,17 +466,13 @@ export class CartService {
 
   async clearCart(userId: number, traceId: string, type: string): Promise<void> {
     try {
-       this.serviceLocator
-      .getLoggerService()
+       this.loggerService
       .info(`[${traceId}] Clearing cart for user ID: ${userId}`, this.context);
-    await this.serviceLocator
-      .getTransactionService()
+    await this.transactionService
       .executeInTransaction(async (entityManager: EntityManager) => {
-        const cartRepo = this.serviceLocator
-          .getCartDataService()
+        const cartRepo = this.cartDataService
           .getRepository(entityManager);
-        const cartItemRepo = this.serviceLocator
-          .getCartItemRepository()
+        const cartItemRepo = this.cartItemRepository
           .getRepository(entityManager);
 
         const cart = await cartRepo.findByUserId(userId);
@@ -544,16 +516,14 @@ export class CartService {
             status: cart.status,
             // Do NOT include: items: []
           });
-          this.serviceLocator
-            .getLoggerService()
+          this.loggerService
             .info(
               `[${traceId}] Cart cleared for user ID: ${userId}`,
               this.context,
             );
           return true;
         } else {
-          this.serviceLocator
-            .getLoggerService()
+          this.loggerService
             .info(
               `[${traceId}] No active cart to clear for user ID: ${userId}`,
               this.context,
@@ -562,8 +532,7 @@ export class CartService {
         }
       });
     } catch (error) {
-      this.serviceLocator
-        .getLoggerService()
+      this.loggerService
         .error(
           `[${traceId}] Error clearing cart for user ID: ${userId}: ${error.message}`,
           error.stack,
@@ -579,8 +548,7 @@ export class CartService {
     productIdString: string,
     traceId: string,
   ): Promise<number | null> {
-    this.serviceLocator
-      .getLoggerService()
+    this.loggerService
       .info(
         `[${traceId}] Attempting to fetch price for product ID: ${productIdString}`,
         this.context,
@@ -589,8 +557,7 @@ export class CartService {
     try {
       productId = parseInt(productIdString, 10);
       if (isNaN(productId)) {
-        this.serviceLocator
-          .getLoggerService()
+        this.loggerService
           .error(
             `[${traceId}] Invalid product ID format: ${productIdString}. Must be a number.`,
             '',
@@ -601,8 +568,7 @@ export class CartService {
         );
       }
     } catch (parseError) {
-      this.serviceLocator
-        .getLoggerService()
+      this.loggerService
         .error(
           `[${traceId}] Error parsing product ID ${productIdString}: ${parseError.message}`,
           parseError.stack,
@@ -624,16 +590,14 @@ export class CartService {
       );
 
       if (productDetails && typeof productDetails.price === 'number') {
-        this.serviceLocator
-          .getLoggerService()
+        this.loggerService
           .info(
             `[${traceId}] Successfully fetched price for product ID ${productId}: ${productDetails.price}`,
             this.context,
           );
         return productDetails.price;
       } else {
-        this.serviceLocator
-          .getLoggerService()
+        this.loggerService
           .info(
             `[${traceId}] Product ID ${productId} found but price is missing or invalid. Response: ${JSON.stringify(productDetails)}`,
             this.context,
@@ -651,16 +615,14 @@ export class CartService {
           'code' in grpcError &&
           grpcError.code === 5
         ) {
-          this.serviceLocator
-            .getLoggerService()
+          this.loggerService
             .info(
               `[${traceId}] Product with ID ${productId} not found via gRPC ProductService.`,
               this.context,
             ); // Changed to info
           return null; // Product not found
         } else {
-          this.serviceLocator
-            .getLoggerService()
+          this.loggerService
             .error(
               `[${traceId}] gRPC error fetching price for product ID ${productId}: ${error.message}`,
               error.stack,
@@ -671,8 +633,7 @@ export class CartService {
           );
         }
       }
-      this.serviceLocator
-        .getLoggerService()
+      this.loggerService
         .error(
           `[${traceId}] Unexpected error fetching price for product ID ${productId}: ${error.message}`,
           error.stack,
@@ -690,11 +651,9 @@ export class CartService {
   ): Promise<void> {
     // Use only custom repository methods
     try {
-      const cartItemRepo = this.serviceLocator
-        .getCartItemRepository()
+      const cartItemRepo = this.cartItemRepository
         .getRepository(entityManager);
-      const cartRepo = this.serviceLocator
-        .getCartDataService()
+      const cartRepo = this.cartDataService
         .getRepository(entityManager);
       const items = await cartItemRepo.findByCartId(cart.id);
       cart.subTotal = items.reduce((sum, item) => {
@@ -717,8 +676,7 @@ export class CartService {
         grandTotal: cart.grandTotal,
       });
     } catch (error) {
-      this.serviceLocator
-        .getLoggerService()
+      this.loggerService
         .error(
           `Error recalculating cart totals for cart ID ${cart.id}: ${error.message}`,
           error.stack,
