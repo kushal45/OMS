@@ -1,15 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OutboxEvent, OutboxEventStatus } from '../entity/outbox-event.entity';
-import { ServiceLocator } from '../service.locator';
+// import { ServiceLocator } from '../service.locator';
+import { KafkaProducer } from '@lib/kafka/KafkaProducer';
 
 @Injectable()
 export class OutboxAdminService {
   constructor(
     @InjectRepository(OutboxEvent)
     private readonly outboxRepo: Repository<OutboxEvent>,
-    private readonly serviceLocator: ServiceLocator,
+    @Inject('KafkaProducerInstance') private readonly kafkaProducer: KafkaProducer,
   ) {}
 
   async listFailedEvents(): Promise<OutboxEvent[]> {
@@ -21,7 +22,7 @@ export class OutboxAdminService {
     if (!event) throw new Error('Event not found');
     if (event.status !== OutboxEventStatus.FAILED) throw new Error('Event is not failed');
     try {
-      await this.serviceLocator.getKafkaProducer().send(event.eventType, {
+      await this.kafkaProducer.send(event.eventType, {
         key: event.payload.userId || event.payload.traceId || String(event.id),
         value: [event.payload],
       });

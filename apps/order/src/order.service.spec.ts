@@ -7,7 +7,7 @@ import { AddressRepository } from '../../../libs/address/src/repository/address.
 import { CustomerAddressRepository } from '../../../libs/address/src/repository/customerAddress.respository';
 import { DefaultOrderConfigService } from './util/orderConfig.service';
 import { TransactionService } from '@app/utils/transaction.service';
-import { ServiceLocator } from './service-locator';
+// import { ServiceLocator } from './service-locator'; // Removed
 import { KafkaProducer } from '../../../libs/kafka/KafkaProducer';
 import { ConfigService } from '@nestjs/config';
 import { LoggerService } from '../../../libs/logger/src';
@@ -23,6 +23,7 @@ import { Product } from '@app/product/src/entity/product.entity';
 // Import centralized test utilities
 import GlobalTestOrmConfigService from '../../../libs/test-utils/src/orm.config.test';
 import { initializeDatabase } from '../../../libs/test-utils/src/test-db-setup.util';
+import { SentryAlertService } from '@lib/sentry'; // Added import
 import { OrderQueryInterface } from './interfaces/order-query-interface';
 import { of } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
@@ -46,6 +47,16 @@ const mockLoggerService = {
   error: jest.fn(),
   warn: jest.fn(),
   debug: jest.fn(),
+};
+
+const mockSentryAlertService = {
+  captureOrderCreatedAlert: jest.fn(),
+  captureOrderCreationError: jest.fn(),
+};
+
+const mockCartService = {
+  getActiveCartByUserId: jest.fn().mockReturnValue(of({ items: [] })),
+  clearCartByUserId: jest.fn().mockReturnValue(of({ success: true })),
 };
 
 describe('OrderService', () => {
@@ -88,6 +99,16 @@ describe('OrderService', () => {
           useValue: {
             getService: () => mockInventoryService,
           },
+        },
+        {
+          provide: 'CART_PACKAGE',
+          useValue: {
+            getService: () => mockCartService,
+          },
+        },
+        {
+          provide: SentryAlertService,
+          useValue: mockSentryAlertService,
         },
         {
           provide: KafkaProducer,
@@ -134,7 +155,7 @@ describe('OrderService', () => {
         CustomerAddressRepository,
         OrderRepository,
         OrderItemsRepository,
-        ServiceLocator,
+        // ServiceLocator, // Removed
       ],
     }).compile();
 

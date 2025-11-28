@@ -14,7 +14,6 @@ import { Order } from './entity/order.entity';
 import { APP_INTERCEPTOR, ModuleRef } from '@nestjs/core';
 import { KafkaProducer } from '@lib/kafka/KafkaProducer';
 import { ClientsModule, Transport } from '@nestjs/microservices';
-import { ServiceLocator } from './service-locator';
 import { KafkaAdminClient } from '@lib/kafka/KafKaAdminClient';
 import { DefaultOrderConfigService } from './util/orderConfig.service'; // Import DefaultOrderConfigService
 import { SchemaRegistryModule, SCHEMA_REGISTRY_SERVICE_TOKEN } from '@lib/kafka/schema-registry.module';
@@ -87,7 +86,6 @@ console.log("resolvedPath",resolvedEnvPath);
     OrderItemsRepository,
     OrderRepository,
     TransactionService,
-    ServiceLocator,
     DefaultOrderConfigService, // Add DefaultOrderConfigService to providers
     {
       provide: APP_INTERCEPTOR,

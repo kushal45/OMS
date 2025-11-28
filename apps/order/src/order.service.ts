@@ -17,13 +17,17 @@ import { UpdateOrderDto } from './dto/update-order-req.dto';
 import { ClientGrpc } from '@nestjs/microservices';
 import { OrderQueryInterface } from './interfaces/order-query-interface';
 import { firstValueFrom, Observable } from 'rxjs';
-import { ServiceLocator } from './service-locator';
+// import { ServiceLocator } from './service-locator';
 // import { KafkaProducer } from '@lib/kafka/KafkaProducer'; // No longer directly used here
 import { ConfigService } from '@nestjs/config';
 import { OutboxEvent, OutboxEventStatus } from '../../cart/src/entity/outbox-event.entity'; // Ensure this path is correct
 import { EntityManager } from 'typeorm';
 import type { CartResponseDto__Output } from '../../cart/src/proto/cart/CartResponseDto';
 import { SentryAlertService, OrderCreatedAlert } from '@lib/sentry';
+import { TransactionService } from '@app/utils/transaction.service';
+import { OrderRepository } from './repository/order.repository';
+import { OrderItemsRepository } from './repository/orderItems.repository';
+import { LoggerService } from '@lib/logger/src';
 
 interface InventoryService {
   validate(
@@ -60,13 +64,17 @@ interface CartServiceGrpc {
 export class OrderService {
   private context = OrderService.name;
   private cartServiceGrpc: CartServiceGrpc;
-  constructor(
-    private readonly serviceLocator: ServiceLocator, // Will be gradually phased out if this approach is continued
+    constructor(
     private readonly orderConfigService: DefaultOrderConfigService,
-    private readonly addressService: AddressService, // Inject AddressService
+    private readonly addressService: AddressService,
     @Inject('CART_PACKAGE') private readonly cartClient: ClientGrpc,
-    private readonly configService: ConfigService, // Injected ConfigService
-    private readonly sentryAlertService: SentryAlertService, // Inject SentryAlertService
+    private readonly configService: ConfigService,
+    private readonly sentryAlertService: SentryAlertService,
+    private readonly transactionService: TransactionService,
+    private readonly orderRepository: OrderRepository,
+    private readonly orderItemsRepository: OrderItemsRepository,
+    private readonly loggerService: LoggerService,
+    @Inject('INVENTORY_PACKAGE') private readonly inventoryClient: ClientGrpc,
   ) {}
 
   onModuleInit() {
@@ -110,7 +118,7 @@ export class OrderService {
       const percentageDeliveryChargeStrategy =
         new PercentageDeliveryChargeStrategy();
       const orderCreationConfig = this.orderConfigService.getOrderConfig(); // Use injected service
-      await this.serviceLocator.getTransactionService().executeInTransaction(
+      await this.transactionService.executeInTransaction(
         async (entityManager) => {
           const totalOrderAmtInfo = getOrderInfo(
             orderItems,
@@ -118,9 +126,9 @@ export class OrderService {
             percentageDeliveryChargeStrategy,
           );
           const orderRepo =
-            this.serviceLocator.getOrderRepository().getRepository(entityManager);
+            this.orderRepository.getRepository(entityManager);
           const orderItemsRepo =
-            this.serviceLocator.getOrderItemsRepository().getRepository(entityManager);
+            this.orderItemsRepository.getRepository(entityManager);
 
           orderResponse = await orderRepo.create({
             ...totalOrderAmtInfo,
@@ -146,13 +154,13 @@ export class OrderService {
               const clearCartResult = await firstValueFrom(
                 this.cartServiceGrpc.clearCartByUserId({ userId: userId.toString() })
               );
-              const logger = this.serviceLocator.getLoggerService();
+              const logger = this.loggerService;
               logger.info(
                 `CartService.clearCartByUserId gRPC result: ${JSON.stringify(clearCartResult)}`,
                 traceId,
               );
             } catch (err) {
-              const logger = this.serviceLocator.getLoggerService();
+              const logger = this.loggerService;
               logger.error(
                 `Failed to clear cart via gRPC after order creation: ${err?.message || err}`,
                 traceId,
@@ -164,7 +172,7 @@ export class OrderService {
         },
       );
 
-      const logger = this.serviceLocator.getLoggerService();
+      const logger = this.loggerService;
       logger.info(
         `Order ${orderResponse.aliasId} created successfully. Outbox event for inventory removal queued.`,
         traceId,
@@ -192,7 +200,7 @@ export class OrderService {
      */
     console.log("orderItems before sending to inventory",orderItems);
     const validationResponse = await firstValueFrom(
-      this.serviceLocator.getInventoryService()
+      this.inventoryClient
         .getService<InventoryService>('InventoryService')
         .validate({orderItems}),
     );
@@ -220,19 +228,19 @@ export class OrderService {
   }
 
   async getOrders(userId: number): Promise<Order[]> {
-    return this.serviceLocator.getOrderRepository().find(userId);
+    return this.orderRepository.find(userId);
   }
 
   async getOrderItems(aliasId: string): Promise<OrderItems[]> {
-    const order = await this.serviceLocator.getOrderRepository().findOne({
+    const order = await this.orderRepository.findOne({
       aliasId,
     });
     if (!order) throw new NotFoundException('Order not found');
-    return this.serviceLocator.getOrderItemsRepository().findAll(order.id);
+    return this.orderItemsRepository.findAll(order.id);
   }
 
   async getOrderById(aliasId: string): Promise<Order> {
-    const order = await this.serviceLocator.getOrderRepository().findOne({
+    const order = await this.orderRepository.findOne({
       aliasId,
     });
     if (!order) throw new NotFoundException('Order not found');
@@ -258,7 +266,7 @@ export class OrderService {
       config,
       percentageDeliveryChargeStrategy,
     );
-    const updatedOrderResponse = await this.serviceLocator.getOrderRepository().update(aliasId, {
+    const updatedOrderResponse = await this.orderRepository.update(aliasId, {
       ...totalOrderAmtInfo,
     });
     return this.filterOrderResponse(updatedOrderResponse);
@@ -268,21 +276,21 @@ export class OrderService {
     aliasId: string,
     orderItems: UpdateOrderDto['orderItems'],
   ): Promise<boolean> {
-    const order = await this.serviceLocator.getOrderRepository().findOne({
+    const order = await this.orderRepository.findOne({
       aliasId,
     });
     if (!order) throw new NotFoundException('Order not found');
     let orderId = order.id;
-    const existingOrderItems = await this.serviceLocator.getOrderItemsRepository().findAll(orderId);
+    const existingOrderItems = await this.orderItemsRepository.findAll(orderId);
 
     const itemsToUpdate = [];
     const itemsToCreate = [];
     let insertLen = 0;
     let updateLen = 0;
-    await this.serviceLocator.getTransactionService().executeInTransaction(
+    await this.transactionService.executeInTransaction(
       async (entityManager) => {
         const orderItemsRepo =
-          this.serviceLocator.getOrderItemsRepository().getRepository(entityManager);
+          this.orderItemsRepository.getRepository(entityManager);
         orderItems.forEach((item) => {
           const existingItem = existingOrderItems.find(
             (existing) => existing.productId === item.productId,
@@ -313,13 +321,13 @@ export class OrderService {
   }
 
   async cancelOrder(aliasId: string): Promise<Order> {
-    const orderRepo = this.serviceLocator.getOrderRepository();
-    const orderItemsRepo = this.serviceLocator.getOrderItemsRepository();
+    const orderRepo = this.orderRepository;
+    const orderItemsRepo = this.orderItemsRepository;
     // const outboxRepo = this.serviceLocator.getOutboxEventRepository(); // Assuming you have a way to get this
 
     let cancelledOrder: Order;
 
-    await this.serviceLocator.getTransactionService().executeInTransaction(
+    await this.transactionService.executeInTransaction(
       async (entityManager: EntityManager) => {
         const transactionalOrderRepo = orderRepo.getRepository(entityManager);
         const transactionalOrderItemsRepo = orderItemsRepo.getRepository(entityManager);
@@ -339,7 +347,7 @@ export class OrderService {
         const orderItems = await transactionalOrderItemsRepo.findAll(order.id);
 
         if (!orderItems || orderItems.length === 0) {
-          this.serviceLocator.getLoggerService().info(
+          this.loggerService.info(
             `Order ${aliasId} has no items to replenish. Still cancelling order.`,
             this.context,
           );
@@ -362,7 +370,7 @@ export class OrderService {
 
           await outboxRepository.save(outboxEvent);
 
-          this.serviceLocator.getLoggerService().info(
+          this.loggerService.info(
             `Outbox event created for replenishing items of order ${aliasId}.`,
             this.context,
           );
@@ -385,11 +393,11 @@ export class OrderService {
   }
 
   async deleteOrder(id: number): Promise<boolean> {
-    const order = await this.serviceLocator.getOrderRepository().findOne({
+    const order = await this.orderRepository.findOne({
       id,
     });
     if (!order) throw new NotFoundException('Order not found');
-    return await this.serviceLocator.getOrderRepository().delete(id);
+    return await this.orderRepository.delete(id);
   }
 
   async fetchActiveCartForUser(userId: string): Promise<any> {
@@ -426,13 +434,13 @@ export class OrderService {
 
         await this.sentryAlertService.captureOrderCreatedAlert(alertData);
         
-        const logger = this.serviceLocator.getLoggerService();
+        const logger = this.loggerService;
         logger.info(
           `Sentry order creation alert triggered for order ${order.aliasId}`,
           traceId,
         );
       } catch (error) {
-        const logger = this.serviceLocator.getLoggerService();
+        const logger = this.loggerService;
         logger.error(
           `Failed to trigger Sentry alert for order ${order.aliasId}: ${error?.message || error}`,
           traceId,
@@ -454,13 +462,13 @@ export class OrderService {
       try {
         await this.sentryAlertService.captureOrderCreationError(error, orderData);
         
-        const logger = this.serviceLocator.getLoggerService();
+        const logger = this.loggerService;
         logger.info(
           `Sentry error captured for order creation failure: ${error.message}`,
           traceId,
         );
       } catch (captureError) {
-        const logger = this.serviceLocator.getLoggerService();
+        const logger = this.loggerService;
         logger.error(
           `Failed to capture Sentry error for order creation: ${captureError?.message || captureError}`,
           traceId,

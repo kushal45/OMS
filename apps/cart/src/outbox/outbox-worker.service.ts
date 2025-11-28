@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { OutboxEvent, OutboxEventStatus } from '../entity/outbox-event.entity';
-import { ServiceLocator } from '../service.locator';
+// import { ServiceLocator } from '../service.locator';
+import { KafkaProducer } from '@lib/kafka/KafkaProducer';
 
 @Injectable()
 export class OutboxWorkerService {
@@ -13,7 +14,7 @@ export class OutboxWorkerService {
   constructor(
     @InjectRepository(OutboxEvent)
     private readonly outboxRepo: Repository<OutboxEvent>,
-    private readonly serviceLocator: ServiceLocator,
+    @Inject('KafkaProducerInstance') private readonly kafkaProducer: KafkaProducer,
   ) {}
 
   onModuleInit() {
@@ -44,7 +45,7 @@ export class OutboxWorkerService {
           lastError = undefined;
           while (attempt < maxRetries) {
             try {
-              kafkaProduceRes = await this.serviceLocator.getKafkaProducer().send(event.eventType, {
+              kafkaProduceRes = await this.kafkaProducer.send(event.eventType, {
                 key: messagePayload.userId || messagePayload.traceId || messagePayload.orderId || String(event.id),
                 value: [messagePayload],
               });
