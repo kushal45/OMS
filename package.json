@@ -82,7 +82,7 @@
     "winston-elasticsearch": "^0.11.0"
   },
   "devDependencies": {
-    "@nestjs/cli": "^11.0.10",
+    "@nestjs/cli": "^11.0.16",
     "@nestjs/testing": "^10.4.20",
     "copyfiles": "^2.4.1",
     "eslint": "^9.0.0",
